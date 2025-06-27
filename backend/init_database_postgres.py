@@ -27,6 +27,10 @@ def init_database():
     
     print("🚀 Starting PostgreSQL database initialization...")
     
+    # Drop all tables first (for clean start)
+    print("🗑️  Dropping existing tables...")
+    Base.metadata.drop_all(bind=engine)
+    
     # Create all tables
     print("📊 Creating database tables...")
     Base.metadata.create_all(bind=engine)
@@ -36,16 +40,6 @@ def init_database():
     session = Session()
     
     try:
-        # Check if already initialized by checking if tables exist
-        try:
-            existing_admin = session.query(SystemAdmin).first()
-            if existing_admin:
-                print("⚠️  Database already initialized. Skipping...")
-                return
-        except Exception:
-            # Tables don't exist yet, which is expected on first run
-            pass
-        
         # Create default system admin
         print("👤 Creating default system admin...")
         admin_password = "admin123"  # Change in production!
@@ -58,6 +52,7 @@ def init_database():
             is_active=True
         )
         session.add(admin)
+        session.commit()  # Commit admin first
         
         # Create demo tenant
         print("🏢 Creating demo tenant...")
@@ -72,7 +67,7 @@ def init_database():
             max_categories=10
         )
         session.add(demo_tenant)
-        session.commit()
+        session.commit()  # Commit tenant to get ID
         
         # Create demo user for the tenant
         print("👤 Creating demo user...")
@@ -88,6 +83,7 @@ def init_database():
             is_active=True
         )
         session.add(demo_user)
+        session.commit()  # Commit user
         
         # Create default settings for demo tenant
         print("⚙️  Creating default settings...")
@@ -104,6 +100,7 @@ def init_database():
             language="en"
         )
         session.add(settings)
+        session.commit()  # Commit settings
         
         # Create sample categories
         print("📁 Creating sample categories...")
@@ -114,24 +111,20 @@ def init_database():
             {"name": "Beverages", "description": "Refreshing drinks", "sort_order": 4}
         ]
         
+        category_objects = []
         for cat_data in categories:
             category = Category(tenant_id=demo_tenant.id, **cat_data)
             session.add(category)
+            category_objects.append(category)
         
-        session.commit()
-        
-        # Get category IDs
-        appetizers = session.query(Category).filter_by(name="Appetizers", tenant_id=demo_tenant.id).first()
-        mains = session.query(Category).filter_by(name="Main Courses", tenant_id=demo_tenant.id).first()
-        desserts = session.query(Category).filter_by(name="Desserts", tenant_id=demo_tenant.id).first()
-        beverages = session.query(Category).filter_by(name="Beverages", tenant_id=demo_tenant.id).first()
+        session.commit()  # Commit categories
         
         # Create sample menu items
         print("🍽️  Creating sample menu items...")
         menu_items = [
             # Appetizers
             {
-                "category_id": appetizers.id,
+                "category_id": category_objects[0].id,
                 "name": "Bruschetta",
                 "description": "Grilled bread with tomatoes, garlic, and basil",
                 "price": 8.99,
@@ -140,7 +133,7 @@ def init_database():
                 "sort_order": 1
             },
             {
-                "category_id": appetizers.id,
+                "category_id": category_objects[0].id,
                 "name": "Caesar Salad",
                 "description": "Crisp romaine, parmesan, croutons, Caesar dressing",
                 "price": 10.99,
@@ -150,7 +143,7 @@ def init_database():
             },
             # Main Courses
             {
-                "category_id": mains.id,
+                "category_id": category_objects[1].id,
                 "name": "Grilled Salmon",
                 "description": "Atlantic salmon with lemon butter sauce",
                 "price": 24.99,
@@ -159,7 +152,7 @@ def init_database():
                 "sort_order": 1
             },
             {
-                "category_id": mains.id,
+                "category_id": category_objects[1].id,
                 "name": "Ribeye Steak",
                 "description": "12oz prime ribeye, perfectly seasoned",
                 "price": 32.99,
@@ -169,7 +162,7 @@ def init_database():
             },
             # Desserts
             {
-                "category_id": desserts.id,
+                "category_id": category_objects[2].id,
                 "name": "Chocolate Lava Cake",
                 "description": "Warm chocolate cake with molten center",
                 "price": 7.99,
@@ -179,7 +172,7 @@ def init_database():
             },
             # Beverages
             {
-                "category_id": beverages.id,
+                "category_id": category_objects[3].id,
                 "name": "Fresh Orange Juice",
                 "description": "Freshly squeezed orange juice",
                 "price": 4.99,
@@ -193,37 +186,35 @@ def init_database():
             item = MenuItem(tenant_id=demo_tenant.id, **item_data)
             session.add(item)
         
+        session.commit()  # Commit menu items
+        
         # Create default allergen icons
         print("🥜 Creating default allergen icons...")
         allergens = [
-            {"id": 1, "name": "Gluten", "icon": "🌾"},
-            {"id": 2, "name": "Dairy", "icon": "🥛"},
-            {"id": 3, "name": "Eggs", "icon": "🥚"},
-            {"id": 4, "name": "Fish", "icon": "🐟"},
-            {"id": 5, "name": "Shellfish", "icon": "🦐"},
-            {"id": 6, "name": "Tree Nuts", "icon": "🌰"},
-            {"id": 7, "name": "Peanuts", "icon": "🥜"},
-            {"id": 8, "name": "Soy", "icon": "🌱"},
-            {"id": 9, "name": "Sesame", "icon": "🌻"}
+            {"name": "Gluten", "icon": "🌾"},
+            {"name": "Dairy", "icon": "🥛"},
+            {"name": "Eggs", "icon": "🥚"},
+            {"name": "Fish", "icon": "🐟"},
+            {"name": "Shellfish", "icon": "🦐"},
+            {"name": "Tree Nuts", "icon": "🌰"},
+            {"name": "Peanuts", "icon": "🥜"},
+            {"name": "Soy", "icon": "🌱"},
+            {"name": "Sesame", "icon": "🌻"}
         ]
         
-        for allergen_data in allergens:
-            # Use raw SQL for PostgreSQL to handle the id column properly
-            session.execute(
-                text("""
-                    INSERT INTO allergen_icons (id, name, icon, tenant_id) 
-                    VALUES (:id, :name, :icon, :tenant_id)
-                    ON CONFLICT (id) DO NOTHING
-                """),
-                {
-                    "id": allergen_data["id"],
-                    "name": allergen_data["name"],
-                    "icon": allergen_data["icon"],
-                    "tenant_id": demo_tenant.id
-                }
-            )
+        # Reset sequence for allergen_icons to start from 1
+        session.execute(text("ALTER SEQUENCE allergen_icons_id_seq RESTART WITH 1"))
         
-        session.commit()
+        for i, allergen_data in enumerate(allergens, 1):
+            allergen = AllergenIcon(
+                id=i,
+                name=allergen_data["name"],
+                icon=allergen_data["icon"],
+                tenant_id=demo_tenant.id
+            )
+            session.add(allergen)
+        
+        session.commit()  # Commit allergens
         
         print("\n✅ Database initialization complete!")
         print("\n📋 Default Credentials:")
