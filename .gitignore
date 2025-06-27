@@ -14,8 +14,6 @@ ENV/
 .env.local
 .env.production
 .env.*.local
-.env.postgres
-.env.production.postgres
 
 # IDE
 .vscode/
