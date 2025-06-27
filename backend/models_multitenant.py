@@ -81,11 +81,13 @@ class Category(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
-    value = Column(String(50), nullable=False)
-    label = Column(String(100), nullable=False)
-    label_ar = Column(String(100))
-    icon = Column(String(50))
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)
+    image_url = Column(String(500), nullable=True)
+    is_active = Column(Boolean, default=True)
     sort_order = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, nullable=True)
     
     # Relationships
     tenant = relationship("Tenant", back_populates="categories")

@@ -198,9 +198,16 @@ def get_categories(
         raise
     except Exception as e:
         print(f"Error in get_categories for {subdomain}: {str(e)}")
+        print(f"Error type: {type(e).__name__}")
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        # Return the actual error for debugging
+        error_detail = {
+            "error": str(e),
+            "type": type(e).__name__,
+            "subdomain": subdomain
+        }
+        raise HTTPException(status_code=500, detail=error_detail)
 
 @app.post("/api/{subdomain}/categories", response_model=CategoryResponse)
 def create_category(
@@ -215,10 +222,10 @@ def create_category(
         raise HTTPException(status_code=403, detail="Not authorized")
     
     db_category = Category(
-        value=category.value,
-        label=category.label,
-        label_ar=category.label_ar,
-        icon=category.icon,
+        name=category.name,
+        description=category.description,
+        image_url=category.image_url,
+        is_active=category.is_active,
         tenant_id=current_user.tenant_id,
         sort_order=category.sort_order
     )
@@ -552,6 +559,53 @@ def list_routes():
                 "methods": list(route.methods) if hasattr(route, "methods") else []
             })
     return {"routes": routes}
+
+# Debug endpoint to check database schema
+@app.get("/api/debug/schema/{table_name}")
+def check_schema(table_name: str, db: Session = Depends(get_db)):
+    """Check the actual columns in a table"""
+    try:
+        # Get one row to see actual data
+        if table_name == "categories":
+            sample = db.query(Category).first()
+            if sample:
+                return {
+                    "table": table_name,
+                    "sample_data": {
+                        "id": sample.id if hasattr(sample, 'id') else None,
+                        "tenant_id": sample.tenant_id if hasattr(sample, 'tenant_id') else None,
+                        "value": sample.value if hasattr(sample, 'value') else None,
+                        "label": sample.label if hasattr(sample, 'label') else None,
+                        "label_ar": sample.label_ar if hasattr(sample, 'label_ar') else None,
+                        "icon": sample.icon if hasattr(sample, 'icon') else None,
+                        "sort_order": sample.sort_order if hasattr(sample, 'sort_order') else None,
+                        "name": sample.name if hasattr(sample, 'name') else None,
+                        "description": sample.description if hasattr(sample, 'description') else None,
+                    },
+                    "actual_attributes": dir(sample)
+                }
+        elif table_name == "menu_items":
+            sample = db.query(MenuItem).first()
+            if sample:
+                return {
+                    "table": table_name,
+                    "sample_data": {
+                        "id": sample.id if hasattr(sample, 'id') else None,
+                        "name": sample.name if hasattr(sample, 'name') else None,
+                        "price": sample.price if hasattr(sample, 'price') else None,
+                        "image": sample.image if hasattr(sample, 'image') else None,
+                        "image_url": sample.image_url if hasattr(sample, 'image_url') else None,
+                    },
+                    "has_attributes": {
+                        "created_at": hasattr(sample, 'created_at'),
+                        "updated_at": hasattr(sample, 'updated_at'),
+                        "is_featured": hasattr(sample, 'is_featured'),
+                        "is_spicy": hasattr(sample, 'is_spicy'),
+                    }
+                }
+        return {"table": table_name, "no_data": True}
+    except Exception as e:
+        return {"error": str(e), "type": type(e).__name__}
 
 if __name__ == "__main__":
     import uvicorn

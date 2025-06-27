@@ -248,15 +248,16 @@ async def create_tenant(
     
     # Create default categories
     default_categories = [
-        {"value": "appetizers", "label": "Appetizers", "label_ar": "المقبلات", "sort_order": 1},
-        {"value": "mains", "label": "Main Courses", "label_ar": "الأطباق الرئيسية", "sort_order": 2},
-        {"value": "desserts", "label": "Desserts", "label_ar": "الحلويات", "sort_order": 3},
-        {"value": "beverages", "label": "Beverages", "label_ar": "المشروبات", "sort_order": 4}
+        {"name": "Appetizers", "description": "Start your meal with our delicious appetizers", "sort_order": 1},
+        {"name": "Main Courses", "description": "Hearty and satisfying main dishes", "sort_order": 2},
+        {"name": "Desserts", "description": "Sweet treats to end your meal", "sort_order": 3},
+        {"name": "Beverages", "description": "Refreshing drinks and beverages", "sort_order": 4}
     ]
     
     for cat_data in default_categories:
         category = Category(
             tenant_id=tenant.id,
+            is_active=True,
             **cat_data
         )
         db.add(category)

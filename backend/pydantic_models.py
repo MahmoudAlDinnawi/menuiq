@@ -80,27 +80,29 @@ class MenuItemResponse(BaseModel):
 
 # Category Models
 class CategoryCreate(BaseModel):
-    value: str
-    label: str
-    label_ar: Optional[str] = None
-    icon: Optional[str] = None
+    name: str
+    description: Optional[str] = None
+    image_url: Optional[str] = None
+    is_active: bool = True
     sort_order: int = 0
 
 class CategoryUpdate(BaseModel):
-    value: Optional[str] = None
-    label: Optional[str] = None
-    label_ar: Optional[str] = None
-    icon: Optional[str] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    image_url: Optional[str] = None
+    is_active: Optional[bool] = None
     sort_order: Optional[int] = None
 
 class CategoryResponse(BaseModel):
     id: int
     tenant_id: int
-    value: str
-    label: str
-    label_ar: Optional[str] = None
-    icon: Optional[str] = None
+    name: str
+    description: Optional[str] = None
+    image_url: Optional[str] = None
+    is_active: bool = True
     sort_order: int
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

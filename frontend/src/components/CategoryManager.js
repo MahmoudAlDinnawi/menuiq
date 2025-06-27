@@ -6,10 +6,10 @@ const CategoryManager = ({ categories, onUpdate }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingCategory, setEditingCategory] = useState(null);
   const [formData, setFormData] = useState({
-    value: '',
-    label: '',
-    labelAr: '',
-    sortOrder: 0
+    name: '',
+    description: '',
+    sortOrder: 0,
+    isActive: true
   });
 
   const handleSubmit = async (e) => {
@@ -30,10 +30,10 @@ const CategoryManager = ({ categories, onUpdate }) => {
   const handleEdit = (category) => {
     setEditingCategory(category);
     setFormData({
-      value: category.value,
-      label: category.label,
-      labelAr: category.labelAr || '',
-      sortOrder: category.sortOrder || 0
+      name: category.name,
+      description: category.description || '',
+      sortOrder: category.sortOrder || 0,
+      isActive: category.isActive !== undefined ? category.isActive : true
     });
     setShowForm(true);
   };
@@ -53,10 +53,10 @@ const CategoryManager = ({ categories, onUpdate }) => {
     setShowForm(false);
     setEditingCategory(null);
     setFormData({
-      value: '',
-      label: '',
-      labelAr: '',
-      sortOrder: 0
+      name: '',
+      description: '',
+      sortOrder: 0,
+      isActive: true
     });
   };
 
@@ -77,11 +77,11 @@ const CategoryManager = ({ categories, onUpdate }) => {
         {categories.map((category) => (
           <div key={category.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
             <div>
-              <h3 className="font-semibold text-primary">{category.label}</h3>
-              {category.labelAr && (
-                <p className="text-sm text-gray-600 mt-1">{category.labelAr}</p>
+              <h3 className="font-semibold text-primary">{category.name}</h3>
+              {category.description && (
+                <p className="text-sm text-gray-600 mt-1">{category.description}</p>
               )}
-              <p className="text-xs text-gray-500 mt-1">Value: {category.value}</p>
+              <p className="text-xs text-gray-500 mt-1">Sort Order: {category.sortOrder || 0}</p>
             </div>
             <div className="flex gap-2">
               <button
@@ -115,25 +115,12 @@ const CategoryManager = ({ categories, onUpdate }) => {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-primary mb-2">
-                  Category Value (no spaces) *
+                  Category Name *
                 </label>
                 <input
                   type="text"
-                  value={formData.value}
-                  onChange={(e) => setFormData({ ...formData, value: e.target.value.replace(/\s/g, '') })}
-                  required
-                  placeholder="e.g., appetizers"
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-primary focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-primary mb-2">
-                  Display Name (English) *
-                </label>
-                <input
-                  type="text"
-                  value={formData.label}
-                  onChange={(e) => setFormData({ ...formData, label: e.target.value })}
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
                   placeholder="e.g., Appetizers"
                   className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-primary focus:outline-none"
@@ -141,15 +128,14 @@ const CategoryManager = ({ categories, onUpdate }) => {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-primary mb-2">
-                  Display Name (Arabic)
+                  Description
                 </label>
-                <input
-                  type="text"
-                  value={formData.labelAr}
-                  onChange={(e) => setFormData({ ...formData, labelAr: e.target.value })}
-                  placeholder="e.g., المقبلات"
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Brief description of this category"
+                  rows="3"
                   className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-primary focus:outline-none"
-                  dir="rtl"
                 />
               </div>
               <div>
