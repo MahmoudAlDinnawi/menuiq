@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 
 from database import get_db
-from models_exact import (
+from models_final import (
     Tenant, User, Category, MenuItem, Settings, 
     AllergenIcon, ItemAllergen
 )
@@ -213,7 +213,7 @@ async def delete_category(
     return {"message": "Category deleted successfully"}
 
 # Menu Items CRUD
-@router.get("/menu-items", response_model=List[MenuItemResponse])
+@router.get("/menu-items")
 async def get_menu_items(
     category_id: Optional[int] = None,
     search: Optional[str] = None,
@@ -244,19 +244,48 @@ async def get_menu_items(
     
     items = query.order_by(MenuItem.sort_order, MenuItem.id).offset(skip).limit(limit).all()
     
-    # Load allergens for each item
+    # Convert to dict and handle decimal price
+    result = []
     for item in items:
-        item.allergens = []
+        item_dict = {
+            "id": item.id,
+            "tenant_id": item.tenant_id,
+            "category_id": item.category_id,
+            "name": item.name,
+            "description": item.description,
+            "price": float(item.price) if item.price else None,
+            "image_url": item.image_url,
+            "is_available": item.is_available,
+            "is_featured": item.is_featured,
+            "is_vegetarian": item.is_vegetarian,
+            "is_vegan": item.is_vegan,
+            "is_gluten_free": item.is_gluten_free,
+            "is_spicy": item.is_spicy,
+            "spice_level": item.spice_level,
+            "preparation_time": item.preparation_time,
+            "calories": item.calories,
+            "serving_size": item.serving_size,
+            "ingredients": item.ingredients,
+            "nutritional_info": item.nutritional_info,
+            "sort_order": item.sort_order,
+            "created_at": item.created_at.isoformat() if item.created_at else None,
+            "updated_at": item.updated_at.isoformat() if item.updated_at else None,
+            "allergens": []
+        }
+        
+        # Load allergens
         allergen_records = db.query(ItemAllergen).filter(
             ItemAllergen.item_id == item.id
         ).all()
         for allergen in allergen_records:
-            item.allergens.append({
+            item_dict["allergens"].append({
                 "id": allergen.id,
                 "name": allergen.allergen_name
             })
+        
+        result.append(item_dict)
     
-    return items
+    return result
 
 @router.get("/menu-items/{item_id}", response_model=MenuItemResponse)
 async def get_menu_item(
@@ -288,7 +317,7 @@ async def get_menu_item(
     
     return item
 
-@router.post("/menu-items", response_model=MenuItemResponse)
+@router.post("/menu-items")
 async def create_menu_item(
     menu_item: MenuItemCreate,
     current_user: dict = Depends(get_current_user_dict),
@@ -320,6 +349,11 @@ async def create_menu_item(
     
     # Create menu item
     item_data = menu_item.dict(exclude={'allergen_ids'})
+    # Convert price to Decimal if provided
+    if 'price' in item_data and item_data['price'] is not None:
+        from decimal import Decimal
+        item_data['price'] = Decimal(str(item_data['price']))
+    
     db_item = MenuItem(
         tenant_id=tenant.id,
         **item_data
@@ -347,18 +381,32 @@ async def create_menu_item(
         
         db.commit()
     
-    # Load allergens for response
-    db_item.allergens = []
-    allergen_records = db.query(ItemAllergen).filter(
-        ItemAllergen.item_id == db_item.id
-    ).all()
-    for allergen in allergen_records:
-        db_item.allergens.append({
-            "id": allergen.id,
-            "name": allergen.allergen_name
-        })
-    
-    return db_item
+    # Return as dict
+    return {
+        "id": db_item.id,
+        "tenant_id": db_item.tenant_id,
+        "category_id": db_item.category_id,
+        "name": db_item.name,
+        "description": db_item.description,
+        "price": float(db_item.price) if db_item.price else None,
+        "image_url": db_item.image_url,
+        "is_available": db_item.is_available,
+        "is_featured": db_item.is_featured,
+        "is_vegetarian": db_item.is_vegetarian,
+        "is_vegan": db_item.is_vegan,
+        "is_gluten_free": db_item.is_gluten_free,
+        "is_spicy": db_item.is_spicy,
+        "spice_level": db_item.spice_level,
+        "preparation_time": db_item.preparation_time,
+        "calories": db_item.calories,
+        "serving_size": db_item.serving_size,
+        "ingredients": db_item.ingredients,
+        "nutritional_info": db_item.nutritional_info,
+        "sort_order": db_item.sort_order,
+        "created_at": db_item.created_at.isoformat() if db_item.created_at else None,
+        "updated_at": db_item.updated_at.isoformat() if db_item.updated_at else None,
+        "allergens": []
+    }
 
 @router.put("/menu-items/{item_id}", response_model=MenuItemResponse)
 async def update_menu_item(

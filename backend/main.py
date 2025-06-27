@@ -18,7 +18,7 @@ load_dotenv('.env' if os.getenv('ENVIRONMENT') != 'production' else '.env.produc
 
 # Import database and models
 from database import get_db, engine
-from models_exact import (
+from models_final import (
     Base, Tenant, User, SystemAdmin, Category, MenuItem, 
     ItemAllergen, Settings, AllergenIcon, ActivityLog
 )
@@ -41,7 +41,7 @@ from system_admin_routes import router as system_admin_router
 from tenant_auth_routes import router as tenant_auth_router
 from public_routes import router as public_router
 from tenant_routes_v2 import router as tenant_router_v2
-from test_route import router as test_router
+from public_menu_routes import router as public_menu_router
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -79,7 +79,7 @@ app.include_router(system_admin_router)
 app.include_router(tenant_auth_router)
 app.include_router(public_router)
 app.include_router(tenant_router_v2)
-app.include_router(test_router)
+app.include_router(public_menu_router)
 
 # Helper Functions
 def get_tenant_by_subdomain(db: Session, subdomain: str) -> Tenant:

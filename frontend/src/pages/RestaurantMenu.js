@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import LuxuryCategoryFilter from '../components/LuxuryCategoryFilter';
 import GuestFriendlyMenuCard from '../components/GuestFriendlyMenuCard';
 import GuestFriendlyMobileCard from '../components/GuestFriendlyMobileCard';
-import api from '../services/api';
-import tenantAPI from '../services/tenantApi';
+import publicMenuAPI from '../services/publicMenuApi';
 import DOMPurify from 'dompurify';
 
 const RestaurantMenu = () => {
@@ -33,9 +32,9 @@ const RestaurantMenu = () => {
     try {
       setLoading(true);
       const [itemsResponse, categoriesResponse, settingsResponse] = await Promise.all([
-        tenantAPI.getMenuItems(),
-        tenantAPI.getCategories(),
-        tenantAPI.getSettings()
+        publicMenuAPI.getMenuItems(),
+        publicMenuAPI.getCategories(),
+        publicMenuAPI.getSettings()
       ]);
       setMenuItems(itemsResponse);
       setCategories(categoriesResponse);
