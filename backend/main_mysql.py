@@ -256,11 +256,11 @@ def read_root():
 def get_menu_items(
     request: Request,
     category: Optional[str] = None, 
-    db: Session = Depends(get_db),
-    current_user: Optional[User] = None
+    db: Session = Depends(get_db)
 ):
     """Get all menu items or filter by category"""
     # Try to get authenticated user
+    current_user = None
     try:
         from auth import get_current_user
         auth_header = request.headers.get('authorization')
