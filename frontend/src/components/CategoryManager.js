@@ -15,14 +15,23 @@ const CategoryManager = ({ categories, onUpdate }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Convert frontend field names to match backend expectations
+      const apiData = {
+        name: formData.name,
+        description: formData.description,
+        sort_order: formData.sortOrder,
+        is_active: formData.isActive
+      };
+      
       if (editingCategory) {
-        await tenantAPI.updateCategory(editingCategory.id, formData);
+        await tenantAPI.updateCategory(editingCategory.id, apiData);
       } else {
-        await tenantAPI.createCategory(formData);
+        await tenantAPI.createCategory(apiData);
       }
       onUpdate();
       resetForm();
     } catch (error) {
+      console.error('Category save error:', error);
       alert('Failed to save category. Please try again.');
     }
   };
@@ -32,8 +41,8 @@ const CategoryManager = ({ categories, onUpdate }) => {
     setFormData({
       name: category.name,
       description: category.description || '',
-      sortOrder: category.sortOrder || 0,
-      isActive: category.isActive !== undefined ? category.isActive : true
+      sortOrder: category.sort_order || category.sortOrder || 0,
+      isActive: category.is_active !== undefined ? category.is_active : (category.isActive !== undefined ? category.isActive : true)
     });
     setShowForm(true);
   };
@@ -81,7 +90,7 @@ const CategoryManager = ({ categories, onUpdate }) => {
               {category.description && (
                 <p className="text-sm text-gray-600 mt-1">{category.description}</p>
               )}
-              <p className="text-xs text-gray-500 mt-1">Sort Order: {category.sortOrder || 0}</p>
+              <p className="text-xs text-gray-500 mt-1">Sort Order: {category.sort_order || category.sortOrder || 0}</p>
             </div>
             <div className="flex gap-2">
               <button
