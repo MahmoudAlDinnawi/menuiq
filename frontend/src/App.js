@@ -15,6 +15,16 @@ function App() {
   const isSystemAdmin = hostname === 'app.menuiq.io';
   const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
 
+  // Debug logging
+  console.log('App loaded - Hostname:', hostname);
+  console.log('Is System Admin:', isSystemAdmin);
+  console.log('Is Main Domain:', isMainDomain);
+
+  // If error, at least show something
+  if (!window.location) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <Router>
       <AuthProvider>
@@ -80,4 +90,42 @@ function App() {
   );
 }
 
-export default App;
+// Add error boundary for debugging
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('Error caught by boundary:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-red-600 mb-4">Something went wrong</h1>
+            <p className="text-gray-600">Please check the console for errors.</p>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+// Wrap App with ErrorBoundary
+const AppWithErrorBoundary = () => (
+  <ErrorBoundary>
+    <App />
+  </ErrorBoundary>
+);
+
+export default AppWithErrorBoundary;

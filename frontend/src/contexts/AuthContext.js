@@ -77,7 +77,14 @@ export const AuthProvider = ({ children }) => {
       setUser({ ...user, type: 'tenant_user' });
       setIsSystemAdmin(false);
       
-      navigate('/dashboard');
+      // If on main domain, redirect to tenant subdomain
+      const currentHost = window.location.hostname;
+      if (currentHost === 'menuiq.io' || currentHost === 'www.menuiq.io') {
+        window.location.href = `https://${subdomain}.menuiq.io/dashboard`;
+      } else {
+        navigate('/dashboard');
+      }
+      
       return { success: true };
     } catch (error) {
       return { 

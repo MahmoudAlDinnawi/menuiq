@@ -277,8 +277,8 @@ async def create_tenant(
     admin_user = User(
         tenant_id=tenant.id,
         email=tenant_data.admin_email,
-        full_name=tenant_data.admin_name or f"{tenant.name} Admin",
-        hashed_password=hashed_password,
+        username=tenant_data.admin_name or f"{tenant.name} Admin",
+        password_hash=hashed_password,
         role="admin",
         is_active=True
     )
