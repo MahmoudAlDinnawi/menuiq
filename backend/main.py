@@ -41,6 +41,7 @@ from system_admin_routes import router as system_admin_router
 from tenant_auth_routes import router as tenant_auth_router
 from public_routes import router as public_router
 from tenant_routes_v2 import router as tenant_router_v2
+from test_route import router as test_router
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -57,6 +58,7 @@ app.add_middleware(
         "https://menuiq.io",
         "https://www.menuiq.io", 
         "https://app.menuiq.io",
+        "https://api.menuiq.io",
         "http://localhost:3000",
         "http://localhost:3001"
     ],
@@ -77,6 +79,7 @@ app.include_router(system_admin_router)
 app.include_router(tenant_auth_router)
 app.include_router(public_router)
 app.include_router(tenant_router_v2)
+app.include_router(test_router)
 
 # Helper Functions
 def get_tenant_by_subdomain(db: Session, subdomain: str) -> Tenant:
