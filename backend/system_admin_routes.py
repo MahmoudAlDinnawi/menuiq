@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, text
 from typing import List, Optional, Dict
 from datetime import datetime, timedelta
 from pydantic import BaseModel, EmailStr
@@ -273,27 +273,51 @@ async def create_tenant(
     # Hash the password
     hashed_password = get_password_hash(tenant_data.admin_password)
     
-    # Create the admin user
-    admin_user = User(
-        tenant_id=tenant.id,
-        email=tenant_data.admin_email,
-        username=tenant_data.admin_name or f"{tenant.name} Admin",
-        password_hash=hashed_password,
-        role="admin",
-        is_active=True
-    )
-    db.add(admin_user)
-    
+    # Create the admin user with only essential fields
+    user_created = False
     try:
-        # Try to commit the user
+        # First, let's create a minimal user
+        admin_user = User(
+            tenant_id=tenant.id,
+            email=tenant_data.admin_email,
+            username=tenant_data.admin_name or f"{tenant.name} Admin",
+            password_hash=hashed_password,
+            role="admin",
+            is_active=True
+        )
+        db.add(admin_user)
+        db.flush()  # Try to flush without committing
+        
+        # If flush succeeds, commit
         db.commit()
         db.refresh(admin_user)
+        user_created = True
     except Exception as e:
         db.rollback()
-        # If user creation fails, still try to save the tenant
-        print(f"Warning: Failed to create admin user: {str(e)}")
-        # Remove user from session
-        db.expunge(admin_user)
+        print(f"Failed to create user with ORM: {str(e)}")
+        
+        # Try direct SQL insert as fallback
+        try:
+            db.execute(
+                text("""
+                    INSERT INTO users (tenant_id, email, username, password_hash, role, is_active)
+                    VALUES (:tenant_id, :email, :username, :password_hash, :role, :is_active)
+                """),
+                {
+                    "tenant_id": tenant.id,
+                    "email": tenant_data.admin_email,
+                    "username": tenant_data.admin_name or f"{tenant.name} Admin",
+                    "password_hash": hashed_password,
+                    "role": "admin",
+                    "is_active": True
+                }
+            )
+            db.commit()
+            user_created = True
+            print(f"Created user via direct SQL")
+        except Exception as e2:
+            db.rollback()
+            print(f"Failed to create user with SQL: {str(e2)}")
         
     # Log activity
     try:
@@ -310,16 +334,27 @@ async def create_tenant(
         db.rollback()
         print(f"Warning: Failed to log activity: {str(e)}")
     
-    return {
+    response = {
         "id": tenant.id,
         "name": tenant.name,
         "subdomain": tenant.subdomain,
-        "admin_user": {
-            "email": tenant_data.admin_email,
-            "message": "User created successfully. Password has been set."
-        },
         "message": "Tenant created successfully"
     }
+    
+    if user_created:
+        response["admin_user"] = {
+            "email": tenant_data.admin_email,
+            "message": "User created successfully. Password has been set."
+        }
+    else:
+        response["admin_user"] = {
+            "email": tenant_data.admin_email,
+            "message": "User creation failed. Please create manually.",
+            "error": True
+        }
+        response["warning"] = "Tenant created but admin user creation failed. Please create the user manually."
+    
+    return response
 
 @router.put("/tenants/{tenant_id}")
 async def update_tenant(

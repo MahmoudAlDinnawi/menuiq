@@ -54,3 +54,5 @@ node_modules/
 .coverage
 .pytest_cache/
 htmlcov/
+.env.postgres
+.env.production.postgres

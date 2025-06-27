@@ -195,12 +195,16 @@ def create_category(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    if current_user.tenant_id != current_user.tenant_id:
+    # Verify the subdomain matches the user's tenant
+    tenant = get_tenant_by_subdomain(db, subdomain)
+    if current_user.tenant_id != tenant.id:
         raise HTTPException(status_code=403, detail="Not authorized")
     
     db_category = Category(
-        name=category.name,
-        description=category.description,
+        value=category.value,
+        label=category.label,
+        label_ar=category.label_ar,
+        icon=category.icon,
         tenant_id=current_user.tenant_id,
         sort_order=category.sort_order
     )
