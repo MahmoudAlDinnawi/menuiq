@@ -107,8 +107,9 @@ def admin_login(admin_data: SystemAdminLogin, db: Session = Depends(get_db)):
     
     access_token = create_access_token(data={
         "sub": admin.email,
-        "admin_id": admin.id,
-        "is_admin": True
+        "user_id": admin.id,
+        "user_type": "system_admin",
+        "email": admin.email
     })
     
     log_activity(db, "login", "system_admin", admin.id, admin_id=admin.id)
@@ -234,7 +235,10 @@ def login(
     access_token = create_access_token(data={
         "sub": user.email,
         "user_id": user.id,
+        "user_type": "tenant_user",
         "tenant_id": tenant.id,
+        "email": user.email,
+        "role": user.role,
         "subdomain": subdomain
     })
     

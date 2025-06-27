@@ -105,8 +105,9 @@ def get_current_tenant_user(
     return user
 
 def get_current_admin(
-    current_user: Dict = Depends(get_current_user)
-) -> Dict:
+    current_user: Dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+) -> SystemAdmin:
     """Get current system admin"""
     if current_user["type"] != "system_admin":
         raise HTTPException(
@@ -114,7 +115,17 @@ def get_current_admin(
             detail="Not a system administrator"
         )
     
-    return current_user
+    admin = db.query(SystemAdmin).filter(
+        SystemAdmin.id == current_user["id"]
+    ).first()
+    
+    if not admin:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Admin not found"
+        )
+    
+    return admin
 
 def require_system_admin(current_user: Dict = Depends(get_current_admin)):
     """Dependency to require system admin access"""
