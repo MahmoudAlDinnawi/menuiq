@@ -44,9 +44,20 @@ app = FastAPI(title="MenuIQ API - PostgreSQL")
 
 # Configure CORS
 origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+
+# Handle wildcard subdomains
+allowed_origins = []
+for origin in origins:
+    if '*' in origin:
+        # Convert wildcard to regex pattern
+        allowed_origins.append(origin.replace('*', '.*'))
+    else:
+        allowed_origins.append(origin)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["https://menuiq.io", "https://app.menuiq.io", "https://test.menuiq.io", "https://demo.menuiq.io", "http://localhost:3000"],
+    allow_origin_regex="https://.*\.menuiq\.io",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
