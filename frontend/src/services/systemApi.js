@@ -9,8 +9,13 @@ const api = axios.create({
   },
 });
 
-// Add auth token to requests
+// Add auth token to requests (except for login)
 api.interceptors.request.use((config) => {
+  // Don't add auth header to login endpoint
+  if (config.url === '/api/admin/login') {
+    return config;
+  }
+  
   const token = localStorage.getItem('systemToken');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
