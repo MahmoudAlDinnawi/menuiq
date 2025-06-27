@@ -123,14 +123,30 @@ Each tenant's data is completely isolated based on their subdomain.
 
 3. **Create production environment file**
    ```bash
+   # Generate a secure secret key
+   python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+   # This will output something like: 3GX5kVNx9HWj4nZPKrYs8mB2uCfL7QaDt6eFgRiJhTo
+   
+   # Create the environment file
    nano .env.production
    ```
    ```env
    DATABASE_URL=mysql+pymysql://menuiq:YOUR_SECURE_PASSWORD@localhost/menuiq_production
-   SECRET_KEY=YOUR_PRODUCTION_SECRET_KEY_HERE
+   SECRET_KEY=3GX5kVNx9HWj4nZPKrYs8mB2uCfL7QaDt6eFgRiJhTo  # Use your generated key
    ENVIRONMENT=production
    ALLOWED_ORIGINS=https://menuiq.io,https://*.menuiq.io
    ```
+   
+   **Important**: 
+   - Never use a simple or guessable secret key
+   - Never commit the secret key to version control
+   - Keep a secure backup of your production secret key
+   - Each environment should have its own unique secret key
+   - If your database password contains special characters (@, #, %, etc.), URL-encode them:
+     - `@` → `%40`
+     - `#` → `%23`
+     - `%` → `%25`
+     - Example: `pass@word` becomes `pass%40word`
 
 4. **Run database migrations**
    ```bash
@@ -146,18 +162,44 @@ Each tenant's data is completely isolated based on their subdomain.
    ```bash
    sudo nano /etc/systemd/system/menuiq.service
    ```
+   
+   **Option A: If running as menuiq user**
    ```ini
    [Unit]
    Description=MenuIQ FastAPI Backend
-   After=network.target
+   After=network.target mysql.service
 
    [Service]
+   Type=exec
    User=menuiq
    Group=menuiq
    WorkingDirectory=/home/menuiq/menuiq/backend
    Environment="PATH=/home/menuiq/menuiq/backend/venv/bin"
    EnvironmentFile=/home/menuiq/menuiq/backend/.env.production
    ExecStart=/home/menuiq/menuiq/backend/venv/bin/gunicorn -w 4 -k uvicorn.workers.UvicornWorker main_mysql:app --bind 127.0.0.1:8000
+   Restart=on-failure
+   RestartSec=5
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+   
+   **Option B: If running as root (current setup)**
+   ```ini
+   [Unit]
+   Description=MenuIQ FastAPI Backend
+   After=network.target mysql.service
+
+   [Service]
+   Type=exec
+   User=root
+   Group=root
+   WorkingDirectory=/root/menuiq/backend
+   Environment="PATH=/root/menuiq/backend/venv/bin"
+   EnvironmentFile=/root/menuiq/backend/.env.production
+   ExecStart=/root/menuiq/backend/venv/bin/gunicorn -w 4 -k uvicorn.workers.UvicornWorker main_mysql:app --bind 127.0.0.1:8000
+   Restart=on-failure
+   RestartSec=5
 
    [Install]
    WantedBy=multi-user.target
@@ -490,7 +532,24 @@ Note: With Cloudflare proxy enabled, visitors always see HTTPS regardless of whi
    - System admin: `admin@menuiq.io`
    - Default tenant admin
 
-2. **Configure fail2ban**
+2. **Generate strong passwords and keys**
+   ```bash
+   # For SECRET_KEY (choose one method):
+   
+   # Method 1: Python secrets module (recommended)
+   python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+   
+   # Method 2: OpenSSL
+   openssl rand -hex 32
+   
+   # Method 3: Using /dev/urandom
+   head -c 32 /dev/urandom | base64
+   
+   # For database passwords:
+   openssl rand -base64 24
+   ```
+
+3. **Configure fail2ban**
    ```bash
    sudo apt install fail2ban
    sudo systemctl enable fail2ban

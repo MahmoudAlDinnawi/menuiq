@@ -8,7 +8,8 @@ import os
 import shutil
 from datetime import datetime
 import uuid
-from database import get_db, engine, Base, SessionLocal, MenuItem as DBMenuItem, Category as DBCategory, ItemAllergen, Settings as DBSettings, AllergenIcon
+from database import get_db, engine, Base, SessionLocal
+from models_multitenant import MenuItem as DBMenuItem, Category as DBCategory, ItemAllergen, Settings as DBSettings, AllergenIcon, Tenant, User
 from pydantic import BaseModel
 import system_admin_routes
 import tenant_auth_routes
@@ -707,24 +708,35 @@ def update_settings(settings: Settings, db: Session = Depends(get_db)):
 def startup_event():
     db = SessionLocal()
     try:
-        # Check if categories exist
-        categories_count = db.query(DBCategory).count()
-        if categories_count == 0:
-            # Add default categories
-            default_categories = [
-                {"value": "appetizers", "label": "Appetizers", "label_ar": "المقبلات", "sort_order": 1},
-                {"value": "mains", "label": "Main Courses", "label_ar": "الأطباق الرئيسية", "sort_order": 2},
-                {"value": "steaks", "label": "Signature Steaks", "label_ar": "شرائح اللحم المميزة", "sort_order": 3},
-                {"value": "desserts", "label": "Desserts", "label_ar": "الحلويات", "sort_order": 4},
-                {"value": "beverages", "label": "Beverages", "label_ar": "المشروبات", "sort_order": 5}
-            ]
-            
-            for cat_data in default_categories:
-                db_cat = DBCategory(**cat_data)
-                db.add(db_cat)
-            
-            db.commit()
-            print("Default categories added successfully")
+        # For multi-tenant system, check if any tenants exist first
+        tenant_count = db.query(Tenant).count()
+        if tenant_count == 0:
+            print("No tenants found. Please run migrate_to_multitenant.py to initialize the system.")
+            return
+        
+        # Check if default tenant has categories
+        default_tenant = db.query(Tenant).filter_by(subdomain="entrecote").first()
+        if default_tenant:
+            categories_count = db.query(DBCategory).filter_by(tenant_id=default_tenant.id).count()
+            if categories_count == 0:
+                # Add default categories for the default tenant
+                default_categories = [
+                    {"value": "appetizers", "label": "Appetizers", "label_ar": "المقبلات", "sort_order": 1, "tenant_id": default_tenant.id},
+                    {"value": "mains", "label": "Main Courses", "label_ar": "الأطباق الرئيسية", "sort_order": 2, "tenant_id": default_tenant.id},
+                    {"value": "steaks", "label": "Signature Steaks", "label_ar": "شرائح اللحم المميزة", "sort_order": 3, "tenant_id": default_tenant.id},
+                    {"value": "desserts", "label": "Desserts", "label_ar": "الحلويات", "sort_order": 4, "tenant_id": default_tenant.id},
+                    {"value": "beverages", "label": "Beverages", "label_ar": "المشروبات", "sort_order": 5, "tenant_id": default_tenant.id}
+                ]
+                
+                for cat_data in default_categories:
+                    db_cat = DBCategory(**cat_data)
+                    db.add(db_cat)
+                
+                db.commit()
+                print(f"Default categories added for tenant: {default_tenant.name}")
+    except Exception as e:
+        print(f"Startup initialization error: {e}")
+        # Don't fail startup if initialization has issues
     finally:
         db.close()
 
