@@ -9,7 +9,7 @@ import sys
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from dotenv import load_dotenv
-import bcrypt
+from auth import get_password_hash
 
 # Load environment variables
 env_file = '.env' if os.getenv('ENVIRONMENT') != 'production' else '.env.production'
@@ -43,7 +43,7 @@ def init_database():
         # Create default system admin
         print("👤 Creating default system admin...")
         admin_password = "admin123"  # Change in production!
-        hashed_password = bcrypt.hashpw(admin_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        hashed_password = get_password_hash(admin_password)
         
         admin = SystemAdmin(
             email="admin@menuiq.io",
@@ -72,7 +72,7 @@ def init_database():
         # Create demo user for the tenant
         print("👤 Creating demo user...")
         user_password = "demo123"
-        user_hashed_password = bcrypt.hashpw(user_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        user_hashed_password = get_password_hash(user_password)
         
         demo_user = User(
             email="demo@restaurant.com",

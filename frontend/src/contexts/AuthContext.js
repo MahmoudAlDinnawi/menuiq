@@ -80,16 +80,27 @@ export const AuthProvider = ({ children }) => {
       setUser({ ...user, type: 'tenant_user' });
       setIsSystemAdmin(false);
       
-      // If on main domain, redirect to tenant subdomain
+      // Check if we're already on the correct subdomain
       const currentHost = window.location.hostname;
-      if (currentHost === 'menuiq.io' || currentHost === 'www.menuiq.io') {
+      const currentSubdomain = currentHost.split('.')[0];
+      
+      console.log('Login successful, current host:', currentHost, 'subdomain:', subdomain);
+      
+      if (currentSubdomain === subdomain || currentHost === 'localhost') {
+        // Already on correct subdomain or localhost, just navigate
+        navigate('/dashboard');
+      } else if (currentHost === 'menuiq.io' || currentHost === 'www.menuiq.io') {
+        // On main domain, redirect to subdomain
         window.location.href = `https://${subdomain}.menuiq.io/dashboard`;
       } else {
+        // Default navigation
         navigate('/dashboard');
       }
       
       return { success: true };
     } catch (error) {
+      console.error('Tenant login error:', error);
+      console.error('Error response:', error.response);
       return { 
         success: false, 
         error: error.response?.data?.detail || 'Login failed' 
