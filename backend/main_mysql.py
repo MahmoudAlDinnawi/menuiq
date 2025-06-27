@@ -11,6 +11,7 @@ import uuid
 from database import get_db, engine, Base, SessionLocal
 from models_multitenant import MenuItem as DBMenuItem, Category as DBCategory, ItemAllergen, Settings as DBSettings, AllergenIcon, Tenant, User
 from pydantic import BaseModel
+from auth import get_current_tenant_user
 import system_admin_routes
 import tenant_auth_routes
 
@@ -182,12 +183,15 @@ class Settings(BaseModel):
     footerTextAr: str = ""
 
 # Helper functions
-def get_category_by_value(db: Session, value: str):
-    return db.query(DBCategory).filter(DBCategory.value == value).first()
+def get_category_by_value(db: Session, value: str, tenant_id: int):
+    return db.query(DBCategory).filter(
+        DBCategory.value == value,
+        DBCategory.tenant_id == tenant_id
+    ).first()
 
 def convert_db_item_to_response(db_item: DBMenuItem):
     """Convert database item to API response format"""
-    allergens = [allergen.allergen for allergen in db_item.allergens]
+    allergens = [allergen.allergen_name for allergen in db_item.allergens]
     
     return {
         "id": db_item.id,
@@ -245,12 +249,16 @@ def read_root():
     }
 
 @app.get("/api/menu-items", response_model=List[MenuItem])
-def get_menu_items(category: Optional[str] = None, db: Session = Depends(get_db)):
-    """Get all menu items or filter by category"""
-    query = db.query(DBMenuItem)
+def get_menu_items(
+    category: Optional[str] = None, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_tenant_user)
+):
+    """Get all menu items or filter by category for the current tenant"""
+    query = db.query(DBMenuItem).filter(DBMenuItem.tenant_id == current_user.tenant_id)
     
     if category:
-        cat = get_category_by_value(db, category)
+        cat = get_category_by_value(db, category, current_user.tenant_id)
         if cat:
             query = query.filter(DBMenuItem.category_id == cat.id)
     
@@ -258,26 +266,38 @@ def get_menu_items(category: Optional[str] = None, db: Session = Depends(get_db)
     return [convert_db_item_to_response(item) for item in items]
 
 @app.get("/api/menu-items/{item_id}", response_model=MenuItem)
-def get_menu_item(item_id: int, db: Session = Depends(get_db)):
-    """Get a specific menu item by ID"""
-    item = db.query(DBMenuItem).filter(DBMenuItem.id == item_id).first()
+def get_menu_item(
+    item_id: int, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_tenant_user)
+):
+    """Get a specific menu item by ID for the current tenant"""
+    item = db.query(DBMenuItem).filter(
+        DBMenuItem.id == item_id,
+        DBMenuItem.tenant_id == current_user.tenant_id
+    ).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
     return convert_db_item_to_response(item)
 
 @app.post("/api/menu-items/bulk")
-def bulk_create_menu_items(items: List[MenuItem], db: Session = Depends(get_db)):
-    """Bulk create multiple menu items"""
+def bulk_create_menu_items(
+    items: List[MenuItem], 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_tenant_user)
+):
+    """Bulk create multiple menu items for the current tenant"""
     try:
         created_items = []
         for item in items:
             # Get category
-            category = get_category_by_value(db, item.category)
+            category = get_category_by_value(db, item.category, current_user.tenant_id)
             if not category:
                 raise HTTPException(status_code=400, detail=f"Invalid category: {item.category}")
             
             # Create item
             db_item = DBMenuItem(
+                tenant_id=current_user.tenant_id,
                 name=item.name,
                 name_ar=item.nameAr,
                 price=item.price,
@@ -333,15 +353,20 @@ def bulk_create_menu_items(items: List[MenuItem], db: Session = Depends(get_db))
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/api/menu-items", response_model=MenuItem)
-def create_menu_item(item: MenuItem, db: Session = Depends(get_db)):
-    """Create a new menu item"""
+def create_menu_item(
+    item: MenuItem, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_tenant_user)
+):
+    """Create a new menu item for the current tenant"""
     # Get category
-    category = get_category_by_value(db, item.category)
+    category = get_category_by_value(db, item.category, current_user.tenant_id)
     if not category:
         raise HTTPException(status_code=400, detail="Invalid category")
     
     # Create item
     db_item = DBMenuItem(
+        tenant_id=current_user.tenant_id,
         name=item.name,
         name_ar=item.nameAr,
         price=item.price,
@@ -386,7 +411,7 @@ def create_menu_item(item: MenuItem, db: Session = Depends(get_db)):
     
     # Add allergens
     for allergen in item.allergens:
-        db_allergen = ItemAllergen(item_id=db_item.id, allergen=allergen)
+        db_allergen = ItemAllergen(menu_item_id=db_item.id, allergen_name=allergen)
         db.add(db_allergen)
     
     db.commit()
@@ -395,9 +420,17 @@ def create_menu_item(item: MenuItem, db: Session = Depends(get_db)):
     return convert_db_item_to_response(db_item)
 
 @app.put("/api/menu-items/{item_id}", response_model=MenuItem)
-def update_menu_item(item_id: int, item_update: MenuItemUpdate, db: Session = Depends(get_db)):
-    """Update an existing menu item"""
-    db_item = db.query(DBMenuItem).filter(DBMenuItem.id == item_id).first()
+def update_menu_item(
+    item_id: int, 
+    item_update: MenuItemUpdate, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_tenant_user)
+):
+    """Update an existing menu item for the current tenant"""
+    db_item = db.query(DBMenuItem).filter(
+        DBMenuItem.id == item_id,
+        DBMenuItem.tenant_id == current_user.tenant_id
+    ).first()
     if not db_item:
         raise HTTPException(status_code=404, detail="Item not found")
     
@@ -406,7 +439,7 @@ def update_menu_item(item_id: int, item_update: MenuItemUpdate, db: Session = De
     
     # Handle category separately
     if 'category' in update_data:
-        category = get_category_by_value(db, update_data['category'])
+        category = get_category_by_value(db, update_data['category'], current_user.tenant_id)
         if category:
             db_item.category_id = category.id
         del update_data['category']
@@ -414,11 +447,11 @@ def update_menu_item(item_id: int, item_update: MenuItemUpdate, db: Session = De
     # Handle allergens separately
     if 'allergens' in update_data:
         # Delete existing allergens
-        db.query(ItemAllergen).filter(ItemAllergen.item_id == item_id).delete()
+        db.query(ItemAllergen).filter(ItemAllergen.menu_item_id == item_id).delete()
         
         # Add new allergens
         for allergen in update_data['allergens']:
-            db_allergen = ItemAllergen(item_id=item_id, allergen=allergen)
+            db_allergen = ItemAllergen(menu_item_id=item_id, allergen_name=allergen)
             db.add(db_allergen)
         
         del update_data['allergens']
@@ -463,9 +496,16 @@ def update_menu_item(item_id: int, item_update: MenuItemUpdate, db: Session = De
     return convert_db_item_to_response(db_item)
 
 @app.delete("/api/menu-items/{item_id}")
-def delete_menu_item(item_id: int, db: Session = Depends(get_db)):
-    """Delete a menu item"""
-    db_item = db.query(DBMenuItem).filter(DBMenuItem.id == item_id).first()
+def delete_menu_item(
+    item_id: int, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_tenant_user)
+):
+    """Delete a menu item for the current tenant"""
+    db_item = db.query(DBMenuItem).filter(
+        DBMenuItem.id == item_id,
+        DBMenuItem.tenant_id == current_user.tenant_id
+    ).first()
     if not db_item:
         raise HTTPException(status_code=404, detail="Item not found")
     
@@ -475,9 +515,14 @@ def delete_menu_item(item_id: int, db: Session = Depends(get_db)):
     return {"message": "Item deleted successfully"}
 
 @app.get("/api/categories")
-def get_categories(db: Session = Depends(get_db)):
-    """Get all available categories"""
-    categories = db.query(DBCategory).order_by(DBCategory.sort_order).all()
+def get_categories(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_tenant_user)
+):
+    """Get all available categories for the current tenant"""
+    categories = db.query(DBCategory).filter(
+        DBCategory.tenant_id == current_user.tenant_id
+    ).order_by(DBCategory.sort_order).all()
     return {
         "categories": [
             {
@@ -493,9 +538,14 @@ def get_categories(db: Session = Depends(get_db)):
     }
 
 @app.post("/api/categories", response_model=Category)
-def create_category(category: Category, db: Session = Depends(get_db)):
-    """Create a new category"""
+def create_category(
+    category: Category, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_tenant_user)
+):
+    """Create a new category for the current tenant"""
     db_category = DBCategory(
+        tenant_id=current_user.tenant_id,
         value=category.value,
         label=category.label,
         label_ar=category.labelAr,
@@ -517,9 +567,17 @@ def create_category(category: Category, db: Session = Depends(get_db)):
     }
 
 @app.put("/api/categories/{category_id}", response_model=Category)
-def update_category(category_id: int, category_update: Category, db: Session = Depends(get_db)):
-    """Update a category"""
-    db_category = db.query(DBCategory).filter(DBCategory.id == category_id).first()
+def update_category(
+    category_id: int, 
+    category_update: Category, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_tenant_user)
+):
+    """Update a category for the current tenant"""
+    db_category = db.query(DBCategory).filter(
+        DBCategory.id == category_id,
+        DBCategory.tenant_id == current_user.tenant_id
+    ).first()
     if not db_category:
         raise HTTPException(status_code=404, detail="Category not found")
     
@@ -542,14 +600,24 @@ def update_category(category_id: int, category_update: Category, db: Session = D
     }
 
 @app.delete("/api/categories/{category_id}")
-def delete_category(category_id: int, db: Session = Depends(get_db)):
-    """Delete a category"""
-    db_category = db.query(DBCategory).filter(DBCategory.id == category_id).first()
+def delete_category(
+    category_id: int, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_tenant_user)
+):
+    """Delete a category for the current tenant"""
+    db_category = db.query(DBCategory).filter(
+        DBCategory.id == category_id,
+        DBCategory.tenant_id == current_user.tenant_id
+    ).first()
     if not db_category:
         raise HTTPException(status_code=404, detail="Category not found")
     
-    # Check if category has items
-    items_count = db.query(DBMenuItem).filter(DBMenuItem.category_id == category_id).count()
+    # Check if category has items (only for this tenant)
+    items_count = db.query(DBMenuItem).filter(
+        DBMenuItem.category_id == category_id,
+        DBMenuItem.tenant_id == current_user.tenant_id
+    ).count()
     if items_count > 0:
         raise HTTPException(status_code=400, detail=f"Cannot delete category with {items_count} items")
     
@@ -579,14 +647,19 @@ async def upload_image(file: UploadFile = File(...)):
     return {"url": f"/uploads/{unique_filename}"}
 
 @app.get("/api/allergen-icons")
-def get_allergen_icons(db: Session = Depends(get_db)):
-    """Get all available allergen icons from database"""
-    icons = db.query(AllergenIcon).all()
+def get_allergen_icons(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_tenant_user)
+):
+    """Get all available allergen icons from database for the current tenant"""
+    icons = db.query(AllergenIcon).filter(
+        AllergenIcon.tenant_id == current_user.tenant_id
+    ).all()
     return {"allergens": [
         {
             "id": icon.id,
-            "name": icon.allergen_name,
-            "icon_url": f"/uploads/allergen-icons/{os.path.basename(icon.icon_path)}",
+            "name": icon.name,
+            "icon_url": icon.icon_url,
             "display_name": icon.display_name,
             "display_name_ar": icon.display_name_ar
         } for icon in icons
@@ -597,10 +670,11 @@ async def upload_allergen_icon(
     allergen_name: str,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_tenant_user),
     display_name: str = Form(...),
     display_name_ar: Optional[str] = Form(None)
 ):
-    """Upload an icon for a specific allergen"""
+    """Upload an icon for a specific allergen for the current tenant"""
     # Validate file extension
     allowed_extensions = {".png", ".jpg", ".jpeg", ".svg", ".webp"}
     file_extension = os.path.splitext(file.filename)[1].lower()
@@ -615,22 +689,30 @@ async def upload_allergen_icon(
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     
-    # Check if allergen icon already exists
-    existing_icon = db.query(AllergenIcon).filter(AllergenIcon.allergen_name == allergen_name).first()
+    # Check if allergen icon already exists for this tenant
+    existing_icon = db.query(AllergenIcon).filter(
+        AllergenIcon.name == allergen_name,
+        AllergenIcon.tenant_id == current_user.tenant_id
+    ).first()
+    
+    icon_url = f"/uploads/allergen-icons/{unique_filename}"
     
     if existing_icon:
-        # Delete old file if exists
-        if os.path.exists(existing_icon.icon_path):
-            os.remove(existing_icon.icon_path)
+        # Delete old file if exists and different
+        if existing_icon.icon_url and existing_icon.icon_url != icon_url:
+            old_file_path = os.path.join("uploads", existing_icon.icon_url.split("/uploads/")[-1])
+            if os.path.exists(old_file_path):
+                os.remove(old_file_path)
         # Update existing
-        existing_icon.icon_path = file_path
+        existing_icon.icon_url = icon_url
         existing_icon.display_name = display_name
         existing_icon.display_name_ar = display_name_ar
     else:
         # Create new
         new_icon = AllergenIcon(
-            allergen_name=allergen_name,
-            icon_path=file_path,
+            tenant_id=current_user.tenant_id,
+            name=allergen_name,
+            icon_url=icon_url,
             display_name=display_name,
             display_name_ar=display_name_ar
         )
@@ -640,21 +722,30 @@ async def upload_allergen_icon(
     
     return {
         "allergen_name": allergen_name,
-        "icon_url": f"/uploads/allergen-icons/{unique_filename}",
+        "icon_url": icon_url,
         "display_name": display_name,
         "display_name_ar": display_name_ar
     }
 
 @app.delete("/api/allergen-icons/{allergen_name}")
-def delete_allergen_icon(allergen_name: str, db: Session = Depends(get_db)):
-    """Delete an allergen icon"""
-    icon = db.query(AllergenIcon).filter(AllergenIcon.allergen_name == allergen_name).first()
+def delete_allergen_icon(
+    allergen_name: str, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_tenant_user)
+):
+    """Delete an allergen icon for the current tenant"""
+    icon = db.query(AllergenIcon).filter(
+        AllergenIcon.name == allergen_name,
+        AllergenIcon.tenant_id == current_user.tenant_id
+    ).first()
     if not icon:
         raise HTTPException(status_code=404, detail="Allergen icon not found")
     
     # Delete file
-    if os.path.exists(icon.icon_path):
-        os.remove(icon.icon_path)
+    if icon.icon_url:
+        file_path = os.path.join("uploads", icon.icon_url.split("/uploads/")[-1])
+        if os.path.exists(file_path):
+            os.remove(file_path)
     
     # Delete from database
     db.delete(icon)
@@ -663,14 +754,24 @@ def delete_allergen_icon(allergen_name: str, db: Session = Depends(get_db)):
     return {"message": "Allergen icon deleted successfully"}
 
 @app.get("/api/stats")
-def get_menu_stats(db: Session = Depends(get_db)):
-    """Get menu statistics"""
-    total_items = db.query(DBMenuItem).count()
+def get_menu_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_tenant_user)
+):
+    """Get menu statistics for the current tenant"""
+    total_items = db.query(DBMenuItem).filter(
+        DBMenuItem.tenant_id == current_user.tenant_id
+    ).count()
     
     categories_count = {}
-    categories = db.query(DBCategory).all()
+    categories = db.query(DBCategory).filter(
+        DBCategory.tenant_id == current_user.tenant_id
+    ).all()
     for cat in categories:
-        count = db.query(DBMenuItem).filter(DBMenuItem.category_id == cat.id).count()
+        count = db.query(DBMenuItem).filter(
+            DBMenuItem.category_id == cat.id,
+            DBMenuItem.tenant_id == current_user.tenant_id
+        ).count()
         categories_count[cat.value] = count
     
     return {
@@ -680,42 +781,65 @@ def get_menu_stats(db: Session = Depends(get_db)):
     }
 
 @app.get("/api/settings", response_model=Settings)
-def get_settings(db: Session = Depends(get_db)):
-    """Get menu settings"""
-    settings = {}
+def get_settings(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_tenant_user)
+):
+    """Get menu settings for the current tenant"""
+    # Get settings for current tenant
+    db_settings = db.query(DBSettings).filter(
+        DBSettings.tenant_id == current_user.tenant_id
+    ).first()
     
-    # Get all settings from database
-    db_settings = db.query(DBSettings).all()
-    for setting in db_settings:
-        settings[setting.key] = setting.value
+    if not db_settings:
+        # Return default settings if none exist
+        return {
+            "footerEnabled": False,
+            "footerTextEn": "",
+            "footerTextAr": ""
+        }
     
     return {
-        "footerEnabled": settings.get("footerEnabled", "false").lower() == "true",
-        "footerTextEn": settings.get("footerTextEn", ""),
-        "footerTextAr": settings.get("footerTextAr", "")
+        "footerEnabled": db_settings.footer_enabled,
+        "footerTextEn": db_settings.footer_text_en or "",
+        "footerTextAr": db_settings.footer_text_ar or ""
     }
 
 @app.put("/api/settings", response_model=Settings)
-def update_settings(settings: Settings, db: Session = Depends(get_db)):
-    """Update menu settings"""
-    # Update or create each setting
-    settings_data = {
-        "footerEnabled": str(settings.footerEnabled).lower(),
-        "footerTextEn": settings.footerTextEn,
-        "footerTextAr": settings.footerTextAr
-    }
+def update_settings(
+    settings: Settings, 
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_tenant_user)
+):
+    """Update menu settings for the current tenant"""
+    # Get or create settings for current tenant
+    db_settings = db.query(DBSettings).filter(
+        DBSettings.tenant_id == current_user.tenant_id
+    ).first()
     
-    for key, value in settings_data.items():
-        db_setting = db.query(DBSettings).filter(DBSettings.key == key).first()
-        if db_setting:
-            db_setting.value = value
-        else:
-            db_setting = DBSettings(key=key, value=value)
-            db.add(db_setting)
+    if db_settings:
+        # Update existing settings
+        db_settings.footer_enabled = settings.footerEnabled
+        db_settings.footer_text_en = settings.footerTextEn
+        db_settings.footer_text_ar = settings.footerTextAr
+    else:
+        # Create new settings
+        db_settings = DBSettings(
+            tenant_id=current_user.tenant_id,
+            footer_enabled=settings.footerEnabled,
+            footer_text_en=settings.footerTextEn,
+            footer_text_ar=settings.footerTextAr
+        )
+        db.add(db_settings)
     
     db.commit()
+    db.refresh(db_settings)
     
-    return settings
+    return {
+        "footerEnabled": db_settings.footer_enabled,
+        "footerTextEn": db_settings.footer_text_en or "",
+        "footerTextAr": db_settings.footer_text_ar or ""
+    }
 
 # Initialize default categories if none exist
 @app.on_event("startup")

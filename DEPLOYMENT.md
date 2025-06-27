@@ -253,25 +253,31 @@ Each tenant's data is completely isolated based on their subdomain.
    sudo systemctl reload nginx
    ```
 
-### 1.7 Setup SSL with Cloudflare
+### 1.7 Setup SSL with Let's Encrypt
 
-Since menuiq.io is already active on Cloudflare, you have two options for SSL configuration:
+Since menuiq.io is using Vercel DNS, we'll use Let's Encrypt for the API subdomain:
 
-#### Option A: Cloudflare Flexible SSL (Simpler - Good for testing)
-With this option, Cloudflare handles SSL for visitors, but traffic between Cloudflare and your server is HTTP.
+1. **Install Certbot**
+   ```bash
+   sudo apt update
+   sudo apt install certbot python3-certbot-nginx -y
+   ```
 
-1. **Configure DNS in Cloudflare**
-   - Login to Cloudflare dashboard
-   - Select menuiq.io domain
-   - Go to DNS settings
+2. **Configure DNS in Vercel Dashboard**
+   - Login to Vercel dashboard
+   - Go to your domain settings
    - Add A record: `api` → `YOUR_SERVER_IP`
-   - Enable proxy (orange cloud) for SSL and DDoS protection
+   - Wait for DNS propagation (5-10 minutes)
 
-2. **Configure Cloudflare SSL/TLS**
-   - Go to SSL/TLS → Overview
-   - Set encryption mode to "Flexible"
-   
-3. **Keep Nginx configuration simple (HTTP only)**
+3. **Generate SSL Certificate**
+   ```bash
+   sudo certbot --nginx -d api.menuiq.io
+   ```
+   - Enter your email when prompted
+   - Agree to terms
+   - Choose whether to redirect HTTP to HTTPS (recommended: yes)
+
+4. **Update Nginx configuration for HTTPS**
    ```nginx
    server {
        listen 80;
@@ -299,94 +305,14 @@ With this option, Cloudflare handles SSL for visitors, but traffic between Cloud
        }
    }
    ```
+   
+   Certbot will automatically configure the HTTPS server block.
 
-#### Option B: Cloudflare Full/Full Strict SSL (Recommended for production)
-This encrypts traffic all the way from visitor → Cloudflare → your server.
-
-1. **Configure DNS in Cloudflare**
-   - Same as Option A
-
-2. **Configure Cloudflare SSL/TLS**
-   - Go to SSL/TLS → Overview
-   - Set encryption mode to "Full (strict)"
-   - Go to SSL/TLS → Origin Server
-   - Create Certificate (valid for 15 years)
-   - Save the certificate and private key
-
-3. **Install Cloudflare Origin Certificate on server**
+5. **Auto-renewal setup**
+   Certbot automatically sets up renewal. Test it with:
    ```bash
-   # Create certificate directory
-   sudo mkdir -p /etc/ssl/cloudflare
-   
-   # Create certificate file
-   sudo nano /etc/ssl/cloudflare/cert.pem
-   # Paste the Origin Certificate here
-   
-   # Create private key file  
-   sudo nano /etc/ssl/cloudflare/key.pem
-   # Paste the Private Key here
-   
-   # Set proper permissions
-   sudo chmod 644 /etc/ssl/cloudflare/cert.pem
-   sudo chmod 600 /etc/ssl/cloudflare/key.pem
+   sudo certbot renew --dry-run
    ```
-
-4. **Update Nginx configuration for SSL**
-   ```bash
-   sudo nano /etc/nginx/sites-available/menuiq
-   ```
-   ```nginx
-   server {
-       listen 80;
-       server_name api.menuiq.io;
-       return 301 https://$server_name$request_uri;
-   }
-   
-   server {
-       listen 443 ssl http2;
-       server_name api.menuiq.io;
-       
-       ssl_certificate /etc/ssl/cloudflare/cert.pem;
-       ssl_certificate_key /etc/ssl/cloudflare/key.pem;
-       
-       # Cloudflare SSL settings
-       ssl_protocols TLSv1.2 TLSv1.3;
-       ssl_ciphers 'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384';
-       ssl_prefer_server_ciphers on;
-       
-       client_max_body_size 10M;
-       
-       location / {
-           proxy_pass http://127.0.0.1:8000;
-           proxy_http_version 1.1;
-           proxy_set_header Upgrade $http_upgrade;
-           proxy_set_header Connection 'upgrade';
-           proxy_set_header Host $host;
-           proxy_set_header X-Real-IP $remote_addr;
-           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-           proxy_set_header X-Forwarded-Proto $scheme;
-           proxy_cache_bypass $http_upgrade;
-       }
-       
-       location /uploads {
-           alias /home/menuiq/menuiq/backend/uploads;
-           expires 30d;
-           add_header Cache-Control "public, immutable";
-       }
-   }
-   ```
-
-5. **Reload Nginx**
-   ```bash
-   sudo nginx -t
-   sudo systemctl reload nginx
-   ```
-
-**Which option to choose?**
-- **Option A (Flexible)**: Quick to set up, good for development/testing
-- **Option B (Full/Strict)**: Better security, recommended for production
-
-Note: With Cloudflare proxy enabled, visitors always see HTTPS regardless of which option you choose.
 
 ### 1.8 Setup Automated Backups
 
@@ -461,36 +387,43 @@ Note: With Cloudflare proxy enabled, visitors always see HTTPS regardless of whi
 
 ### 2.3 Configure Custom Domain
 
-1. **In Vercel Dashboard**
+1. **Change Nameservers to Vercel**
+   - Go to your domain registrar (where you bought menuiq.io)
+   - Update nameservers to:
+     ```
+     ns1.vercel-dns.com
+     ns2.vercel-dns.com
+     ```
+   - Remove Cloudflare nameservers
+   - Wait for propagation (can take up to 48 hours, usually faster)
+
+2. **In Vercel Dashboard**
    - Go to Settings → Domains
    - Add domain: `menuiq.io`
    - Add wildcard: `*.menuiq.io`
+   - Vercel will automatically provision SSL certificates
 
-2. **In Cloudflare (menuiq.io is already active)**
-   - Go to DNS settings
-   - Add CNAME records:
-     ```
-     @ → cname.vercel-dns.com (for menuiq.io)
-     * → cname.vercel-dns.com (for *.menuiq.io)
-     ```
-   - Enable proxy (orange cloud) for both records
-   - Note: The API A record should already be configured from backend setup
+3. **Configure DNS in Vercel Dashboard**
+   - Vercel will automatically handle:
+     - Root domain (menuiq.io)
+     - Wildcard subdomains (*.menuiq.io)
+   - Add A record for API:
+     - Name: `api`
+     - Value: `YOUR_SERVER_IP`
+     - TTL: 3600
 
 ## Part 3: Post-Deployment Configuration
 
-### 3.1 Cloudflare Settings (for menuiq.io domain)
+### 3.1 Vercel Settings
 
 1. **SSL/TLS Configuration**
-   - Go to SSL/TLS → Overview
-   - Set encryption mode to "Full (strict)"
-   - Enable "Always Use HTTPS"
-   - Set Minimum TLS Version: 1.2
-   - Enable "Automatic HTTPS Rewrites"
+   - Vercel automatically provisions and renews SSL certificates
+   - No manual configuration needed
+   - Supports both root domain and wildcard subdomains
 
-2. **Security Settings**
-   - Go to Security → WAF
-   - Enable Web Application Firewall
-   - Set Security Level: Medium
+2. **Redirect Configuration**
+   - In Vercel project settings
+   - Add redirect from www to non-www if desired
    - Challenge Passage: 30 minutes
    - Enable Browser Integrity Check
    - Enable Hotlink Protection
