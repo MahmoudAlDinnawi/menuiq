@@ -4,75 +4,70 @@ from datetime import datetime
 
 # Menu Item Models
 class MenuItemCreate(BaseModel):
-    category_id: Optional[int] = None
+    category_id: int
     name: str
-    name_ar: Optional[str] = None
     description: Optional[str] = None
-    description_ar: Optional[str] = None
-    price: Optional[str] = None
-    price_without_vat: Optional[str] = None
-    image: Optional[str] = None
-    calories: Optional[int] = None
-    preparation_time: Optional[int] = None
-    serving_size: Optional[str] = None
-    halal: bool = True
-    vegetarian: bool = False
-    vegan: bool = False
-    gluten_free: bool = False
-    dairy_free: bool = False
-    nut_free: bool = False
+    price: Optional[float] = None
+    image_url: Optional[str] = None
     is_available: bool = True
+    is_featured: bool = False
+    is_vegetarian: bool = False
+    is_vegan: bool = False
+    is_gluten_free: bool = False
+    is_spicy: bool = False
+    spice_level: int = 0
+    preparation_time: Optional[int] = None
+    calories: Optional[int] = None
+    serving_size: Optional[str] = None
+    ingredients: Optional[str] = None
+    nutritional_info: Optional[dict] = None
+    sort_order: int = 0
     allergen_ids: List[int] = []
 
 class MenuItemUpdate(BaseModel):
     category_id: Optional[int] = None
     name: Optional[str] = None
-    name_ar: Optional[str] = None
     description: Optional[str] = None
-    description_ar: Optional[str] = None
-    price: Optional[str] = None
-    price_without_vat: Optional[str] = None
-    image: Optional[str] = None
-    calories: Optional[int] = None
-    preparation_time: Optional[int] = None
-    serving_size: Optional[str] = None
-    halal: Optional[bool] = None
-    vegetarian: Optional[bool] = None
-    vegan: Optional[bool] = None
-    gluten_free: Optional[bool] = None
-    dairy_free: Optional[bool] = None
-    nut_free: Optional[bool] = None
+    price: Optional[float] = None
+    image_url: Optional[str] = None
     is_available: Optional[bool] = None
+    is_featured: Optional[bool] = None
+    is_vegetarian: Optional[bool] = None
+    is_vegan: Optional[bool] = None
+    is_gluten_free: Optional[bool] = None
+    is_spicy: Optional[bool] = None
+    spice_level: Optional[int] = None
+    preparation_time: Optional[int] = None
+    calories: Optional[int] = None
+    serving_size: Optional[str] = None
+    ingredients: Optional[str] = None
+    nutritional_info: Optional[dict] = None
+    sort_order: Optional[int] = None
     allergen_ids: Optional[List[int]] = None
 
 class MenuItemResponse(BaseModel):
     id: int
     tenant_id: int
-    category_id: Optional[int]
+    category_id: int
     name: str
-    name_ar: Optional[str]
-    price: Optional[str]
-    price_without_vat: Optional[str]
     description: Optional[str]
-    description_ar: Optional[str]
-    image: Optional[str]
-    calories: Optional[int]
-    walk_minutes: Optional[int]
-    run_minutes: Optional[int]
-    preparation_time: Optional[int]
-    serving_size: Optional[str]
-    halal: bool = True
-    vegetarian: bool = False
-    vegan: bool = False
-    gluten_free: bool = False
-    dairy_free: bool = False
-    nut_free: bool = False
-    high_sodium: bool = False
-    contains_caffeine: bool = False
-    spicy_level: int = 0
+    price: Optional[float]
+    image_url: Optional[str]
     is_available: bool = True
+    is_featured: bool = False
+    is_vegetarian: bool = False
+    is_vegan: bool = False
+    is_gluten_free: bool = False
+    is_spicy: bool = False
+    spice_level: int = 0
+    preparation_time: Optional[int]
+    calories: Optional[int]
+    serving_size: Optional[str]
+    ingredients: Optional[str]
+    nutritional_info: Optional[dict]
     sort_order: int = 0
     created_at: Optional[datetime]
+    updated_at: Optional[datetime]
     allergens: List[dict] = []
 
     class Config:

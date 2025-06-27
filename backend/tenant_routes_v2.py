@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 
 from database import get_db
-from models_simple import (
+from models_exact import (
     Tenant, User, Category, MenuItem, Settings, 
     AllergenIcon, ItemAllergen
 )
@@ -91,9 +91,9 @@ async def get_dashboard_stats(
             {
                 "id": item.id,
                 "name": item.name,
-                "price": item.price,
+                "price": str(item.price) if item.price else None,
                 "category_id": item.category_id,
-                "created_at": item.created_at if hasattr(item, 'created_at') and item.created_at else None
+                "created_at": item.created_at
             } for item in recent_items
         ]
     }
@@ -248,7 +248,7 @@ async def get_menu_items(
     for item in items:
         item.allergens = []
         allergen_records = db.query(ItemAllergen).filter(
-            ItemAllergen.menu_item_id == item.id
+            ItemAllergen.item_id == item.id
         ).all()
         for allergen in allergen_records:
             item.allergens.append({
@@ -278,7 +278,7 @@ async def get_menu_item(
     # Load allergens
     item.allergens = []
     allergen_records = db.query(ItemAllergen).filter(
-        ItemAllergen.menu_item_id == item.id
+        ItemAllergen.item_id == item.id
     ).all()
     for allergen in allergen_records:
         item.allergens.append({
@@ -340,7 +340,7 @@ async def create_menu_item(
             
             if allergen_icon:
                 allergen = ItemAllergen(
-                    menu_item_id=db_item.id,
+                    item_id=db_item.id,
                     allergen_name=allergen_icon.name
                 )
                 db.add(allergen)
@@ -350,7 +350,7 @@ async def create_menu_item(
     # Load allergens for response
     db_item.allergens = []
     allergen_records = db.query(ItemAllergen).filter(
-        ItemAllergen.menu_item_id == db_item.id
+        ItemAllergen.item_id == db_item.id
     ).all()
     for allergen in allergen_records:
         db_item.allergens.append({
@@ -399,7 +399,7 @@ async def update_menu_item(
     if hasattr(item_update, 'allergen_ids') and item_update.allergen_ids is not None:
         # Remove existing allergens
         db.query(ItemAllergen).filter(
-            ItemAllergen.menu_item_id == item_id
+            ItemAllergen.item_id == item_id
         ).delete()
         
         # Add new allergens
@@ -411,7 +411,7 @@ async def update_menu_item(
             
             if allergen_icon:
                 allergen = ItemAllergen(
-                    menu_item_id=item_id,
+                    item_id=item_id,
                     allergen_name=allergen_icon.name
                 )
                 db.add(allergen)
@@ -422,7 +422,7 @@ async def update_menu_item(
     # Load allergens for response
     item.allergens = []
     allergen_records = db.query(ItemAllergen).filter(
-        ItemAllergen.menu_item_id == item.id
+        ItemAllergen.item_id == item.id
     ).all()
     for allergen in allergen_records:
         item.allergens.append({
@@ -451,7 +451,7 @@ async def delete_menu_item(
     
     # Delete allergen associations
     db.query(ItemAllergen).filter(
-        ItemAllergen.menu_item_id == item_id
+        ItemAllergen.item_id == item_id
     ).delete()
     
     # Delete the item

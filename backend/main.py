@@ -18,7 +18,7 @@ load_dotenv('.env' if os.getenv('ENVIRONMENT') != 'production' else '.env.produc
 
 # Import database and models
 from database import get_db, engine
-from models_multitenant import (
+from models_exact import (
     Base, Tenant, User, SystemAdmin, Category, MenuItem, 
     ItemAllergen, Settings, AllergenIcon, ActivityLog
 )

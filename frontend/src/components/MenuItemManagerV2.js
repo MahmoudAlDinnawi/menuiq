@@ -11,21 +11,22 @@ const MenuItemManagerV2 = ({ onUpdate }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     name: '',
-    name_ar: '',
     description: '',
-    description_ar: '',
     category_id: '',
     price: '',
-    price_without_vat: '',
-    calories: '',
-    preparation_time: '',
+    image_url: '',
     is_available: true,
-    halal: true,
-    vegetarian: false,
-    vegan: false,
-    gluten_free: false,
-    dairy_free: false,
-    nut_free: false
+    is_featured: false,
+    is_vegetarian: false,
+    is_vegan: false,
+    is_gluten_free: false,
+    is_spicy: false,
+    spice_level: 0,
+    preparation_time: '',
+    calories: '',
+    serving_size: '',
+    ingredients: '',
+    sort_order: 0
   });
 
   useEffect(() => {
@@ -80,21 +81,22 @@ const MenuItemManagerV2 = ({ onUpdate }) => {
     setEditingItem(item);
     setFormData({
       name: item.name || '',
-      name_ar: item.name_ar || '',
       description: item.description || '',
-      description_ar: item.description_ar || '',
       category_id: item.category_id || '',
       price: item.price || '',
-      price_without_vat: item.price_without_vat || '',
-      calories: item.calories || '',
-      preparation_time: item.preparation_time || '',
+      image_url: item.image_url || '',
       is_available: item.is_available !== undefined ? item.is_available : true,
-      halal: item.halal !== undefined ? item.halal : true,
-      vegetarian: item.vegetarian || false,
-      vegan: item.vegan || false,
-      gluten_free: item.gluten_free || false,
-      dairy_free: item.dairy_free || false,
-      nut_free: item.nut_free || false
+      is_featured: item.is_featured || false,
+      is_vegetarian: item.is_vegetarian || false,
+      is_vegan: item.is_vegan || false,
+      is_gluten_free: item.is_gluten_free || false,
+      is_spicy: item.is_spicy || false,
+      spice_level: item.spice_level || 0,
+      preparation_time: item.preparation_time || '',
+      calories: item.calories || '',
+      serving_size: item.serving_size || '',
+      ingredients: item.ingredients || '',
+      sort_order: item.sort_order || 0
     });
     setShowForm(true);
   };
@@ -119,21 +121,22 @@ const MenuItemManagerV2 = ({ onUpdate }) => {
     setEditingItem(null);
     setFormData({
       name: '',
-      name_ar: '',
       description: '',
-      description_ar: '',
       category_id: '',
       price: '',
-      price_without_vat: '',
-      calories: '',
-      preparation_time: '',
+      image_url: '',
       is_available: true,
-      halal: true,
-      vegetarian: false,
-      vegan: false,
-      gluten_free: false,
-      dairy_free: false,
-      nut_free: false
+      is_featured: false,
+      is_vegetarian: false,
+      is_vegan: false,
+      is_gluten_free: false,
+      is_spicy: false,
+      spice_level: 0,
+      preparation_time: '',
+      calories: '',
+      serving_size: '',
+      ingredients: '',
+      sort_order: 0
     });
   };
 
@@ -273,44 +276,30 @@ const MenuItemManagerV2 = ({ onUpdate }) => {
             
             <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
               {/* Basic Info */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Name (English) *
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Name (Arabic)
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.name_ar}
-                    onChange={(e) => setFormData({ ...formData, name_ar: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    dir="rtl"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Name *
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Category
+                  Category *
                 </label>
                 <select
                   value={formData.category_id}
                   onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+                  required
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 >
-                  <option value="">No Category</option>
+                  <option value="">Select Category</option>
                   {categories.map(cat => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
@@ -319,7 +308,7 @@ const MenuItemManagerV2 = ({ onUpdate }) => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description (English)
+                  Description
                 </label>
                 <textarea
                   value={formData.description}
@@ -329,31 +318,19 @@ const MenuItemManagerV2 = ({ onUpdate }) => {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description (Arabic)
-                </label>
-                <textarea
-                  value={formData.description_ar}
-                  onChange={(e) => setFormData({ ...formData, description_ar: e.target.value })}
-                  rows="3"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                  dir="rtl"
-                />
-              </div>
-
               {/* Pricing */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Price (with VAT)
+                    Price
                   </label>
                   <input
-                    type="text"
+                    type="number"
+                    step="0.01"
                     value={formData.price}
                     onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="e.g., 25.00 SAR"
+                    placeholder="25.00"
                   />
                 </div>
                 
