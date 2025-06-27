@@ -5,7 +5,9 @@ from sqlalchemy.sql import func
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load environment variables from the appropriate file
+env_file = os.getenv('ENV_FILE', '.env.production' if os.path.exists('.env.production') else '.env')
+load_dotenv(env_file)
 
 # Database configuration
 DATABASE_URL = os.getenv(
