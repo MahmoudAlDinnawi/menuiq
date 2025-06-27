@@ -585,6 +585,18 @@ def health_check(db: Session = Depends(get_db)):
             "error": str(e)
         }
 
+# Debug endpoint to list all routes
+@app.get("/api/debug/routes")
+def list_routes():
+    routes = []
+    for route in app.routes:
+        if hasattr(route, "path"):
+            routes.append({
+                "path": route.path,
+                "methods": list(route.methods) if hasattr(route, "methods") else []
+            })
+    return {"routes": routes}
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
