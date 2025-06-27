@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from auth import get_current_tenant_user
 import system_admin_routes
 import tenant_auth_routes
+import public_routes
 
 app = FastAPI(title="MenuIQ API - Multi-tenant Restaurant Menu System")
 
@@ -22,6 +23,9 @@ app.include_router(system_admin_routes.router)
 
 # Include tenant authentication routes
 app.include_router(tenant_auth_routes.router)
+
+# Include public routes
+app.include_router(public_routes.router)
 
 # Create directories for uploads
 UPLOAD_DIR = "uploads"
@@ -250,12 +254,38 @@ def read_root():
 
 @app.get("/api/menu-items", response_model=List[MenuItem])
 def get_menu_items(
+    request: Request,
     category: Optional[str] = None, 
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_tenant_user)
+    current_user: Optional[User] = None
 ):
-    """Get all menu items or filter by category for the current tenant"""
-    query = db.query(DBMenuItem).filter(DBMenuItem.tenant_id == current_user.tenant_id)
+    """Get all menu items or filter by category"""
+    # Try to get authenticated user
+    try:
+        from auth import get_current_user
+        auth_header = request.headers.get('authorization')
+        if auth_header and auth_header.startswith('Bearer '):
+            token = auth_header.split(' ')[1]
+            from auth import decode_token
+            payload = decode_token(token)
+            if payload.get('user_type') == 'tenant_user':
+                current_user = db.query(User).filter(
+                    User.id == payload['user_id'],
+                    User.tenant_id == payload['tenant_id']
+                ).first()
+    except:
+        pass
+    
+    # If authenticated, use user's tenant
+    if current_user:
+        query = db.query(DBMenuItem).filter(DBMenuItem.tenant_id == current_user.tenant_id)
+    else:
+        # Otherwise, try to get tenant from request origin
+        from tenant_middleware import get_tenant_from_request
+        tenant = get_tenant_from_request(request, db)
+        if not tenant:
+            raise HTTPException(status_code=400, detail="Could not determine tenant")
+        query = db.query(DBMenuItem).filter(DBMenuItem.tenant_id == tenant.id)
     
     if category:
         cat = get_category_by_value(db, category, current_user.tenant_id)
@@ -516,12 +546,34 @@ def delete_menu_item(
 
 @app.get("/api/categories")
 def get_categories(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_tenant_user)
+    request: Request,
+    db: Session = Depends(get_db)
 ):
-    """Get all available categories for the current tenant"""
+    """Get all available categories"""
+    # Try to get authenticated user
+    tenant_id = None
+    try:
+        auth_header = request.headers.get('authorization')
+        if auth_header and auth_header.startswith('Bearer '):
+            token = auth_header.split(' ')[1]
+            from auth import decode_token
+            payload = decode_token(token)
+            if payload.get('user_type') == 'tenant_user':
+                tenant_id = payload.get('tenant_id')
+    except:
+        pass
+    
+    # If no authenticated user, get tenant from request
+    if not tenant_id:
+        from tenant_middleware import get_tenant_from_request
+        tenant = get_tenant_from_request(request, db)
+        if tenant:
+            tenant_id = tenant.id
+        else:
+            raise HTTPException(status_code=400, detail="Could not determine tenant")
+    
     categories = db.query(DBCategory).filter(
-        DBCategory.tenant_id == current_user.tenant_id
+        DBCategory.tenant_id == tenant_id
     ).order_by(DBCategory.sort_order).all()
     return {
         "categories": [
@@ -648,12 +700,35 @@ async def upload_image(file: UploadFile = File(...)):
 
 @app.get("/api/allergen-icons")
 def get_allergen_icons(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_tenant_user)
+    request: Request,
+    db: Session = Depends(get_db)
 ):
-    """Get all available allergen icons from database for the current tenant"""
+    """Get all available allergen icons"""
+    # Try to get tenant from authentication or request
+    tenant_id = None
+    try:
+        auth_header = request.headers.get('authorization')
+        if auth_header and auth_header.startswith('Bearer '):
+            token = auth_header.split(' ')[1]
+            from auth import decode_token
+            payload = decode_token(token)
+            if payload.get('user_type') == 'tenant_user':
+                tenant_id = payload.get('tenant_id')
+    except:
+        pass
+    
+    if not tenant_id:
+        from tenant_middleware import get_tenant_from_request
+        tenant = get_tenant_from_request(request, db)
+        if tenant:
+            tenant_id = tenant.id
+    
+    # Return empty list if no tenant found (for public menus without allergen icons)
+    if not tenant_id:
+        return {"allergens": []}
+    
     icons = db.query(AllergenIcon).filter(
-        AllergenIcon.tenant_id == current_user.tenant_id
+        AllergenIcon.tenant_id == tenant_id
     ).all()
     return {"allergens": [
         {
