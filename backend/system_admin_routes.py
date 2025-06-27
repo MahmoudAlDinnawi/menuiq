@@ -89,7 +89,7 @@ async def system_admin_login(
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "user": {
+        "admin": {
             "id": admin.id,
             "email": admin.email,
             "username": admin.username

@@ -44,7 +44,9 @@ export const AuthProvider = ({ children }) => {
       const { access_token, admin } = response.data;
       const user = admin; // Map admin to user for consistency
       
+      // Store both for compatibility
       localStorage.setItem('token', access_token);
+      localStorage.setItem('systemToken', access_token);
       localStorage.setItem('user', JSON.stringify({ ...user, type: 'system_admin' }));
       
       api.defaults.headers.common['Authorization'] = `Bearer ${access_token}`;
@@ -97,6 +99,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('systemToken');
     localStorage.removeItem('user');
     delete api.defaults.headers.common['Authorization'];
     setUser(null);
