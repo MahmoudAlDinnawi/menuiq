@@ -284,17 +284,31 @@ async def create_tenant(
     )
     db.add(admin_user)
     
+    try:
+        # Try to commit the user
+        db.commit()
+        db.refresh(admin_user)
+    except Exception as e:
+        db.rollback()
+        # If user creation fails, still try to save the tenant
+        print(f"Warning: Failed to create admin user: {str(e)}")
+        # Remove user from session
+        db.expunge(admin_user)
+        
     # Log activity
-    log = ActivityLog(
-        admin_id=current_admin["id"],
-        action="create_tenant",
-        entity_type="tenant",
-        entity_id=tenant.id,
-        details={"tenant_name": tenant.name, "subdomain": tenant.subdomain}
-    )
-    db.add(log)
-    
-    db.commit()
+    try:
+        log = ActivityLog(
+            admin_id=current_admin["id"],
+            action="create_tenant",
+            entity_type="tenant",
+            entity_id=tenant.id,
+            details={"tenant_name": tenant.name, "subdomain": tenant.subdomain}
+        )
+        db.add(log)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"Warning: Failed to log activity: {str(e)}")
     
     return {
         "id": tenant.id,

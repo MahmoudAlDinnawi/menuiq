@@ -53,9 +53,9 @@ class User(Base):
     role = Column(String(50), default="admin")  # admin, editor, viewer
     is_active = Column(Boolean, default=True)
     
-    # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    last_login = Column(DateTime)
+    # Timestamps (optional - may not exist in all databases)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=True)
+    last_login = Column(DateTime, nullable=True)
     
     # Relationships
     tenant = relationship("Tenant", back_populates="users")
