@@ -6,9 +6,11 @@ import { Loader2, Lock, Mail, AlertCircle, Building2 } from 'lucide-react';
 const TenantLogin = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [subdomain, setSubdomain] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [tenantInfo, setTenantInfo] = useState(null);
+  const [isMainDomain, setIsMainDomain] = useState(false);
   const { tenantLogin } = useAuth();
   const navigate = useNavigate();
 
@@ -25,15 +27,19 @@ const TenantLogin = () => {
       subdomain = params.get('tenant') || '';
     }
     
-    if (subdomain) {
+    if (subdomain && subdomain !== 'www' && subdomain !== 'menuiq') {
       // In production, you would fetch tenant info from API
       setTenantInfo({
         subdomain,
         name: subdomain.charAt(0).toUpperCase() + subdomain.slice(1) + ' Restaurant'
       });
-    } else {
-      // Redirect to main site if no subdomain
-      window.location.href = 'https://menuiq.io';
+    } else if (hostname === 'menuiq.io' || hostname === 'www.menuiq.io') {
+      // On main domain, show a general login form
+      setIsMainDomain(true);
+      setTenantInfo({
+        subdomain: '',
+        name: 'MenuIQ'
+      });
     }
   }, []);
 
@@ -42,13 +48,15 @@ const TenantLogin = () => {
     setError('');
     setLoading(true);
 
-    if (!tenantInfo?.subdomain) {
-      setError('Invalid tenant');
+    const tenantSubdomain = isMainDomain ? subdomain : tenantInfo?.subdomain;
+
+    if (!tenantSubdomain) {
+      setError('Please enter your restaurant subdomain');
       setLoading(false);
       return;
     }
 
-    const result = await tenantLogin(email, password, tenantInfo.subdomain);
+    const result = await tenantLogin(email, password, tenantSubdomain);
     
     if (!result.success) {
       setError(result.error);
@@ -84,6 +92,33 @@ const TenantLogin = () => {
           </h2>
           
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Subdomain Input (only on main domain) */}
+            {isMainDomain && (
+              <div>
+                <label htmlFor="subdomain" className="block text-sm font-medium text-gray-700 mb-2">
+                  Restaurant Subdomain
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Building2 className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    id="subdomain"
+                    type="text"
+                    required
+                    value={subdomain}
+                    onChange={(e) => setSubdomain(e.target.value.toLowerCase())}
+                    className="block w-full pl-10 pr-24 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    placeholder="yourrestaurant"
+                  />
+                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                    <span className="text-gray-500 text-sm">.menuiq.io</span>
+                  </div>
+                </div>
+                <p className="mt-1 text-xs text-gray-500">Enter your restaurant's subdomain</p>
+              </div>
+            )}
+
             {/* Email Input */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
