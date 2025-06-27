@@ -13,6 +13,9 @@ const SystemAdminDashboard = () => {
   const [tenants, setTenants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedTenant, setSelectedTenant] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
@@ -212,10 +215,22 @@ const SystemAdminDashboard = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex items-center gap-2">
-                        <button className="text-indigo-600 hover:text-indigo-900">
+                        <button 
+                          onClick={() => {
+                            setSelectedTenant(tenant);
+                            setShowEditModal(true);
+                          }}
+                          className="text-indigo-600 hover:text-indigo-900"
+                        >
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button className="text-red-600 hover:text-red-900">
+                        <button 
+                          onClick={() => {
+                            setSelectedTenant(tenant);
+                            setShowDeleteModal(true);
+                          }}
+                          className="text-red-600 hover:text-red-900"
+                        >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -238,6 +253,38 @@ const SystemAdminDashboard = () => {
           }}
         />
       )}
+
+      {/* Edit Tenant Modal */}
+      {showEditModal && selectedTenant && (
+        <EditTenantModal 
+          tenant={selectedTenant}
+          onClose={() => {
+            setShowEditModal(false);
+            setSelectedTenant(null);
+          }}
+          onSuccess={() => {
+            setShowEditModal(false);
+            setSelectedTenant(null);
+            fetchData();
+          }}
+        />
+      )}
+
+      {/* Delete Tenant Modal */}
+      {showDeleteModal && selectedTenant && (
+        <DeleteTenantModal 
+          tenant={selectedTenant}
+          onClose={() => {
+            setShowDeleteModal(false);
+            setSelectedTenant(null);
+          }}
+          onSuccess={() => {
+            setShowDeleteModal(false);
+            setSelectedTenant(null);
+            fetchData();
+          }}
+        />
+      )}
     </div>
   );
 };
@@ -248,7 +295,10 @@ const CreateTenantModal = ({ onClose, onSuccess }) => {
     name: '',
     subdomain: '',
     contact_email: '',
-    plan: 'basic'
+    plan: 'basic',
+    admin_email: '',
+    admin_password: '',
+    admin_name: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -276,7 +326,7 @@ const CreateTenantModal = ({ onClose, onSuccess }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-md w-full p-6">
+      <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Create New Tenant</h3>
         
         {success ? (
@@ -346,6 +396,54 @@ const CreateTenantModal = ({ onClose, onSuccess }) => {
               </select>
             </div>
 
+            <div className="border-t pt-4">
+              <h4 className="text-sm font-medium text-gray-900 mb-3">Admin User Details</h4>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Admin Name
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.admin_name}
+                    onChange={(e) => setFormData({...formData, admin_name: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Restaurant Admin"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Admin Email <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={formData.admin_email}
+                    onChange={(e) => setFormData({...formData, admin_email: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="admin@restaurant.com"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Admin Password <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={formData.admin_password}
+                    onChange={(e) => setFormData({...formData, admin_password: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Strong password"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Minimum 8 characters</p>
+                </div>
+              </div>
+            </div>
+
             {error && (
               <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                 <div className="flex items-start gap-2">
@@ -377,6 +475,217 @@ const CreateTenantModal = ({ onClose, onSuccess }) => {
             </div>
           </form>
         )}
+      </div>
+    </div>
+  );
+};
+
+// Edit Tenant Modal Component
+const EditTenantModal = ({ tenant, onClose, onSuccess }) => {
+  const [formData, setFormData] = useState({
+    name: tenant?.name || '',
+    contact_email: tenant?.contact_email || '',
+    contact_phone: tenant?.contact_phone || '',
+    plan: tenant?.plan || 'basic',
+    status: tenant?.status || 'active'
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      await api.put(`/api/system/tenants/${tenant.id}`, formData);
+      onSuccess();
+    } catch (error) {
+      setError(error.response?.data?.detail || 'Failed to update tenant');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg max-w-md w-full p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit Tenant</h3>
+        
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Restaurant Name
+            </label>
+            <input
+              type="text"
+              required
+              value={formData.name}
+              onChange={(e) => setFormData({...formData, name: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Contact Email
+            </label>
+            <input
+              type="email"
+              value={formData.contact_email}
+              onChange={(e) => setFormData({...formData, contact_email: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Contact Phone
+            </label>
+            <input
+              type="tel"
+              value={formData.contact_phone}
+              onChange={(e) => setFormData({...formData, contact_phone: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Plan
+            </label>
+            <select
+              value={formData.plan}
+              onChange={(e) => setFormData({...formData, plan: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="free">Free</option>
+              <option value="basic">Basic</option>
+              <option value="premium">Premium</option>
+              <option value="enterprise">Enterprise</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Status
+            </label>
+            <select
+              value={formData.status}
+              onChange={(e) => setFormData({...formData, status: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="active">Active</option>
+              <option value="suspended">Suspended</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                <p className="text-sm text-red-800">{error}</p>
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <Loader2 className="w-5 h-5 animate-spin mx-auto" />
+              ) : (
+                'Update Tenant'
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// Delete Tenant Modal Component
+const DeleteTenantModal = ({ tenant, onClose, onSuccess }) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleDelete = async () => {
+    setLoading(true);
+    setError('');
+
+    try {
+      await api.delete(`/api/system/tenants/${tenant.id}`);
+      onSuccess();
+    } catch (error) {
+      setError(error.response?.data?.detail || 'Failed to delete tenant');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg max-w-md w-full p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Delete Tenant</h3>
+        
+        <div className="mb-6">
+          <p className="text-gray-600 mb-4">
+            Are you sure you want to delete <strong>{tenant?.name}</strong>? This action cannot be undone.
+          </p>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <p className="text-sm text-yellow-800">
+              <strong>Warning:</strong> This will permanently delete:
+            </p>
+            <ul className="list-disc list-inside text-sm text-yellow-800 mt-2">
+              <li>All tenant data</li>
+              <li>All users ({tenant?.users_count} users)</li>
+              <li>All menu items ({tenant?.menu_items_count} items)</li>
+              <li>All settings and configurations</li>
+            </ul>
+          </div>
+        </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+              <p className="text-sm text-red-800">{error}</p>
+            </div>
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={loading}
+            className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? (
+              <Loader2 className="w-5 h-5 animate-spin mx-auto" />
+            ) : (
+              'Delete Tenant'
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

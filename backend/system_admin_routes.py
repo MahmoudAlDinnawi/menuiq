@@ -27,6 +27,10 @@ class TenantCreate(BaseModel):
     contact_phone: Optional[str] = None
     plan: str = "free"
     status: str = "active"
+    # Admin user details
+    admin_email: EmailStr
+    admin_password: str
+    admin_name: Optional[str] = None
 
 class TenantUpdate(BaseModel):
     name: Optional[str] = None
@@ -257,36 +261,28 @@ async def create_tenant(
         )
         db.add(category)
     
-    # Create default admin user only if contact email is not already in use
-    default_email = tenant.contact_email or f"admin@{tenant.subdomain}.menuiq.io"
-    existing_user = db.query(User).filter(User.email == default_email).first()
+    # Create admin user with provided credentials
+    existing_user = db.query(User).filter(User.email == tenant_data.admin_email).first()
     
-    if not existing_user:
-        default_password_plain = f"{tenant.subdomain}123"
-        default_password_hash = get_password_hash(default_password_plain)
-        
-        user = User(
-            tenant_id=tenant.id,
-            email=default_email,
-            username=f"{tenant.subdomain}_admin",
-            password_hash=default_password_hash,
-            role="admin"
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Admin email already exists"
         )
-        db.add(user)
-    else:
-        # Use a different email for the default user
-        default_email = f"admin@{tenant.subdomain}.menuiq.io"
-        default_password_plain = f"{tenant.subdomain}123"
-        default_password_hash = get_password_hash(default_password_plain)
-        
-        user = User(
-            tenant_id=tenant.id,
-            email=default_email,
-            username=f"{tenant.subdomain}_admin",
-            password_hash=default_password_hash,
-            role="admin"
-        )
-        db.add(user)
+    
+    # Hash the password
+    hashed_password = get_password_hash(tenant_data.admin_password)
+    
+    # Create the admin user
+    admin_user = User(
+        tenant_id=tenant.id,
+        email=tenant_data.admin_email,
+        full_name=tenant_data.admin_name or f"{tenant.name} Admin",
+        hashed_password=hashed_password,
+        role="admin",
+        is_active=True
+    )
+    db.add(admin_user)
     
     # Log activity
     log = ActivityLog(
@@ -304,9 +300,9 @@ async def create_tenant(
         "id": tenant.id,
         "name": tenant.name,
         "subdomain": tenant.subdomain,
-        "default_user": {
-            "email": default_email,
-            "password": default_password_plain
+        "admin_user": {
+            "email": tenant_data.admin_email,
+            "message": "User created successfully. Password has been set."
         },
         "message": "Tenant created successfully"
     }
