@@ -11,20 +11,29 @@ import SystemAdminDashboard from './pages/SystemAdminDashboard';
 function App() {
   // Determine if we're on the main app domain or a subdomain
   const hostname = window.location.hostname;
-  const isMainApp = hostname === 'app.menuiq.io' || 
-                    hostname === 'localhost' || 
-                    hostname === '127.0.0.1';
+  const isMainDomain = hostname === 'menuiq.io' || hostname === 'www.menuiq.io';
+  const isSystemAdmin = hostname === 'app.menuiq.io';
+  const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
 
   return (
     <Router>
       <AuthProvider>
         <Routes>
-          {/* Public menu view */}
-          <Route path="/" element={<Navigate to="/menu" replace />} />
+          {/* Root path routing based on domain */}
+          <Route path="/" element={
+            isMainDomain ? <Navigate to="/login" replace /> :
+            isSystemAdmin ? <Navigate to="/admin/login" replace /> :
+            <Navigate to="/menu" replace />
+          } />
+          
+          {/* Public menu view (for tenant subdomains) */}
           <Route path="/menu" element={<RestaurantMenu />} />
           
           {/* Auth routes */}
-          <Route path="/login" element={isMainApp ? <Navigate to="/admin/login" /> : <TenantLogin />} />
+          <Route path="/login" element={
+            isSystemAdmin ? <Navigate to="/admin/login" /> : 
+            <TenantLogin />
+          } />
           
           {/* System Admin Routes */}
           <Route path="/admin/login" element={<SystemAdminLogin />} />

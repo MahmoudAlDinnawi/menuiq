@@ -36,6 +36,8 @@ app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 # Configure CORS for MenuIQ multi-tenant SaaS
 allowed_origins = [
     "http://localhost:3000",
+    "https://menuiq.io",
+    "https://www.menuiq.io",
     "https://app.menuiq.io",
     "https://*.menuiq.io",
 ]
