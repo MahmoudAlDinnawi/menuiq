@@ -32,7 +32,9 @@ const CategoryManager = ({ categories, onUpdate }) => {
       resetForm();
     } catch (error) {
       console.error('Category save error:', error);
-      alert('Failed to save category. Please try again.');
+      console.error('Error response:', error.response?.data);
+      const errorMessage = error.response?.data?.detail || 'Failed to save category. Please try again.';
+      alert(errorMessage);
     }
   };
 

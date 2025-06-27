@@ -4,6 +4,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import RestaurantMenu from './pages/RestaurantMenu';
 import Dashboard from './pages/Dashboard';
+import DashboardV2Page from './pages/DashboardV2';
 import SystemAdminLogin from './pages/SystemAdminLogin';
 import TenantLogin from './pages/TenantLogin';
 import SystemAdminDashboard from './pages/SystemAdminDashboard';
@@ -61,7 +62,7 @@ function App() {
             path="/dashboard" 
             element={
               <ProtectedRoute>
-                <Dashboard />
+                <DashboardV2Page />
               </ProtectedRoute>
             } 
           />
