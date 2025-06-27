@@ -89,15 +89,18 @@ def init_database():
         print("⚙️  Creating default settings...")
         settings = Settings(
             tenant_id=demo_tenant.id,
-            restaurant_name=demo_tenant.name,
+            currency="$",
+            tax_rate=0.0,
+            language="en",
             primary_color="#2563eb",
             secondary_color="#1e40af",
-            show_prices=True,
-            show_descriptions=True,
-            show_images=True,
+            font_family="Playfair Display",
+            footer_enabled=True,
+            footer_text_en="© 2024 Demo Restaurant. All rights reserved.",
+            show_calories=True,
+            show_preparation_time=True,
             show_allergens=True,
-            currency_symbol="$",
-            language="en"
+            enable_search=True
         )
         session.add(settings)
         session.commit()  # Commit settings
@@ -209,7 +212,7 @@ def init_database():
             allergen = AllergenIcon(
                 id=i,
                 name=allergen_data["name"],
-                icon=allergen_data["icon"],
+                display_name=allergen_data["name"],
                 tenant_id=demo_tenant.id
             )
             session.add(allergen)
