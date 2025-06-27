@@ -1,0 +1,74 @@
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import RestaurantMenu from './pages/RestaurantMenu';
+import Dashboard from './pages/Dashboard';
+import SystemAdminLogin from './pages/SystemAdminLogin';
+import TenantLogin from './pages/TenantLogin';
+import SystemAdminDashboard from './pages/SystemAdminDashboard';
+
+function App() {
+  // Determine if we're on the main app domain or a subdomain
+  const hostname = window.location.hostname;
+  const isMainApp = hostname === 'app.menuiq.io' || 
+                    hostname === 'localhost' || 
+                    hostname === '127.0.0.1';
+
+  return (
+    <Router>
+      <AuthProvider>
+        <Routes>
+          {/* Public menu view */}
+          <Route path="/" element={<Navigate to="/menu" replace />} />
+          <Route path="/menu" element={<RestaurantMenu />} />
+          
+          {/* Auth routes */}
+          <Route path="/login" element={isMainApp ? <Navigate to="/admin/login" /> : <TenantLogin />} />
+          
+          {/* System Admin Routes */}
+          <Route path="/admin/login" element={<SystemAdminLogin />} />
+          <Route 
+            path="/admin/dashboard" 
+            element={
+              <ProtectedRoute requireSystemAdmin>
+                <SystemAdminDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Tenant Routes */}
+          <Route 
+            path="/dashboard" 
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Unauthorized */}
+          <Route 
+            path="/unauthorized" 
+            element={
+              <div className="min-h-screen flex items-center justify-center bg-gray-50">
+                <div className="text-center">
+                  <h1 className="text-2xl font-bold text-red-600 mb-4">Unauthorized Access</h1>
+                  <p className="text-gray-600 mb-6">You don't have permission to access this page.</p>
+                  <a href="/" className="text-blue-600 hover:text-blue-700">
+                    Go back home
+                  </a>
+                </div>
+              </div>
+            } 
+          />
+          
+          {/* Catch all */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AuthProvider>
+    </Router>
+  );
+}
+
+export default App;

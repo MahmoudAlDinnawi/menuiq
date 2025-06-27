@@ -1,0 +1,383 @@
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from sqlalchemy import func
+from typing import List, Optional, Dict
+from datetime import datetime, timedelta
+from pydantic import BaseModel, EmailStr
+import os
+
+from database import get_db
+from models_multitenant import (
+    Tenant, User, MenuItem, Category, 
+    ActivityLog, Settings, SystemAdmin
+)
+from auth import (
+    get_current_admin, require_system_admin, 
+    get_password_hash, create_access_token
+)
+
+router = APIRouter(prefix="/api/system", tags=["system-admin"])
+
+# Pydantic models
+
+class TenantCreate(BaseModel):
+    name: str
+    subdomain: str
+    contact_email: Optional[str] = None
+    contact_phone: Optional[str] = None
+    plan: str = "free"
+    status: str = "active"
+
+class TenantUpdate(BaseModel):
+    name: Optional[str] = None
+    contact_email: Optional[str] = None
+    contact_phone: Optional[str] = None
+    plan: Optional[str] = None
+    status: Optional[str] = None
+    max_menu_items: Optional[int] = None
+    max_categories: Optional[int] = None
+
+# Pydantic models for tenant users
+class TenantUserCreate(BaseModel):
+    email: EmailStr
+    password: str
+    name: str
+    role: str = "admin"  # admin, editor, viewer
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+class SystemAdminCreate(BaseModel):
+    email: EmailStr
+    password: str
+    username: str
+
+# Authentication endpoints
+@router.post("/auth/login")
+async def system_admin_login(
+    login_data: LoginRequest,
+    db: Session = Depends(get_db)
+):
+    """System admin login"""
+    from auth import verify_password
+    
+    # Find admin
+    admin = db.query(SystemAdmin).filter(
+        SystemAdmin.email == login_data.email
+    ).first()
+    
+    if not admin or not verify_password(login_data.password, admin.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials"
+        )
+    
+    # Create token
+    token_data = {
+        "user_id": admin.id,
+        "email": admin.email,
+        "user_type": "system_admin"
+    }
+    
+    access_token = create_access_token(token_data)
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": admin.id,
+            "email": admin.email,
+            "username": admin.username
+        }
+    }
+
+@router.post("/auth/register", dependencies=[Depends(require_system_admin)])
+async def create_system_admin(
+    admin_data: SystemAdminCreate,
+    db: Session = Depends(get_db)
+):
+    """Create a new system admin (only existing admins can do this)"""
+    # Check if email exists
+    existing = db.query(SystemAdmin).filter(
+        SystemAdmin.email == admin_data.email
+    ).first()
+    
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Email already registered"
+        )
+    
+    # Create admin
+    admin = SystemAdmin(
+        email=admin_data.email,
+        username=admin_data.username,
+        password_hash=get_password_hash(admin_data.password)
+    )
+    
+    db.add(admin)
+    db.commit()
+    db.refresh(admin)
+    
+    return {
+        "id": admin.id,
+        "email": admin.email,
+        "username": admin.username,
+        "message": "System admin created successfully"
+    }
+
+@router.get("/stats", dependencies=[Depends(require_system_admin)])
+async def get_system_stats(db: Session = Depends(get_db)):
+    """Get system-wide statistics"""
+    total_tenants = db.query(func.count(Tenant.id)).scalar()
+    active_tenants = db.query(func.count(Tenant.id)).filter(Tenant.status == "active").scalar()
+    total_users = db.query(func.count(User.id)).scalar()
+    total_menu_items = db.query(func.count(MenuItem.id)).scalar()
+    
+    # Calculate MRR (Monthly Recurring Revenue)
+    # This is simplified - in production, you'd have a proper billing system
+    plan_prices = {
+        "free": 0,
+        "basic": 29,
+        "premium": 99,
+        "enterprise": 299
+    }
+    
+    revenue = 0
+    for plan, price in plan_prices.items():
+        count = db.query(func.count(Tenant.id)).filter(
+            Tenant.plan == plan,
+            Tenant.status == "active"
+        ).scalar()
+        revenue += count * price
+    
+    return {
+        "totalTenants": total_tenants,
+        "activeTenants": active_tenants,
+        "totalUsers": total_users,
+        "totalMenuItems": total_menu_items,
+        "revenue": revenue
+    }
+
+@router.get("/tenants")
+async def get_tenants(db: Session = Depends(get_db)):
+    """Get all tenants"""
+    tenants = db.query(Tenant).all()
+    
+    result = []
+    for tenant in tenants:
+        # Get counts
+        menu_items_count = db.query(func.count(MenuItem.id)).filter(
+            MenuItem.tenant_id == tenant.id
+        ).scalar()
+        users_count = db.query(func.count(User.id)).filter(
+            User.tenant_id == tenant.id
+        ).scalar()
+        
+        result.append({
+            "id": tenant.id,
+            "name": tenant.name,
+            "subdomain": tenant.subdomain,
+            "domain": tenant.domain,
+            "contact_email": tenant.contact_email,
+            "contact_phone": tenant.contact_phone,
+            "plan": tenant.plan,
+            "status": tenant.status,
+            "menu_items_count": menu_items_count,
+            "users_count": users_count,
+            "created_at": tenant.created_at,
+            "updated_at": tenant.updated_at
+        })
+    
+    return result
+
+@router.post("/tenants")
+async def create_tenant(
+    tenant_data: TenantCreate,
+    db: Session = Depends(get_db),
+    current_admin: Dict = Depends(get_current_admin)
+):
+    """Create a new tenant"""
+    # Check if subdomain exists
+    existing = db.query(Tenant).filter(Tenant.subdomain == tenant_data.subdomain).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Subdomain already exists"
+        )
+    
+    # Set plan limits
+    plan_limits = {
+        "free": {"max_menu_items": 50, "max_categories": 10},
+        "basic": {"max_menu_items": 200, "max_categories": 20},
+        "premium": {"max_menu_items": 1000, "max_categories": 50},
+        "enterprise": {"max_menu_items": 10000, "max_categories": 200}
+    }
+    
+    limits = plan_limits.get(tenant_data.plan, plan_limits["free"])
+    
+    # Create tenant
+    tenant = Tenant(
+        name=tenant_data.name,
+        subdomain=tenant_data.subdomain,
+        contact_email=tenant_data.contact_email,
+        contact_phone=tenant_data.contact_phone,
+        plan=tenant_data.plan,
+        status=tenant_data.status,
+        max_menu_items=limits["max_menu_items"],
+        max_categories=limits["max_categories"]
+    )
+    
+    db.add(tenant)
+    db.commit()
+    db.refresh(tenant)
+    
+    # Create default settings for tenant
+    settings = Settings(
+        tenant_id=tenant.id,
+        currency="SAR",
+        tax_rate=15.0,
+        primary_color="#00594f"
+    )
+    db.add(settings)
+    
+    # Create default categories
+    default_categories = [
+        {"value": "appetizers", "label": "Appetizers", "label_ar": "المقبلات", "sort_order": 1},
+        {"value": "mains", "label": "Main Courses", "label_ar": "الأطباق الرئيسية", "sort_order": 2},
+        {"value": "desserts", "label": "Desserts", "label_ar": "الحلويات", "sort_order": 3},
+        {"value": "beverages", "label": "Beverages", "label_ar": "المشروبات", "sort_order": 4}
+    ]
+    
+    for cat_data in default_categories:
+        category = Category(
+            tenant_id=tenant.id,
+            **cat_data
+        )
+        db.add(category)
+    
+    # Create default admin user only if contact email is not already in use
+    default_email = tenant.contact_email or f"admin@{tenant.subdomain}.menuiq.io"
+    existing_user = db.query(User).filter(User.email == default_email).first()
+    
+    if not existing_user:
+        default_password_plain = f"{tenant.subdomain}123"
+        default_password_hash = get_password_hash(default_password_plain)
+        
+        user = User(
+            tenant_id=tenant.id,
+            email=default_email,
+            username=f"{tenant.subdomain}_admin",
+            password_hash=default_password_hash,
+            role="admin"
+        )
+        db.add(user)
+    else:
+        # Use a different email for the default user
+        default_email = f"admin@{tenant.subdomain}.menuiq.io"
+        default_password_plain = f"{tenant.subdomain}123"
+        default_password_hash = get_password_hash(default_password_plain)
+        
+        user = User(
+            tenant_id=tenant.id,
+            email=default_email,
+            username=f"{tenant.subdomain}_admin",
+            password_hash=default_password_hash,
+            role="admin"
+        )
+        db.add(user)
+    
+    # Log activity
+    log = ActivityLog(
+        admin_id=current_admin["id"],
+        action="create_tenant",
+        entity_type="tenant",
+        entity_id=tenant.id,
+        details={"tenant_name": tenant.name, "subdomain": tenant.subdomain}
+    )
+    db.add(log)
+    
+    db.commit()
+    
+    return {
+        "id": tenant.id,
+        "name": tenant.name,
+        "subdomain": tenant.subdomain,
+        "default_user": {
+            "email": default_email,
+            "password": default_password_plain
+        },
+        "message": "Tenant created successfully"
+    }
+
+@router.put("/tenants/{tenant_id}")
+async def update_tenant(
+    tenant_id: int,
+    tenant_data: TenantUpdate,
+    db: Session = Depends(get_db),
+    current_admin: Dict = Depends(get_current_admin)
+):
+    """Update a tenant"""
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+    if not tenant:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Tenant not found"
+        )
+    
+    # Update fields
+    update_data = tenant_data.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(tenant, field, value)
+    
+    tenant.updated_at = datetime.utcnow()
+    
+    # Log activity
+    log = ActivityLog(
+        admin_id=current_admin["id"],
+        tenant_id=tenant_id,
+        action="update_tenant",
+        entity_type="tenant",
+        entity_id=tenant_id,
+        details=update_data
+    )
+    db.add(log)
+    
+    db.commit()
+    db.refresh(tenant)
+    
+    return {"message": "Tenant updated successfully", "tenant": tenant}
+
+@router.delete("/tenants/{tenant_id}")
+async def delete_tenant(
+    tenant_id: int,
+    db: Session = Depends(get_db),
+    current_admin: Dict = Depends(get_current_admin)
+):
+    """Delete a tenant and all associated data"""
+    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+    if not tenant:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Tenant not found"
+        )
+    
+    tenant_name = tenant.name
+    
+    # Delete tenant (cascade will handle related data)
+    db.delete(tenant)
+    
+    # Log activity
+    log = ActivityLog(
+        admin_id=current_admin["id"],
+        action="delete_tenant",
+        entity_type="tenant",
+        entity_id=tenant_id,
+        details={"tenant_name": tenant_name}
+    )
+    db.add(log)
+    
+    db.commit()
+    
+    return {"message": "Tenant deleted successfully"}
