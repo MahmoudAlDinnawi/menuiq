@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func, or_, text
 from typing import List, Optional
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import shutil
 from pathlib import Path
 import bcrypt
@@ -157,6 +157,38 @@ def list_tenants(
 ):
     tenants = db.query(Tenant).offset(skip).limit(limit).all()
     return tenants
+
+@app.get("/api/admin/stats")
+def get_system_stats(
+    current_admin: SystemAdmin = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    # Get tenant statistics
+    total_tenants = db.query(Tenant).count()
+    active_tenants = db.query(Tenant).filter(Tenant.is_active == True).count()
+    
+    # Get user statistics
+    total_users = db.query(User).count()
+    
+    # Get menu item statistics
+    total_items = db.query(MenuItem).count()
+    
+    # Get revenue statistics (placeholder - implement based on your billing system)
+    total_revenue = 0
+    
+    # Get growth statistics
+    today = datetime.now().date()
+    last_month = today - timedelta(days=30)
+    new_tenants_month = db.query(Tenant).filter(Tenant.created_at >= last_month).count()
+    
+    return {
+        "totalTenants": total_tenants,
+        "activeTenants": active_tenants,
+        "totalUsers": total_users,
+        "totalMenuItems": total_items,
+        "totalRevenue": total_revenue,
+        "monthlyGrowth": round((new_tenants_month / max(total_tenants, 1)) * 100, 1)
+    }
 
 @app.put("/api/admin/tenants/{tenant_id}", response_model=TenantResponse)
 def update_tenant(

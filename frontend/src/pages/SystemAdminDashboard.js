@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import api from '../services/api';
+import { systemAPI } from '../services/systemApi';
 import { 
   Building2, Users, DollarSign, TrendingUp, 
   Plus, Search, Edit2, Trash2, LogOut,
@@ -25,12 +25,12 @@ const SystemAdminDashboard = () => {
   const fetchData = async () => {
     try {
       const [statsRes, tenantsRes] = await Promise.all([
-        api.get('/api/system/stats'),
-        api.get('/api/system/tenants')
+        systemAPI.getSystemStats(),
+        systemAPI.getTenants()
       ]);
       
-      setStats(statsRes.data);
-      setTenants(tenantsRes.data);
+      setStats(statsRes);
+      setTenants(tenantsRes);
     } catch (error) {
       console.error('Failed to fetch data:', error);
     } finally {
@@ -310,7 +310,7 @@ const CreateTenantModal = ({ onClose, onSuccess }) => {
     setError('');
 
     try {
-      const response = await api.post('/api/system/tenants', formData);
+      const response = await systemAPI.createTenant(formData);
       setSuccess(true);
       
       // Show success message
@@ -498,7 +498,7 @@ const EditTenantModal = ({ tenant, onClose, onSuccess }) => {
     setError('');
 
     try {
-      await api.put(`/api/system/tenants/${tenant.id}`, formData);
+      await systemAPI.updateTenant(tenant.id, formData);
       onSuccess();
     } catch (error) {
       setError(error.response?.data?.detail || 'Failed to update tenant');
@@ -626,7 +626,7 @@ const DeleteTenantModal = ({ tenant, onClose, onSuccess }) => {
     setError('');
 
     try {
-      await api.delete(`/api/system/tenants/${tenant.id}`);
+      await systemAPI.deleteTenant(tenant.id);
       onSuccess();
     } catch (error) {
       setError(error.response?.data?.detail || 'Failed to delete tenant');
