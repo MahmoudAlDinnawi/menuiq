@@ -49,22 +49,21 @@ app = FastAPI(title="MenuIQ API - PostgreSQL")
 # Configure CORS
 origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000").split(",")
 
-# Handle wildcard subdomains
-allowed_origins = []
-for origin in origins:
-    if '*' in origin:
-        # Convert wildcard to regex pattern
-        allowed_origins.append(origin.replace('*', '.*'))
-    else:
-        allowed_origins.append(origin)
-
+# For production, allow all subdomains of menuiq.io
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://menuiq.io", "https://app.menuiq.io", "https://test.menuiq.io", "https://demo.menuiq.io", "http://localhost:3000"],
-    allow_origin_regex="https://.*\.menuiq\.io",
+    allow_origins=[
+        "https://menuiq.io",
+        "https://www.menuiq.io", 
+        "https://app.menuiq.io",
+        "http://localhost:3000",
+        "http://localhost:3001"
+    ],
+    allow_origin_regex=r"https://[a-zA-Z0-9-]+\.menuiq\.io",  # This allows any subdomain
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 # Mount static files
@@ -79,14 +78,21 @@ app.include_router(public_router)
 
 # Helper Functions
 def get_tenant_by_subdomain(db: Session, subdomain: str) -> Tenant:
-    tenant = db.query(Tenant).filter(
-        func.lower(Tenant.subdomain) == func.lower(subdomain)
-    ).first()
-    if not tenant:
-        raise HTTPException(status_code=404, detail="Tenant not found")
-    if not tenant.is_active:
-        raise HTTPException(status_code=403, detail="Tenant is inactive")
-    return tenant
+    try:
+        tenant = db.query(Tenant).filter(
+            func.lower(Tenant.subdomain) == func.lower(subdomain)
+        ).first()
+        if not tenant:
+            raise HTTPException(status_code=404, detail=f"Tenant '{subdomain}' not found")
+        # Check if tenant is active
+        if tenant.status != 'active':
+            raise HTTPException(status_code=403, detail="Tenant is inactive")
+        return tenant
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting tenant by subdomain {subdomain}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 def log_activity(db: Session, action: str, entity_type: str, entity_id: int = None,
                 tenant_id: int = None, user_id: int = None, admin_id: int = None,
@@ -182,11 +188,19 @@ def get_categories(
     subdomain: str,
     db: Session = Depends(get_db)
 ):
-    tenant = get_tenant_by_subdomain(db, subdomain)
-    categories = db.query(Category).filter(
-        Category.tenant_id == tenant.id
-    ).order_by(Category.sort_order, Category.id).all()
-    return categories
+    try:
+        tenant = get_tenant_by_subdomain(db, subdomain)
+        categories = db.query(Category).filter(
+            Category.tenant_id == tenant.id
+        ).order_by(Category.sort_order, Category.id).all()
+        return categories
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error in get_categories for {subdomain}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.post("/api/{subdomain}/categories", response_model=CategoryResponse)
 def create_category(
@@ -286,23 +300,31 @@ def get_menu_items(
     limit: int = 100,
     db: Session = Depends(get_db)
 ):
-    tenant = get_tenant_by_subdomain(db, subdomain)
-    
-    query = db.query(MenuItem).filter(MenuItem.tenant_id == tenant.id)
-    
-    if category_id:
-        query = query.filter(MenuItem.category_id == category_id)
-    
-    if search:
-        query = query.filter(
-            or_(
-                MenuItem.name.ilike(f"%{search}%"),
-                MenuItem.description.ilike(f"%{search}%")
+    try:
+        tenant = get_tenant_by_subdomain(db, subdomain)
+        
+        query = db.query(MenuItem).filter(MenuItem.tenant_id == tenant.id)
+        
+        if category_id:
+            query = query.filter(MenuItem.category_id == category_id)
+        
+        if search:
+            query = query.filter(
+                or_(
+                    MenuItem.name.ilike(f"%{search}%"),
+                    MenuItem.description.ilike(f"%{search}%")
+                )
             )
-        )
-    
-    items = query.offset(skip).limit(limit).all()
-    return items
+        
+        items = query.offset(skip).limit(limit).all()
+        return items
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error in get_menu_items for {subdomain}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.post("/api/{subdomain}/menu-items", response_model=MenuItemResponse)
 def create_menu_item(
