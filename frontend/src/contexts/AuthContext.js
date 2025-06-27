@@ -63,9 +63,10 @@ export const AuthProvider = ({ children }) => {
 
   const tenantLogin = async (email, password, subdomain) => {
     try {
-      const response = await api.post(`/api/${subdomain}/login`, { 
+      const response = await api.post('/api/auth/tenant/login', { 
         email, 
-        password
+        password,
+        tenant_subdomain: subdomain
       });
       
       const { access_token, user } = response.data;
