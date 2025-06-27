@@ -88,7 +88,7 @@ def log_activity(db: Session, action: str, entity_type: str, entity_id: int = No
 def admin_login(admin_data: SystemAdminLogin, db: Session = Depends(get_db)):
     admin = db.query(SystemAdmin).filter(SystemAdmin.email == admin_data.email).first()
     
-    if not admin or not verify_password(admin_data.password, admin.hashed_password):
+    if not admin or not verify_password(admin_data.password, admin.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     if not admin.is_active:
@@ -188,7 +188,7 @@ def register_user(
     db_user = User(
         email=user.email,
         username=user.username,
-        hashed_password=hashed_password,
+        password_hash=hashed_password,
         tenant_id=tenant.id,
         role=user.role
     )
@@ -214,7 +214,7 @@ def login(
         User.tenant_id == tenant.id
     ).first()
     
-    if not user or not verify_password(user_data.password, user.hashed_password):
+    if not user or not verify_password(user_data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     if not user.is_active:

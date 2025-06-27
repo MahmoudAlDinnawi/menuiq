@@ -36,11 +36,15 @@ def init_database():
     session = Session()
     
     try:
-        # Check if already initialized
-        existing_admin = session.query(SystemAdmin).first()
-        if existing_admin:
-            print("⚠️  Database already initialized. Skipping...")
-            return
+        # Check if already initialized by checking if tables exist
+        try:
+            existing_admin = session.query(SystemAdmin).first()
+            if existing_admin:
+                print("⚠️  Database already initialized. Skipping...")
+                return
+        except Exception:
+            # Tables don't exist yet, which is expected on first run
+            pass
         
         # Create default system admin
         print("👤 Creating default system admin...")
@@ -50,7 +54,7 @@ def init_database():
         admin = SystemAdmin(
             email="admin@menuiq.io",
             username="admin",
-            hashed_password=hashed_password,
+            password_hash=hashed_password,
             is_active=True
         )
         session.add(admin)
@@ -60,12 +64,12 @@ def init_database():
         demo_tenant = Tenant(
             name="Demo Restaurant",
             subdomain="demo",
-            email="demo@menuiq.io",
-            phone="+1234567890",
+            contact_email="demo@menuiq.io",
+            contact_phone="+1234567890",
             address="123 Demo Street",
-            is_active=True,
-            max_users=10,
-            max_menu_items=100
+            status="active",
+            max_menu_items=100,
+            max_categories=10
         )
         session.add(demo_tenant)
         session.commit()
@@ -78,7 +82,7 @@ def init_database():
         demo_user = User(
             email="demo@restaurant.com",
             username="demo",
-            hashed_password=user_hashed_password,
+            password_hash=user_hashed_password,
             tenant_id=demo_tenant.id,
             role="admin",
             is_active=True
