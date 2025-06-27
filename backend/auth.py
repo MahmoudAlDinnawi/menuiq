@@ -55,11 +55,11 @@ def decode_token(token: str) -> Dict:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-def get_current_user(
+def get_current_user_dict(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)
 ) -> Dict:
-    """Get current user from JWT token"""
+    """Get current user info as dict from JWT token"""
     token = credentials.credentials
     payload = decode_token(token)
     
@@ -80,22 +80,24 @@ def get_current_user(
         "role": payload.get("role")
     }
 
-def get_current_tenant_user(
-    current_user: Dict = Depends(get_current_user),
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)
 ) -> User:
-    """Get current tenant user"""
-    if current_user["type"] != "tenant_user":
+    """Get current tenant user from JWT token"""
+    token = credentials.credentials
+    payload = decode_token(token)
+    
+    user_id = payload.get("user_id")
+    user_type = payload.get("user_type")
+    
+    if not user_id or user_type != "tenant_user":
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not a tenant user"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token or not a tenant user"
         )
     
-    user = db.query(User).filter(
-        User.id == current_user["id"],
-        User.tenant_id == current_user["tenant_id"]
-    ).first()
-    
+    user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -104,10 +106,16 @@ def get_current_tenant_user(
     
     return user
 
+def get_current_tenant_user(
+    current_user: User = Depends(get_current_user)
+) -> User:
+    """Get current tenant user - just returns the user since get_current_user already validates"""
+    return current_user
+
 def get_current_admin(
-    current_user: Dict = Depends(get_current_user),
+    current_user: Dict = Depends(get_current_user_dict),
     db: Session = Depends(get_db)
-) -> SystemAdmin:
+) -> Dict:
     """Get current system admin"""
     if current_user["type"] != "system_admin":
         raise HTTPException(
@@ -125,7 +133,7 @@ def get_current_admin(
             detail="Admin not found"
         )
     
-    return admin
+    return current_user
 
 def require_system_admin(current_user: Dict = Depends(get_current_admin)):
     """Dependency to require system admin access"""
@@ -133,7 +141,7 @@ def require_system_admin(current_user: Dict = Depends(get_current_admin)):
 
 def get_tenant_id_from_request(
     request,
-    current_user: Dict = Depends(get_current_user),
+    current_user: Dict = Depends(get_current_user_dict),
     db: Session = Depends(get_db)
 ) -> Optional[int]:
     """Get tenant ID from user or subdomain"""

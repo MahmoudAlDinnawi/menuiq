@@ -16,7 +16,7 @@ from auth import (
     get_password_hash, create_access_token
 )
 
-router = APIRouter(prefix="/api/system", tags=["system-admin"])
+router = APIRouter(prefix="/api/admin", tags=["system-admin"])
 
 # Pydantic models
 
@@ -58,7 +58,7 @@ class SystemAdminCreate(BaseModel):
     username: str
 
 # Authentication endpoints
-@router.post("/auth/login")
+@router.post("/login")
 async def system_admin_login(
     login_data: LoginRequest,
     db: Session = Depends(get_db)

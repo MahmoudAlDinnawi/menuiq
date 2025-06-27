@@ -36,6 +36,10 @@ from auth import (
     verify_password, get_password_hash, create_access_token,
     get_current_user, get_current_admin
 )
+# Import routers
+from system_admin_routes import router as system_admin_router
+from tenant_auth_routes import router as tenant_auth_router
+from public_routes import router as public_router
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -68,6 +72,11 @@ UPLOAD_DIR = Path("uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
+# Include routers
+app.include_router(system_admin_router)
+app.include_router(tenant_auth_router)
+app.include_router(public_router)
+
 # Helper Functions
 def get_tenant_by_subdomain(db: Session, subdomain: str) -> Tenant:
     tenant = db.query(Tenant).filter(
@@ -94,122 +103,7 @@ def log_activity(db: Session, action: str, entity_type: str, entity_id: int = No
     db.add(log)
     db.commit()
 
-# System Admin Routes
-@app.post("/api/admin/login", response_model=dict)
-def admin_login(admin_data: SystemAdminLogin, db: Session = Depends(get_db)):
-    admin = db.query(SystemAdmin).filter(SystemAdmin.email == admin_data.email).first()
-    
-    if not admin or not verify_password(admin_data.password, admin.password_hash):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-    
-    if not admin.is_active:
-        raise HTTPException(status_code=403, detail="Account is inactive")
-    
-    access_token = create_access_token(data={
-        "sub": admin.email,
-        "user_id": admin.id,
-        "user_type": "system_admin",
-        "email": admin.email
-    })
-    
-    log_activity(db, "login", "system_admin", admin.id, admin_id=admin.id)
-    
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "admin": SystemAdminResponse.from_orm(admin)
-    }
-
-@app.post("/api/admin/tenants", response_model=TenantResponse)
-def create_tenant(
-    tenant: TenantCreate,
-    current_admin: SystemAdmin = Depends(get_current_admin),
-    db: Session = Depends(get_db)
-):
-    # Check if subdomain already exists
-    existing = db.query(Tenant).filter(
-        func.lower(Tenant.subdomain) == func.lower(tenant.subdomain)
-    ).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="Subdomain already exists")
-    
-    db_tenant = Tenant(**tenant.dict())
-    db.add(db_tenant)
-    db.commit()
-    db.refresh(db_tenant)
-    
-    # Create default settings for the tenant
-    settings = Settings(tenant_id=db_tenant.id)
-    db.add(settings)
-    db.commit()
-    
-    log_activity(db, "create", "tenant", db_tenant.id, admin_id=current_admin.id,
-                details=f"Created tenant: {tenant.name}")
-    
-    return db_tenant
-
-@app.get("/api/admin/tenants", response_model=List[TenantResponse])
-def list_tenants(
-    skip: int = 0,
-    limit: int = 100,
-    current_admin: SystemAdmin = Depends(get_current_admin),
-    db: Session = Depends(get_db)
-):
-    tenants = db.query(Tenant).offset(skip).limit(limit).all()
-    return tenants
-
-@app.get("/api/admin/stats")
-def get_system_stats(
-    current_admin: SystemAdmin = Depends(get_current_admin),
-    db: Session = Depends(get_db)
-):
-    # Get tenant statistics
-    total_tenants = db.query(Tenant).count()
-    active_tenants = db.query(Tenant).filter(Tenant.is_active == True).count()
-    
-    # Get user statistics
-    total_users = db.query(User).count()
-    
-    # Get menu item statistics
-    total_items = db.query(MenuItem).count()
-    
-    # Get revenue statistics (placeholder - implement based on your billing system)
-    total_revenue = 0
-    
-    # Get growth statistics
-    today = datetime.now().date()
-    last_month = today - timedelta(days=30)
-    new_tenants_month = db.query(Tenant).filter(Tenant.created_at >= last_month).count()
-    
-    return {
-        "totalTenants": total_tenants,
-        "activeTenants": active_tenants,
-        "totalUsers": total_users,
-        "totalMenuItems": total_items,
-        "totalRevenue": total_revenue,
-        "monthlyGrowth": round((new_tenants_month / max(total_tenants, 1)) * 100, 1)
-    }
-
-@app.put("/api/admin/tenants/{tenant_id}", response_model=TenantResponse)
-def update_tenant(
-    tenant_id: int,
-    tenant_update: TenantUpdate,
-    current_admin: SystemAdmin = Depends(get_current_admin),
-    db: Session = Depends(get_db)
-):
-    tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
-    if not tenant:
-        raise HTTPException(status_code=404, detail="Tenant not found")
-    
-    for key, value in tenant_update.dict(exclude_unset=True).items():
-        setattr(tenant, key, value)
-    
-    db.commit()
-    db.refresh(tenant)
-    
-    log_activity(db, "update", "tenant", tenant_id, admin_id=current_admin.id)
-    
-    return tenant
+# System Admin Routes are now handled by system_admin_router
 
 # Tenant User Routes
 @app.post("/api/{subdomain}/register", response_model=UserResponse)
