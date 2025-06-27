@@ -39,7 +39,6 @@ from auth import (
 # Import routers
 from system_admin_routes import router as system_admin_router
 from tenant_auth_routes import router as tenant_auth_router
-from public_routes import router as public_router
 from tenant_routes_v2 import router as tenant_router_v2
 from public_menu_routes import router as public_menu_router
 
@@ -77,7 +76,6 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 # Include routers
 app.include_router(system_admin_router)
 app.include_router(tenant_auth_router)
-app.include_router(public_router)
 app.include_router(tenant_router_v2)
 app.include_router(public_menu_router)
 

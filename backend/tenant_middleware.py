@@ -2,7 +2,7 @@ from fastapi import Request, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional
 from database import get_db
-from models_multitenant import Tenant
+from models_final import Tenant
 import re
 
 def get_subdomain_from_origin(origin: str) -> Optional[str]:
