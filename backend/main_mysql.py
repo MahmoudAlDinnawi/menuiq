@@ -34,24 +34,36 @@ if not os.path.exists(ALLERGEN_ICONS_DIR):
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 # Configure CORS for MenuIQ multi-tenant SaaS
-allowed_origins = [
-    "http://localhost:3000",
-    "https://menuiq.io",
-    "https://www.menuiq.io",
-    "https://app.menuiq.io",
-    "https://*.menuiq.io",
-]
-
-# Add development origins if needed
-if os.getenv("ENVIRONMENT") == "development":
-    allowed_origins.extend([
+# Function to check if origin is allowed
+def is_allowed_origin(origin: str) -> bool:
+    allowed_patterns = [
+        "http://localhost:3000",
         "http://localhost:3001",
-        "http://127.0.0.1:3000"
-    ])
+        "http://127.0.0.1:3000",
+        "https://menuiq.io",
+        "https://www.menuiq.io",
+        "https://app.menuiq.io",
+    ]
+    
+    # Check exact matches
+    if origin in allowed_patterns:
+        return True
+    
+    # Check if it's a subdomain of menuiq.io
+    if origin.startswith("https://") and origin.endswith(".menuiq.io"):
+        return True
+    
+    # Development environment
+    if os.getenv("ENVIRONMENT") == "development":
+        if origin.startswith("http://localhost:") or origin.startswith("http://127.0.0.1:"):
+            return True
+    
+    return False
 
+# Configure CORS with callback
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origin_regex="https://.*\.menuiq\.io|https://menuiq\.io|https://www\.menuiq\.io|https://app\.menuiq\.io|http://localhost:3000|http://localhost:3001|http://127\.0\.0\.1:3000",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
