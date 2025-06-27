@@ -3,6 +3,7 @@ import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import DOMPurify from 'dompurify';
 import api from '../services/api';
+import tenantAPI from '../services/tenantApi';
 
 const EnhancedSettingsManager = () => {
   const [settings, setSettings] = useState({
@@ -42,8 +43,7 @@ const EnhancedSettingsManager = () => {
   const loadSettings = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/api/settings');
-      const data = response.data;
+      const data = await tenantAPI.getSettings();
       setSettings(data);
     } catch (error) {
       console.error('Failed to load settings:', error);
@@ -77,7 +77,7 @@ const EnhancedSettingsManager = () => {
     e.preventDefault();
     try {
       setSaving(true);
-      await api.put('/api/settings', settings);
+      await tenantAPI.updateSettings(settings);
       alert('Settings saved successfully!');
     } catch (error) {
       alert('Failed to save settings. Please try again.');

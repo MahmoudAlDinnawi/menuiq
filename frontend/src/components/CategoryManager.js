@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import api from '../services/api';
+import tenantAPI from '../services/tenantApi';
 
 const CategoryManager = ({ categories, onUpdate }) => {
   const [showForm, setShowForm] = useState(false);
@@ -15,9 +16,9 @@ const CategoryManager = ({ categories, onUpdate }) => {
     e.preventDefault();
     try {
       if (editingCategory) {
-        await api.put(`/api/categories/${editingCategory.id}`, formData);
+        await tenantAPI.updateCategory(editingCategory.id, formData);
       } else {
-        await api.post('/api/categories', formData);
+        await tenantAPI.createCategory(formData);
       }
       onUpdate();
       resetForm();
@@ -40,7 +41,7 @@ const CategoryManager = ({ categories, onUpdate }) => {
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this category?')) {
       try {
-        await api.delete(`/api/categories/${id}`);
+        await tenantAPI.deleteCategory(id);
         onUpdate();
       } catch (error) {
         alert(error.response?.data?.detail || 'Failed to delete category');

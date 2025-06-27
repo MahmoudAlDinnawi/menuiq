@@ -3,6 +3,7 @@ import LuxuryCategoryFilter from '../components/LuxuryCategoryFilter';
 import GuestFriendlyMenuCard from '../components/GuestFriendlyMenuCard';
 import GuestFriendlyMobileCard from '../components/GuestFriendlyMobileCard';
 import api from '../services/api';
+import tenantAPI from '../services/tenantApi';
 import DOMPurify from 'dompurify';
 
 const RestaurantMenu = () => {
@@ -32,13 +33,13 @@ const RestaurantMenu = () => {
     try {
       setLoading(true);
       const [itemsResponse, categoriesResponse, settingsResponse] = await Promise.all([
-        api.get('/api/menu-items'),
-        api.get('/api/categories'),
-        api.get('/api/settings')
+        tenantAPI.getMenuItems(),
+        tenantAPI.getCategories(),
+        tenantAPI.getSettings()
       ]);
-      setMenuItems(itemsResponse.data);
-      setCategories(categoriesResponse.data.categories);
-      setSettings(settingsResponse.data);
+      setMenuItems(itemsResponse);
+      setCategories(categoriesResponse);
+      setSettings(settingsResponse);
     } catch (err) {
       setError('Failed to load menu. Please try again later.');
       console.error('Error fetching data:', err);

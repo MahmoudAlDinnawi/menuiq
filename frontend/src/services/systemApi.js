@@ -21,9 +21,9 @@ api.interceptors.request.use((config) => {
 export const systemAPI = {
   // Auth
   login: async (email, password) => {
-    const response = await api.post('/api/system/auth/login', { email, password });
-    if (response.data.token) {
-      localStorage.setItem('systemToken', response.data.token);
+    const response = await api.post('/api/admin/login', { email, password });
+    if (response.data.access_token) {
+      localStorage.setItem('systemToken', response.data.access_token);
     }
     return response.data;
   },
@@ -34,51 +34,51 @@ export const systemAPI = {
 
   // System Stats
   getSystemStats: async () => {
-    const response = await api.get('/api/system/stats');
+    const response = await api.get('/api/admin/stats');
     return response.data;
   },
 
   // Tenants
   getTenants: async () => {
-    const response = await api.get('/api/system/tenants');
+    const response = await api.get('/api/admin/tenants');
     return response.data;
   },
 
   getTenant: async (id) => {
-    const response = await api.get(`/api/system/tenants/${id}`);
+    const response = await api.get(`/api/admin/tenants/${id}`);
     return response.data;
   },
 
   createTenant: async (data) => {
-    const response = await api.post('/api/system/tenants', data);
+    const response = await api.post('/api/admin/tenants', data);
     return response.data;
   },
 
   updateTenant: async (id, data) => {
-    const response = await api.put(`/api/system/tenants/${id}`, data);
+    const response = await api.put(`/api/admin/tenants/${id}`, data);
     return response.data;
   },
 
   deleteTenant: async (id) => {
-    const response = await api.delete(`/api/system/tenants/${id}`);
+    const response = await api.delete(`/api/admin/tenants/${id}`);
     return response.data;
   },
 
   // Plans
   getPlans: async () => {
-    const response = await api.get('/api/system/plans');
+    const response = await api.get('/api/admin/plans');
     return response.data;
   },
 
   // Activity Logs
   getActivityLogs: async (params) => {
-    const response = await api.get('/api/system/activity-logs', { params });
+    const response = await api.get('/api/admin/activity-logs', { params });
     return response.data;
   },
 
   // Analytics
   getAnalytics: async (params) => {
-    const response = await api.get('/api/system/analytics', { params });
+    const response = await api.get('/api/admin/analytics', { params });
     return response.data;
   }
 };

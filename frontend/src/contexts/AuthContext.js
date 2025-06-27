@@ -40,8 +40,9 @@ export const AuthProvider = ({ children }) => {
 
   const systemAdminLogin = async (email, password) => {
     try {
-      const response = await api.post('/api/system/auth/login', { email, password });
-      const { access_token, user } = response.data;
+      const response = await api.post('/api/admin/login', { email, password });
+      const { access_token, admin } = response.data;
+      const user = admin; // Map admin to user for consistency
       
       localStorage.setItem('token', access_token);
       localStorage.setItem('user', JSON.stringify({ ...user, type: 'system_admin' }));
@@ -62,10 +63,9 @@ export const AuthProvider = ({ children }) => {
 
   const tenantLogin = async (email, password, subdomain) => {
     try {
-      const response = await api.post('/api/auth/tenant/login', { 
+      const response = await api.post(`/api/${subdomain}/login`, { 
         email, 
-        password, 
-        tenant_subdomain: subdomain 
+        password
       });
       
       const { access_token, user } = response.data;

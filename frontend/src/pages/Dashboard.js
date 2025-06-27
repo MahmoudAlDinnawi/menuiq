@@ -7,6 +7,7 @@ import CustomAllergenIcons from '../components/CustomAllergenIcons';
 import AllergenIconManager from '../components/AllergenIconManager';
 import MenuImportExport from '../components/MenuImportExport';
 import api from '../services/api';
+import tenantAPI from '../services/tenantApi';
 
 const Dashboard = () => {
   const [activeSection, setActiveSection] = useState('items');
@@ -26,11 +27,11 @@ const Dashboard = () => {
     try {
       setLoading(true);
       const [itemsData, categoriesData] = await Promise.all([
-        api.get('/api/menu-items'),
-        api.get('/api/categories')
+        tenantAPI.getMenuItems(),
+        tenantAPI.getCategories()
       ]);
-      setMenuItems(itemsData.data);
-      setCategories(categoriesData.data.categories);
+      setMenuItems(itemsData);
+      setCategories(categoriesData);
     } catch (err) {
       console.error('Error fetching data:', err);
     } finally {
@@ -40,7 +41,7 @@ const Dashboard = () => {
 
   const handleAddItem = async (itemData) => {
     try {
-      await api.post('/api/menu-items', itemData);
+      await tenantAPI.createMenuItem(itemData);
       await fetchData();
       setActiveSection('items');
       alert('Item added successfully!');
@@ -51,7 +52,7 @@ const Dashboard = () => {
 
   const handleUpdateItem = async (itemData) => {
     try {
-      await api.put(`/api/menu-items/${editingItem.id}`, itemData);
+      await tenantAPI.updateMenuItem(editingItem.id, itemData);
       await fetchData();
       setShowModal(false);
       setEditingItem(null);
@@ -64,7 +65,7 @@ const Dashboard = () => {
   const handleDeleteItem = async (id) => {
     if (window.confirm('Are you sure you want to delete this item?')) {
       try {
-        await api.delete(`/api/menu-items/${id}`);
+        await tenantAPI.deleteMenuItem(id);
         await fetchData();
       } catch (err) {
         alert('Failed to delete item. Please try again.');

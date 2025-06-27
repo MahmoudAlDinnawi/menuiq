@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import api from '../services/api';
+import tenantAPI from '../services/tenantApi';
+import { getSubdomain } from '../utils/subdomain';
 
 const AllergenIconManager = () => {
   const [allergenIcons, setAllergenIcons] = useState([]);
@@ -19,8 +20,8 @@ const AllergenIconManager = () => {
   const fetchAllergenIcons = async () => {
     try {
       setLoading(true);
-      const response = await api.get('/api/allergen-icons');
-      setAllergenIcons(response.data.allergens);
+      const icons = await tenantAPI.getAllergenIcons();
+      setAllergenIcons(icons.allergens || []);
     } catch (error) {
       console.error('Error fetching allergen icons:', error);
     } finally {
@@ -58,9 +59,23 @@ const AllergenIconManager = () => {
     }
 
     try {
-      await api.post(`/api/allergen-icons/${newAllergen.name}`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      // For now, we'll need to create a custom upload for allergen icons
+      // since it needs special handling
+      const subdomain = getSubdomain();
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}/api/${subdomain}/allergen-icons/${newAllergen.name}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
       });
+      
+      if (!response.ok) {
+        throw new Error('Failed to upload');
+      }
+      
       // Reset form
       setNewAllergen({
         name: '',
@@ -87,7 +102,7 @@ const AllergenIconManager = () => {
     }
 
     try {
-      await api.delete(`/api/allergen-icons/${allergenName}`);
+      await tenantAPI.deleteAllergenIcon(allergenName);
       await fetchAllergenIcons();
       alert('Allergen icon deleted successfully!');
     } catch (error) {

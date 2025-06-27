@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import api from '../services/api';
+import tenantAPI from '../services/tenantApi';
 import CustomAllergenIcons from './CustomAllergenIcons';
 
 const NutritionEnhancedItemForm = ({ item, onSubmit, onCancel, categories }) => {
@@ -80,9 +80,9 @@ const NutritionEnhancedItemForm = ({ item, onSubmit, onCancel, categories }) => 
 
   const loadAllergenOptions = async () => {
     try {
-      const response = await api.get('/api/allergen-icons');
+      const data = await tenantAPI.getAllergenIcons();
       const options = {};
-      response.data.allergens.forEach(allergen => {
+      (data.allergens || []).forEach(allergen => {
         options[allergen.name] = {
           name: allergen.display_name,
           nameAr: allergen.display_name_ar,
@@ -132,14 +132,8 @@ const NutritionEnhancedItemForm = ({ item, onSubmit, onCancel, categories }) => 
       let imageUrl = formData.image;
       
       if (imageFile) {
-        const formDataUpload = new FormData();
-        formDataUpload.append('file', imageFile);
-        const uploadResponse = await api.post('/api/upload-image', formDataUpload, {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        });
-        imageUrl = uploadResponse.data.url;
+        const uploadResponse = await tenantAPI.uploadImage(imageFile);
+        imageUrl = uploadResponse.url;
       }
 
       const submitData = {

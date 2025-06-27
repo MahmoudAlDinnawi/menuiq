@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import api from '../services/api';
+import tenantAPI from '../services/tenantApi';
 import * as XLSX from 'xlsx';
 
 const MenuImportExport = ({ categories, onImportSuccess }) => {
@@ -636,7 +636,7 @@ const MenuImportExport = ({ categories, onImportSuccess }) => {
           if (validItems.length > 0) {
             // Import valid items using bulk API
             try {
-              const response = await api.post('/api/menu-items/bulk', validItems);
+              const response = await tenantAPI.importMenuItems(validItems);
               
               if (response.success && response.count > 0) {
                 setImportSuccess(true);
