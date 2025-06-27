@@ -331,7 +331,13 @@ def get_menu_items(
         print(f"Error in get_menu_items for {subdomain}: {str(e)}")
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        # Return detailed error for debugging
+        error_detail = {
+            "error": str(e),
+            "type": type(e).__name__,
+            "subdomain": subdomain
+        }
+        raise HTTPException(status_code=500, detail=error_detail)
 
 @app.post("/api/{subdomain}/menu-items", response_model=MenuItemResponse)
 def create_menu_item(
@@ -529,6 +535,55 @@ def update_settings(
                 tenant_id=current_user.tenant_id, user_id=current_user.id)
     
     return settings
+
+# Allergen Icons
+@app.get("/api/{subdomain}/allergen-icons")
+def get_allergen_icons(
+    subdomain: str,
+    db: Session = Depends(get_db)
+):
+    """Get allergen icons for a tenant"""
+    try:
+        tenant = get_tenant_by_subdomain(db, subdomain)
+        
+        # Get tenant-specific allergen icons
+        icons = db.query(AllergenIcon).filter(
+            AllergenIcon.tenant_id == tenant.id
+        ).all()
+        
+        # If no tenant-specific icons, return default ones
+        if not icons:
+            # Return default allergen icons
+            default_icons = [
+                {"id": 1, "name": "Gluten", "icon": "🌾", "display_name": "Gluten"},
+                {"id": 2, "name": "Dairy", "icon": "🥛", "display_name": "Dairy"},
+                {"id": 3, "name": "Eggs", "icon": "🥚", "display_name": "Eggs"},
+                {"id": 4, "name": "Fish", "icon": "🐟", "display_name": "Fish"},
+                {"id": 5, "name": "Shellfish", "icon": "🦐", "display_name": "Shellfish"},
+                {"id": 6, "name": "Tree Nuts", "icon": "🌰", "display_name": "Tree Nuts"},
+                {"id": 7, "name": "Peanuts", "icon": "🥜", "display_name": "Peanuts"},
+                {"id": 8, "name": "Soy", "icon": "🌱", "display_name": "Soy"},
+                {"id": 9, "name": "Sesame", "icon": "🌻", "display_name": "Sesame"}
+            ]
+            return {"allergens": default_icons}
+        
+        # Return tenant-specific icons
+        return {
+            "allergens": [
+                {
+                    "id": icon.id,
+                    "name": icon.name,
+                    "icon": icon.icon or "🔸",
+                    "display_name": icon.display_name or icon.name,
+                    "icon_url": icon.icon_url
+                } for icon in icons
+            ]
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error in get_allergen_icons: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Health Check
 @app.get("/api/health")

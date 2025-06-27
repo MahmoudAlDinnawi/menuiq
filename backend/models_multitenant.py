@@ -147,9 +147,9 @@ class MenuItem(Base):
     is_available = Column(Boolean, default=True)
     sort_order = Column(Integer, default=0)
     
-    # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    # Timestamps (optional - may not exist in all databases)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=True)
     
     # Relationships
     tenant = relationship("Tenant", back_populates="menu_items")
