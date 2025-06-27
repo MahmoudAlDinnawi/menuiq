@@ -12,7 +12,7 @@ from datetime import datetime
 from pathlib import Path
 
 from database import get_db
-from models_multitenant import (
+from models_simple import (
     Tenant, User, Category, MenuItem, Settings, 
     AllergenIcon, ItemAllergen
 )
@@ -66,7 +66,7 @@ async def get_dashboard_stats(
     # Get recent items
     recent_items = db.query(MenuItem).filter(
         MenuItem.tenant_id == tenant.id
-    ).order_by(MenuItem.created_at.desc()).limit(5).all()
+    ).order_by(MenuItem.id.desc()).limit(5).all()
     
     return {
         "tenant": {
@@ -93,7 +93,7 @@ async def get_dashboard_stats(
                 "name": item.name,
                 "price": item.price,
                 "category_id": item.category_id,
-                "created_at": item.created_at
+                "created_at": item.created_at if hasattr(item, 'created_at') and item.created_at else None
             } for item in recent_items
         ]
     }
