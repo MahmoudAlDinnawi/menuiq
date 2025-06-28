@@ -348,7 +348,8 @@ async def get_settings(
         "show_calories": settings.show_calories,
         "show_preparation_time": settings.show_preparation_time,
         "show_allergens": settings.show_allergens,
-        "show_price_without_vat": settings.show_price_without_vat
+        "show_price_without_vat": settings.show_price_without_vat,
+        "show_all_category": settings.show_all_category
     }
 
 @router.put("/settings")

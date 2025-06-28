@@ -321,3 +321,104 @@ nav img {
 .instagram-gradient {
   background: linear-gradient(45deg, #f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%);
 }
+
+/* Amazing Mobile Card Animations */
+.amazing-mobile-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.amazing-mobile-card:active {
+  transform: scale(0.98);
+}
+
+/* Image fade-in animation */
+.amazing-card-image {
+  animation: imageFadeIn 0.5s ease-out;
+}
+
+@keyframes imageFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(1.05);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Badge pulse animation */
+@keyframes badgePulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.9;
+  }
+}
+
+.badge-pulse {
+  animation: badgePulse 2s ease-in-out infinite;
+}
+
+/* Allergen icon hover effect */
+.allergen-icon {
+  transition: all 0.2s ease;
+}
+
+.allergen-icon:hover {
+  transform: scale(1.1);
+  z-index: 10 !important;
+}
+
+/* Smooth touch feedback for mobile */
+@media (hover: none) and (pointer: coarse) {
+  .amazing-mobile-card {
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  
+  .amazing-mobile-card:active {
+    background-color: rgba(0, 0, 0, 0.02);
+  }
+}
+
+/* Amazing Desktop Card Animations */
+.amazing-desktop-card {
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.amazing-desktop-card:hover {
+  transform: translateY(-8px) scale(1.02);
+}
+
+/* Desktop card image zoom effect */
+.desktop-card-image {
+  transition: transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.desktop-card-image:hover {
+  transform: scale(1.1);
+}
+
+/* Desktop hover overlay */
+.desktop-hover-overlay {
+  transition: opacity 0.3s ease;
+}
+
+/* Gradient animation for no-image cards */
+@keyframes gradientShift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.gradient-animated {
+  background-size: 200% 200%;
+  animation: gradientShift 5s ease infinite;
+}

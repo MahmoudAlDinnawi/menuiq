@@ -163,7 +163,8 @@ async def get_public_settings(
             "showCalories": True,
             "showPreparationTime": True,
             "showAllergens": True,
-            "enableSearch": True
+            "enableSearch": True,
+            "showAllCategory": True
         }
     
     # Return settings in frontend format
@@ -194,5 +195,6 @@ async def get_public_settings(
         "whatsappNumber": settings.whatsapp_number,
         "instagramHandle": settings.instagram_handle,
         "tiktokHandle": settings.tiktok_handle,
-        "websiteUrl": settings.website_url
+        "websiteUrl": settings.website_url,
+        "showAllCategory": settings.show_all_category
     }

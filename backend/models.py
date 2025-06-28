@@ -353,6 +353,7 @@ class Settings(Base):
     show_preparation_time = Column(Boolean, default=True)
     show_allergens = Column(Boolean, default=True)
     show_price_without_vat = Column(Boolean, default=True)
+    show_all_category = Column(Boolean, default=True)
     
     # Footer settings
     footer_enabled = Column(Boolean, default=True)
