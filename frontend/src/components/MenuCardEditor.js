@@ -143,9 +143,49 @@ const MenuCardEditor = ({ item, categories, onSave, onClose, settings }) => {
   const fetchAllergenIcons = async () => {
     try {
       const response = await tenantAPI.get('/allergen-icons');
-      setAllergenIcons(response.data || []);
+      console.log('Allergen icons response:', response.data);
+      
+      // Handle different response formats
+      let icons = [];
+      if (Array.isArray(response.data)) {
+        icons = response.data;
+      } else if (response.data && Array.isArray(response.data.allergens)) {
+        icons = response.data.allergens;
+      } else if (response.data && Array.isArray(response.data.data)) {
+        icons = response.data.data;
+      }
+      
+      // If no icons returned from API, use defaults
+      if (icons.length === 0) {
+        console.log('No allergen icons from API, using defaults');
+        icons = [
+          { id: 1, display_name: 'Milk', display_name_ar: 'حليب', icon_url: '/src/assets/allergy_icons/milk.svg' },
+          { id: 2, display_name: 'Egg', display_name_ar: 'بيض', icon_url: '/src/assets/allergy_icons/egg.svg' },
+          { id: 3, display_name: 'Fish', display_name_ar: 'سمك', icon_url: '/src/assets/allergy_icons/fish.svg' },
+          { id: 4, display_name: 'Gluten', display_name_ar: 'جلوتين', icon_url: '/src/assets/allergy_icons/gulten.svg' },
+          { id: 5, display_name: 'Shellfish', display_name_ar: 'محار', icon_url: '/src/assets/allergy_icons/Shellfish.svg' },
+          { id: 6, display_name: 'Soy', display_name_ar: 'فول الصويا', icon_url: '/src/assets/allergy_icons/soy.svg' },
+          { id: 7, display_name: 'Sesame', display_name_ar: 'سمسم', icon_url: '/src/assets/allergy_icons/sesame.svg' },
+          { id: 8, display_name: 'Salt', display_name_ar: 'ملح', icon_url: '/src/assets/allergy_icons/salt.svg' },
+          { id: 9, display_name: 'Mustard', display_name_ar: 'خردل', icon_url: '/src/assets/allergy_icons/mustard.svg' }
+        ];
+      }
+      
+      setAllergenIcons(icons);
     } catch (error) {
       console.error('Failed to fetch allergen icons:', error);
+      // Set default allergen icons if API fails
+      setAllergenIcons([
+        { id: 1, display_name: 'Milk', display_name_ar: 'حليب', icon_url: '/src/assets/allergy_icons/milk.svg' },
+        { id: 2, display_name: 'Egg', display_name_ar: 'بيض', icon_url: '/src/assets/allergy_icons/egg.svg' },
+        { id: 3, display_name: 'Fish', display_name_ar: 'سمك', icon_url: '/src/assets/allergy_icons/fish.svg' },
+        { id: 4, display_name: 'Gluten', display_name_ar: 'جلوتين', icon_url: '/src/assets/allergy_icons/gulten.svg' },
+        { id: 5, display_name: 'Shellfish', display_name_ar: 'محار', icon_url: '/src/assets/allergy_icons/Shellfish.svg' },
+        { id: 6, display_name: 'Soy', display_name_ar: 'فول الصويا', icon_url: '/src/assets/allergy_icons/soy.svg' },
+        { id: 7, display_name: 'Sesame', display_name_ar: 'سمسم', icon_url: '/src/assets/allergy_icons/sesame.svg' },
+        { id: 8, display_name: 'Salt', display_name_ar: 'ملح', icon_url: '/src/assets/allergy_icons/salt.svg' },
+        { id: 9, display_name: 'Mustard', display_name_ar: 'خردل', icon_url: '/src/assets/allergy_icons/mustard.svg' }
+      ]);
     }
   };
 

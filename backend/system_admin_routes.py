@@ -9,7 +9,7 @@ import os
 from database import get_db
 from models import (
     Tenant, User, MenuItem, Category, 
-    ActivityLog, Settings, SystemAdmin
+    ActivityLog, Settings, SystemAdmin, AllergenIcon
 )
 from auth import (
     get_current_admin, require_system_admin, 
@@ -261,6 +261,38 @@ async def create_tenant(
             **cat_data
         )
         db.add(category)
+    
+    # Create default allergen icons
+    default_allergens = [
+        {"name": "milk", "display_name": "Milk", "display_name_ar": "حليب", 
+         "icon_url": "/src/assets/allergy_icons/milk.svg", "sort_order": 1},
+        {"name": "eggs", "display_name": "Eggs", "display_name_ar": "بيض", 
+         "icon_url": "/src/assets/allergy_icons/egg.svg", "sort_order": 2},
+        {"name": "fish", "display_name": "Fish", "display_name_ar": "سمك", 
+         "icon_url": "/src/assets/allergy_icons/fish.svg", "sort_order": 3},
+        {"name": "shellfish", "display_name": "Shellfish", "display_name_ar": "محار", 
+         "icon_url": "/src/assets/allergy_icons/Shellfish.svg", "sort_order": 4},
+        {"name": "tree_nuts", "display_name": "Tree Nuts", "display_name_ar": "مكسرات", 
+         "icon_url": "/src/assets/allergy_icons/nuts.svg", "sort_order": 5},
+        {"name": "wheat", "display_name": "Wheat/Gluten", "display_name_ar": "قمح/جلوتين", 
+         "icon_url": "/src/assets/allergy_icons/gulten.svg", "sort_order": 6},
+        {"name": "soybeans", "display_name": "Soybeans", "display_name_ar": "فول الصويا", 
+         "icon_url": "/src/assets/allergy_icons/soy.svg", "sort_order": 7},
+        {"name": "sesame", "display_name": "Sesame", "display_name_ar": "سمسم", 
+         "icon_url": "/src/assets/allergy_icons/sesame.svg", "sort_order": 8},
+        {"name": "mustard", "display_name": "Mustard", "display_name_ar": "خردل", 
+         "icon_url": "/src/assets/allergy_icons/mustard.svg", "sort_order": 9},
+        {"name": "salt", "display_name": "Salt", "display_name_ar": "ملح", 
+         "icon_url": "/src/assets/allergy_icons/salt.svg", "sort_order": 10}
+    ]
+    
+    for allergen_data in default_allergens:
+        allergen = AllergenIcon(
+            tenant_id=tenant.id,
+            is_active=True,
+            **allergen_data
+        )
+        db.add(allergen)
     
     # Create admin user with provided credentials
     existing_user = db.query(User).filter(User.email == tenant_data.admin_email).first()
