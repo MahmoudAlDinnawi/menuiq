@@ -15,6 +15,8 @@ const SettingsPanel = ({ onUpdate }) => {
     try {
       setLoading(true);
       const response = await tenantAPI.get('/settings');
+      console.log('Settings loaded:', response.data);
+      console.log('show_all_category value:', response.data.show_all_category);
       setSettings(response.data);
     } catch (error) {
       console.error('Failed to fetch settings:', error);
@@ -38,6 +40,7 @@ const SettingsPanel = ({ onUpdate }) => {
   };
 
   const handleChange = (field, value) => {
+    console.log(`Changing ${field} to:`, value);
     setSettings(prev => ({ ...prev, [field]: value }));
   };
 
@@ -240,7 +243,8 @@ const SettingsPanel = ({ onUpdate }) => {
                   { key: 'show_calories', label: 'Show Calories' },
                   { key: 'show_preparation_time', label: 'Show Preparation Time' },
                   { key: 'show_allergens', label: 'Show Allergens' },
-                  { key: 'show_price_without_vat', label: 'Show Price Without VAT' }
+                  { key: 'show_price_without_vat', label: 'Show Price Without VAT' },
+                  { key: 'show_all_category', label: 'Show "All" Category' }
                 ].map((feature) => (
                   <label key={feature.key} className="flex items-center gap-2 p-3 border rounded-lg hover:bg-gray-50">
                     <input

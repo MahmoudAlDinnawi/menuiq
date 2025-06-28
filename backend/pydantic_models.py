@@ -209,6 +209,7 @@ class SettingsUpdate(BaseModel):
     show_calories: Optional[bool] = None
     show_preparation_time: Optional[bool] = None
     show_allergens: Optional[bool] = None
+    show_all_category: Optional[bool] = None
     enable_search: Optional[bool] = None
 
 class SettingsResponse(BaseModel):
@@ -234,6 +235,7 @@ class SettingsResponse(BaseModel):
     show_calories: bool
     show_preparation_time: bool
     show_allergens: bool
+    show_all_category: bool
     enable_search: bool
     updated_at: datetime
 

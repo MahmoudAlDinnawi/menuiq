@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import LuxuryCategoryFilter from '../components/LuxuryCategoryFilter';
 import LuxuryMenuCard from '../components/LuxuryMenuCard';
 import LuxuryMobileCard from '../components/LuxuryMobileCard';
+import AmazingMobileCard from '../components/AmazingMobileCard';
+import AmazingDesktopCard from '../components/AmazingDesktopCard';
 import api from '../services/api';
 import DOMPurify from 'dompurify';
 
@@ -39,6 +41,14 @@ const LuxuryEmbeddedMenu = () => {
       setMenuItems(itemsData.data);
       setCategories(categoriesData.data.categories);
       setSettings(settingsData.data);
+      
+      // If "All" category is disabled and current category is "all", 
+      // switch to first available category
+      if (settingsData.data?.show_all_category === false && activeCategory === 'all') {
+        if (categoriesData.data.categories.length > 0) {
+          setActiveCategory(categoriesData.data.categories[0].value);
+        }
+      }
     } catch (err) {
       setError('Failed to load menu. Please try again later.');
       console.error('Error fetching data:', err);
@@ -124,6 +134,7 @@ const LuxuryEmbeddedMenu = () => {
         activeCategory={activeCategory}
         onCategoryChange={setActiveCategory}
         language={language}
+        showAllCategory={settings?.show_all_category === true}
       />
       
       {/* Main Content */}
@@ -132,12 +143,13 @@ const LuxuryEmbeddedMenu = () => {
           // Mobile Layout
           <div className="space-y-4">
             {filteredItems.map((item) => (
-              <LuxuryMobileCard 
+              <AmazingMobileCard 
                 key={item.id}
                 item={item}
                 language={language}
                 formatCategory={formatCategory}
                 categories={categories}
+                settings={settings}
               />
             ))}
           </div>
@@ -145,12 +157,13 @@ const LuxuryEmbeddedMenu = () => {
           // Desktop Layout
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredItems.map((item) => (
-              <LuxuryMenuCard 
+              <AmazingDesktopCard 
                 key={item.id}
                 item={item}
                 language={language}
                 formatCategory={formatCategory}
                 categories={categories}
+                settings={settings}
               />
             ))}
           </div>

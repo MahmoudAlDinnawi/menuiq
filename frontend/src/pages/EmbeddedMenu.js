@@ -3,6 +3,8 @@ import LuxuryCategoryFilter from '../components/LuxuryCategoryFilter';
 import publicMenuAPI from '../services/publicMenuApi';
 import GuestFriendlyMenuCard from '../components/GuestFriendlyMenuCard';
 import GuestFriendlyMobileCard from '../components/GuestFriendlyMobileCard';
+import AmazingMobileCard from '../components/AmazingMobileCard';
+import AmazingDesktopCard from '../components/AmazingDesktopCard';
 import DOMPurify from 'dompurify';
 
 const EmbeddedMenu = () => {
@@ -40,6 +42,14 @@ const EmbeddedMenu = () => {
       setMenuItems(itemsResponse);
       setCategories(categoriesResponse);
       setSettings(settingsResponse);
+      
+      // If "All" category is disabled and current category is "all", 
+      // switch to first available category
+      if (settingsResponse?.show_all_category === false && activeCategory === 'all') {
+        if (categoriesResponse.length > 0) {
+          setActiveCategory(categoriesResponse[0].value);
+        }
+      }
     } catch (err) {
       setError('Failed to load menu. Please try again later.');
       console.error('Error fetching data:', err);
@@ -122,6 +132,7 @@ const EmbeddedMenu = () => {
         activeCategory={activeCategory}
         onCategoryChange={setActiveCategory}
         language={language}
+        showAllCategory={settings?.show_all_category === true}
       />
       
       <main className="container mx-auto px-0 md:px-4 py-4 md:py-8">
@@ -152,7 +163,7 @@ const EmbeddedMenu = () => {
                   animation: 'fadeInUp 0.4s ease-out forwards'
                 }}
               >
-                <GuestFriendlyMobileCard 
+                <AmazingMobileCard 
                   item={item}
                   language={language}
                   formatCategory={formatCategory}
@@ -174,7 +185,7 @@ const EmbeddedMenu = () => {
                   animation: 'fadeInUp 0.6s ease-out forwards'
                 }}
               >
-                <GuestFriendlyMenuCard 
+                <AmazingDesktopCard 
                   item={item}
                   language={language}
                   formatCategory={formatCategory}

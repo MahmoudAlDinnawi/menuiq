@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import LuxuryCategoryFilter from '../components/LuxuryCategoryFilter';
 import GuestFriendlyMenuCard from '../components/GuestFriendlyMenuCard';
 import GuestFriendlyMobileCard from '../components/GuestFriendlyMobileCard';
+import AmazingMobileCard from '../components/AmazingMobileCard';
+import AmazingDesktopCard from '../components/AmazingDesktopCard';
 import publicMenuAPI from '../services/publicMenuApi';
 import DOMPurify from 'dompurify';
 
@@ -39,6 +41,18 @@ const RestaurantMenu = () => {
       setMenuItems(itemsResponse);
       setCategories(categoriesResponse);
       setSettings(settingsResponse);
+      
+      // Debug log
+      console.log('Settings received:', settingsResponse);
+      console.log('showAllCategory value:', settingsResponse?.showAllCategory);
+      
+      // If "All" category is disabled and current category is "all", 
+      // switch to first available category
+      if (settingsResponse?.showAllCategory === false && activeCategory === 'all') {
+        if (categoriesResponse.length > 0) {
+          setActiveCategory(categoriesResponse[0].value);
+        }
+      }
     } catch (err) {
       setError('Failed to load menu. Please try again later.');
       console.error('Error fetching data:', err);
@@ -190,6 +204,7 @@ const RestaurantMenu = () => {
           activeCategory={activeCategory}
           onCategoryChange={setActiveCategory}
           language={language}
+          showAllCategory={settings?.showAllCategory === true}
         />
       </div>
       
@@ -199,7 +214,7 @@ const RestaurantMenu = () => {
           // Mobile Layout
           <div className="space-y-3">
             {filteredItems.map((item) => (
-              <GuestFriendlyMobileCard 
+              <AmazingMobileCard 
                 key={item.id}
                 item={item}
                 language={language}
@@ -213,7 +228,7 @@ const RestaurantMenu = () => {
           // Desktop Layout
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredItems.map((item) => (
-              <GuestFriendlyMenuCard 
+              <AmazingDesktopCard 
                 key={item.id}
                 item={item}
                 language={language}
