@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Dict
 from pydantic import BaseModel, EmailStr
 from database import get_db
-from models_final import User, Tenant
+from models import User, Tenant
 from auth import (
     verify_password, get_password_hash, create_access_token,
     get_current_tenant_user

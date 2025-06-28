@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional
 from database import get_db
-from models_final import Tenant, MenuItem, Category, Settings, ItemAllergen
+from models import Tenant, MenuItem, Category, Settings, ItemAllergen
 
 router = APIRouter(prefix="/api/public", tags=["public-menu"])
 

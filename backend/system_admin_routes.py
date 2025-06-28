@@ -7,7 +7,7 @@ from pydantic import BaseModel, EmailStr
 import os
 
 from database import get_db
-from models_final import (
+from models import (
     Tenant, User, MenuItem, Category, 
     ActivityLog, Settings, SystemAdmin
 )

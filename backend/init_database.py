@@ -17,7 +17,7 @@ load_dotenv(env_file)
 
 # Import models
 from database import engine, Base
-from models_final import (
+from models import (
     Tenant, User, SystemAdmin, Category, MenuItem, 
     ItemAllergen, Settings, AllergenIcon, ActivityLog
 )

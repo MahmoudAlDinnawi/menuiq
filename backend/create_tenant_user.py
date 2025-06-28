@@ -13,7 +13,7 @@ env_file = '.env' if os.getenv('ENVIRONMENT') != 'production' else '.env.product
 load_dotenv(env_file)
 
 # Import models
-from models_final import Tenant, User
+from models import Tenant, User
 
 # Create engine
 DATABASE_URL = os.getenv("DATABASE_URL")
