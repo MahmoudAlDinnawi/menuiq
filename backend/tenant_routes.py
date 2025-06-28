@@ -12,9 +12,9 @@ from pathlib import Path
 from decimal import Decimal
 
 from database import get_db
-from models_enhanced import (
+from models import (
     Tenant, User, Category, MenuItem, Settings, 
-    AllergenIcon, ItemAllergen, MenuItemImage,
+    AllergenIcon, MenuItemImage,
     MenuItemReview, DietaryCertification, PreparationStep
 )
 from auth import get_current_user_dict
@@ -141,6 +141,44 @@ async def get_dashboard_stats(
     }
 
 # Enhanced Categories CRUD
+@router.get("/categories")
+async def get_categories(
+    current_user: dict = Depends(get_current_user_dict),
+    db: Session = Depends(get_db)
+):
+    """Get all categories for the tenant"""
+    tenant = get_tenant_from_user(current_user, db)
+    
+    categories = db.query(Category).filter(
+        Category.tenant_id == tenant.id
+    ).order_by(Category.sort_order, Category.id).all()
+    
+    return [
+        {
+            "id": cat.id,
+            "name": cat.name,
+            "description": cat.description,
+            "description_ar": cat.description_ar,
+            "image_url": cat.image_url,
+            "hero_image": cat.hero_image,
+            "icon": cat.icon,
+            "color_theme": cat.color_theme,
+            "is_active": cat.is_active,
+            "is_featured": cat.is_featured,
+            "display_style": cat.display_style,
+            "sort_order": cat.sort_order,
+            "value": cat.value,
+            "label": cat.label,
+            "label_ar": cat.label_ar,
+            "meta_keywords": cat.meta_keywords,
+            "meta_description": cat.meta_description,
+            "created_at": cat.created_at.isoformat() if cat.created_at else None,
+            "updated_at": cat.updated_at.isoformat() if cat.updated_at else None,
+            "menu_items_count": len(cat.menu_items)
+        }
+        for cat in categories
+    ]
+
 @router.post("/categories")
 async def create_category(
     category_data: dict,
@@ -185,7 +223,190 @@ async def create_category(
     db.commit()
     db.refresh(db_category)
     
-    return db_category
+    return {"id": db_category.id, "message": "Category created successfully"}
+
+@router.put("/categories/{category_id}")
+async def update_category(
+    category_id: int,
+    category_data: dict,
+    current_user: dict = Depends(get_current_user_dict),
+    db: Session = Depends(get_db)
+):
+    """Update a category"""
+    tenant = get_tenant_from_user(current_user, db)
+    
+    category = db.query(Category).filter(
+        Category.id == category_id,
+        Category.tenant_id == tenant.id
+    ).first()
+    
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+    
+    # Update fields
+    for field, value in category_data.items():
+        if hasattr(category, field) and field not in ["id", "tenant_id"]:
+            setattr(category, field, value)
+    
+    category.updated_at = datetime.utcnow()
+    db.commit()
+    
+    return {"message": "Category updated successfully"}
+
+@router.delete("/categories/{category_id}")
+async def delete_category(
+    category_id: int,
+    current_user: dict = Depends(get_current_user_dict),
+    db: Session = Depends(get_db)
+):
+    """Delete a category"""
+    tenant = get_tenant_from_user(current_user, db)
+    
+    category = db.query(Category).filter(
+        Category.id == category_id,
+        Category.tenant_id == tenant.id
+    ).first()
+    
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+    
+    # Check if category has menu items
+    if category.menu_items:
+        raise HTTPException(
+            status_code=400, 
+            detail="Cannot delete category with existing menu items"
+        )
+    
+    db.delete(category)
+    db.commit()
+    
+    return {"message": "Category deleted successfully"}
+
+# Settings endpoints
+@router.get("/settings")
+async def get_settings(
+    current_user: dict = Depends(get_current_user_dict),
+    db: Session = Depends(get_db)
+):
+    """Get tenant settings"""
+    tenant = get_tenant_from_user(current_user, db)
+    
+    settings = db.query(Settings).filter(
+        Settings.tenant_id == tenant.id
+    ).first()
+    
+    if not settings:
+        # Create default settings if not exist
+        settings = Settings(
+            tenant_id=tenant.id,
+            currency="SAR",
+            tax_rate=15.0
+        )
+        db.add(settings)
+        db.commit()
+        db.refresh(settings)
+    
+    return {
+        "id": settings.id,
+        "currency": settings.currency,
+        "tax_rate": float(settings.tax_rate) if settings.tax_rate else 0,
+        "language": settings.language,
+        "timezone": settings.timezone,
+        "primary_color": settings.primary_color,
+        "secondary_color": settings.secondary_color,
+        "font_family": settings.font_family,
+        "menu_layout": settings.menu_layout,
+        "card_style": settings.card_style,
+        "color_scheme": settings.color_scheme,
+        "animation_enabled": settings.animation_enabled,
+        "enable_search": settings.enable_search,
+        "enable_reviews": settings.enable_reviews,
+        "enable_ratings": settings.enable_ratings,
+        "enable_nutritional_info": settings.enable_nutritional_info,
+        "enable_allergen_info": settings.enable_allergen_info,
+        "enable_sustainability_info": settings.enable_sustainability_info,
+        "enable_pairing_suggestions": settings.enable_pairing_suggestions,
+        "enable_ar_preview": settings.enable_ar_preview,
+        "enable_video_preview": settings.enable_video_preview,
+        "enable_loyalty_points": settings.enable_loyalty_points,
+        "quick_view_enabled": settings.quick_view_enabled,
+        "comparison_enabled": settings.comparison_enabled,
+        "wishlist_enabled": settings.wishlist_enabled,
+        "social_sharing_enabled": settings.social_sharing_enabled,
+        "whatsapp_ordering_enabled": settings.whatsapp_ordering_enabled,
+        "whatsapp_number": settings.whatsapp_number,
+        "instagram_handle": settings.instagram_handle,
+        "tiktok_handle": settings.tiktok_handle,
+        "website_url": settings.website_url,
+        "footer_enabled": settings.footer_enabled,
+        "footer_text_en": settings.footer_text_en,
+        "footer_text_ar": settings.footer_text_ar,
+        "hero_subtitle_en": settings.hero_subtitle_en,
+        "hero_subtitle_ar": settings.hero_subtitle_ar,
+        "footer_tagline_en": settings.footer_tagline_en,
+        "footer_tagline_ar": settings.footer_tagline_ar,
+        "show_calories": settings.show_calories,
+        "show_preparation_time": settings.show_preparation_time,
+        "show_allergens": settings.show_allergens,
+        "show_price_without_vat": settings.show_price_without_vat
+    }
+
+@router.put("/settings")
+async def update_settings(
+    settings_data: dict,
+    current_user: dict = Depends(get_current_user_dict),
+    db: Session = Depends(get_db)
+):
+    """Update tenant settings"""
+    tenant = get_tenant_from_user(current_user, db)
+    
+    settings = db.query(Settings).filter(
+        Settings.tenant_id == tenant.id
+    ).first()
+    
+    if not settings:
+        settings = Settings(tenant_id=tenant.id)
+        db.add(settings)
+    
+    # Debug: print received fields
+    print(f"Received settings data: {list(settings_data.keys())}")
+    
+    # Update fields
+    updated_fields = []
+    for field, value in settings_data.items():
+        if hasattr(settings, field) and field not in ["id", "tenant_id", "created_at", "updated_at"]:
+            setattr(settings, field, value)
+            updated_fields.append(field)
+    
+    print(f"Updated fields: {updated_fields}")
+    
+    db.commit()
+    db.refresh(settings)
+    
+    return {"message": "Settings updated successfully", "updated_fields": updated_fields}
+
+# Allergen Icons endpoint
+@router.get("/allergen-icons")
+async def get_allergen_icons(
+    current_user: dict = Depends(get_current_user_dict),
+    db: Session = Depends(get_db)
+):
+    """Get all allergen icons for the tenant"""
+    tenant = get_tenant_from_user(current_user, db)
+    
+    allergens = db.query(AllergenIcon).filter(
+        AllergenIcon.tenant_id == tenant.id,
+        AllergenIcon.is_active == True
+    ).order_by(AllergenIcon.sort_order, AllergenIcon.id).all()
+    
+    return [{
+        "id": a.id,
+        "name": a.name,
+        "display_name": a.display_name,
+        "display_name_ar": a.display_name_ar,
+        "icon_url": a.icon_url,
+        "sort_order": a.sort_order
+    } for a in allergens]
 
 # Enhanced Menu Items CRUD
 @router.get("/menu-items")
@@ -364,7 +585,13 @@ async def get_menu_items(
             "created_at": item.created_at.isoformat() if item.created_at else None,
             "updated_at": item.updated_at.isoformat() if item.updated_at else None,
             # Related data
-            "allergens": [{"id": a.id, "name": a.allergen_name} for a in item.allergens],
+            "allergens": [{
+                "id": a.id, 
+                "name": a.name,
+                "display_name": a.display_name,
+                "display_name_ar": a.display_name_ar,
+                "icon_url": a.icon_url
+            } for a in item.allergens],
             "images": [
                 {
                     "id": img.id,
@@ -529,12 +756,7 @@ async def create_menu_item(
             ).first()
             
             if allergen_icon:
-                allergen = ItemAllergen(
-                    item_id=db_item.id,
-                    allergen_name=allergen_icon.name,
-                    severity="moderate"
-                )
-                db.add(allergen)
+                db_item.allergens.append(allergen_icon)
         
         db.commit()
     
@@ -560,6 +782,10 @@ async def update_menu_item(
     
     # Update all fields
     for field, value in item_data.items():
+        # Skip allergen_ids and allergens as they're handled separately
+        if field in ["allergen_ids", "allergens"]:
+            continue
+            
         if field in ["price", "price_without_vat", "promotion_price", "total_fat", 
                      "saturated_fat", "trans_fat", "total_carbs", "dietary_fiber", 
                      "sugars", "protein", "reorder_rate"]:
@@ -569,17 +795,15 @@ async def update_menu_item(
             if value:
                 value = datetime.fromisoformat(value).date()
         
-        if hasattr(item, field) and field not in ["id", "tenant_id", "created_at"]:
+        if hasattr(item, field) and field not in ["id", "tenant_id", "created_at", "allergens"]:
             setattr(item, field, value)
     
     item.updated_at = datetime.utcnow()
     
     # Update allergens if provided
     if "allergen_ids" in item_data:
-        # Remove existing allergens
-        db.query(ItemAllergen).filter(
-            ItemAllergen.item_id == item_id
-        ).delete()
+        # Clear existing allergens
+        item.allergens = []
         
         # Add new allergens
         for allergen_id in item_data["allergen_ids"]:
@@ -589,12 +813,7 @@ async def update_menu_item(
             ).first()
             
             if allergen_icon:
-                allergen = ItemAllergen(
-                    item_id=item_id,
-                    allergen_name=allergen_icon.name,
-                    severity="moderate"
-                )
-                db.add(allergen)
+                item.allergens.append(allergen_icon)
     
     db.commit()
     

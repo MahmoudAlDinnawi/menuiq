@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List, Optional
 from database import get_db
-from models import Tenant, MenuItem, Category, Settings, ItemAllergen
+from models import Tenant, MenuItem, Category, Settings, AllergenIcon
 
 router = APIRouter(prefix="/api/public", tags=["public-menu"])
 
@@ -32,6 +32,13 @@ async def get_public_menu_items(
     """Get all menu items for public display in frontend format"""
     tenant = get_tenant_by_subdomain(db, subdomain)
     
+    # Get settings for currency
+    settings = db.query(Settings).filter(
+        Settings.tenant_id == tenant.id
+    ).first()
+    
+    currency = settings.currency if settings else "SAR"
+    
     # Get all active menu items
     items = db.query(MenuItem).filter(
         MenuItem.tenant_id == tenant.id,
@@ -46,13 +53,14 @@ async def get_public_menu_items(
         if item.category:
             category_value = item.category.value or f"category_{item.category_id}"
         
-        # Get allergens
-        allergen_names = []
-        allergens = db.query(ItemAllergen).filter(
-            ItemAllergen.item_id == item.id
-        ).all()
-        for allergen in allergens:
-            allergen_names.append(allergen.allergen_name)
+        # Get allergens with full details
+        allergen_data = [{
+            "id": allergen.id,
+            "name": allergen.name,
+            "display_name": allergen.display_name,
+            "display_name_ar": allergen.display_name_ar,
+            "icon_url": allergen.icon_url
+        } for allergen in item.allergens]
         
         # Format item for frontend
         item_data = {
@@ -63,8 +71,8 @@ async def get_public_menu_items(
             "descriptionAr": item.description_ar,
             "category": category_value,
             "image": item.image,
-            "price": f"{item.price:.2f} SAR" if item.price else None,
-            "priceWithoutVat": f"{item.price_without_vat:.2f} SAR" if item.price_without_vat else None,
+            "price": f"{item.price:.2f} {currency}" if item.price else None,
+            "priceWithoutVat": f"{item.price_without_vat:.2f} {currency}" if item.price_without_vat else None,
             "calories": item.calories,
             "preparationTime": item.preparation_time,
             "servingSize": item.serving_size,
@@ -79,7 +87,7 @@ async def get_public_menu_items(
             "containsCaffeine": item.contains_caffeine,
             "walkMinutes": item.walk_minutes,
             "runMinutes": item.run_minutes,
-            "allergens": allergen_names,
+            "allergens": allergen_data,
             # Nutrition info
             "totalFat": float(item.total_fat) if item.total_fat else None,
             "saturatedFat": float(item.saturated_fat) if item.saturated_fat else None,
@@ -147,6 +155,10 @@ async def get_public_settings(
             "footerEnabled": True,
             "footerTextEn": None,
             "footerTextAr": None,
+            "heroSubtitleEn": "Discover our exquisite selection of authentic French cuisine",
+            "heroSubtitleAr": "اكتشف تشكيلتنا الرائعة من الأطباق الفرنسية الأصيلة",
+            "footerTaglineEn": "Authentic French dining experience in the heart of the Kingdom",
+            "footerTaglineAr": "تجربة طعام فرنسية أصيلة في قلب المملكة",
             "currency": "SAR",
             "showCalories": True,
             "showPreparationTime": True,
@@ -159,9 +171,28 @@ async def get_public_settings(
         "footerEnabled": settings.footer_enabled,
         "footerTextEn": settings.footer_text_en,
         "footerTextAr": settings.footer_text_ar,
+        "heroSubtitleEn": settings.hero_subtitle_en,
+        "heroSubtitleAr": settings.hero_subtitle_ar,
+        "footerTaglineEn": settings.footer_tagline_en,
+        "footerTaglineAr": settings.footer_tagline_ar,
         "currency": settings.currency,
         "showCalories": settings.show_calories,
         "showPreparationTime": settings.show_preparation_time,
         "showAllergens": settings.show_allergens,
-        "enableSearch": settings.enable_search
+        "enableSearch": settings.enable_search,
+        "primaryColor": settings.primary_color,
+        "secondaryColor": settings.secondary_color,
+        "fontFamily": settings.font_family,
+        "menuLayout": settings.menu_layout,
+        "animationEnabled": settings.animation_enabled,
+        "enableReviews": settings.enable_reviews,
+        "enableRatings": settings.enable_ratings,
+        "enableNutritionalInfo": settings.enable_nutritional_info,
+        "enableAllergenInfo": settings.enable_allergen_info,
+        "socialSharingEnabled": settings.social_sharing_enabled,
+        "whatsappOrderingEnabled": settings.whatsapp_ordering_enabled,
+        "whatsappNumber": settings.whatsapp_number,
+        "instagramHandle": settings.instagram_handle,
+        "tiktokHandle": settings.tiktok_handle,
+        "websiteUrl": settings.website_url
     }

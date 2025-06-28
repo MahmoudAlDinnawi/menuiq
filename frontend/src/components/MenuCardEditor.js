@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import tenantAPI from '../services/tenantApiV2';
+import AllergenSVGIcon from './AllergenSVGIcon';
 
-const MenuCardEditor = ({ item, categories, onSave, onClose }) => {
+const MenuCardEditor = ({ item, categories, onSave, onClose, settings }) => {
   const [activeTab, setActiveTab] = useState('basic');
   const [loading, setLoading] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
+  const [allergenIcons, setAllergenIcons] = useState([]);
   const [formData, setFormData] = useState({
     // Basic Info
     name: '',
@@ -110,23 +112,42 @@ const MenuCardEditor = ({ item, categories, onSave, onClose }) => {
     
     // Metadata
     sort_order: 0,
-    tags: []
+    tags: [],
+    
+    // Allergens
+    allergen_ids: []
   });
 
   useEffect(() => {
+    fetchAllergenIcons();
     if (item) {
+      // Extract allergen IDs from item.allergens array
+      const allergenIds = item.allergens ? item.allergens.map(a => 
+        typeof a === 'object' ? a.id : a
+      ) : [];
+      
       setFormData({
         ...formData,
         ...item,
         category_id: item.category_id || '',
         price: item.price || '',
-        tags: item.tags || []
+        tags: item.tags || [],
+        allergen_ids: allergenIds
       });
       if (item.image) {
         setImagePreview(item.image);
       }
     }
   }, [item]);
+
+  const fetchAllergenIcons = async () => {
+    try {
+      const response = await tenantAPI.get('/allergen-icons');
+      setAllergenIcons(response.data || []);
+    } catch (error) {
+      console.error('Failed to fetch allergen icons:', error);
+    }
+  };
 
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
@@ -180,7 +201,8 @@ const MenuCardEditor = ({ item, categories, onSave, onClose }) => {
         vitamin_a: formData.vitamin_a ? parseInt(formData.vitamin_a) : null,
         vitamin_c: formData.vitamin_c ? parseInt(formData.vitamin_c) : null,
         calcium: formData.calcium ? parseInt(formData.calcium) : null,
-        iron: formData.iron ? parseInt(formData.iron) : null
+        iron: formData.iron ? parseInt(formData.iron) : null,
+        allergen_ids: formData.allergen_ids
       };
 
       await onSave(submitData);
@@ -458,7 +480,74 @@ const MenuCardEditor = ({ item, categories, onSave, onClose }) => {
               </div>
 
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-3">Warnings & Allergens</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-3">Allergen Content</h3>
+                <p className="text-sm text-gray-600 mb-4">Select all allergens that this item contains:</p>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-6">
+                  {allergenIcons.map((allergen) => {
+                    const isSelected = formData.allergen_ids.includes(allergen.id);
+                    const isEmoji = allergen.icon_url && allergen.icon_url.length <= 4 && !allergen.icon_url.startsWith('/');
+                    const isSVG = allergen.icon_url && allergen.icon_url.endsWith('.svg');
+                    const primaryColor = settings?.primaryColor || '#00594f';
+                    
+                    return (
+                      <label
+                        key={allergen.id}
+                        className={`relative flex flex-col items-center gap-2 p-3 border-2 rounded-lg cursor-pointer transition-all ${
+                          isSelected 
+                            ? 'border-gray-400 bg-gray-50' 
+                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              handleChange('allergen_ids', [...formData.allergen_ids, allergen.id]);
+                            } else {
+                              handleChange('allergen_ids', formData.allergen_ids.filter(id => id !== allergen.id));
+                            }
+                          }}
+                          className="sr-only"
+                        />
+                        <div className="p-2 rounded-full">
+                          {isSVG ? (
+                            <AllergenSVGIcon 
+                              iconPath={allergen.icon_url}
+                              size="w-8 h-8"
+                              primaryColor={isSelected ? primaryColor : '#6B7280'}
+                            />
+                          ) : isEmoji ? (
+                            <span className="text-3xl">{allergen.icon_url}</span>
+                          ) : (
+                            <img 
+                              src={`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}${allergen.icon_url}`}
+                              alt={allergen.display_name}
+                              className="w-8 h-8 object-contain"
+                            />
+                          )}
+                        </div>
+                        <span className={`text-xs font-medium text-center ${isSelected ? 'text-gray-900' : 'text-gray-700'}`}>
+                          {allergen.display_name}
+                        </span>
+                        {isSelected && (
+                          <div 
+                            className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center"
+                            style={{ backgroundColor: primaryColor }}
+                          >
+                            <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                        )}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-3">Other Warnings</h3>
                 <div className="space-y-4">
                   <div className="flex items-center gap-4">
                     <label className="flex items-center gap-2">

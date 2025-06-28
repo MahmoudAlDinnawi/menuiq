@@ -15,6 +15,7 @@ const ModernDashboard = () => {
   const [stats, setStats] = useState(null);
   const [menuItems, setMenuItems] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [settings, setSettings] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const [showEditor, setShowEditor] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -29,14 +30,16 @@ const ModernDashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const [statsRes, itemsRes, categoriesRes] = await Promise.all([
+      const [statsRes, itemsRes, categoriesRes, settingsRes] = await Promise.all([
         tenantAPI.get('/dashboard/stats'),
         tenantAPI.get('/menu-items'),
-        tenantAPI.get('/categories')
+        tenantAPI.get('/categories'),
+        tenantAPI.get('/settings').catch(() => ({ data: null }))
       ]);
       setStats(statsRes.data);
       setMenuItems(itemsRes.data);
       setCategories(categoriesRes.data);
+      setSettings(settingsRes.data);
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
     } finally {
@@ -426,7 +429,7 @@ const ModernDashboard = () => {
                 <p className="text-sm text-gray-600 mb-3 line-clamp-2">{item.description}</p>
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-bold text-indigo-600">
-                    {item.price ? `${item.price} SAR` : 'No price'}
+                    {item.price ? `${item.price} ${settings?.currency || 'SAR'}` : 'No price'}
                   </span>
                   <div className="flex gap-2">
                     <button
@@ -483,7 +486,7 @@ const ModernDashboard = () => {
                     {categories.find(c => c.id === item.category_id)?.name || 'Uncategorized'}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-900">
-                    {item.price ? `${item.price} SAR` : '-'}
+                    {item.price ? `${item.price} ${settings?.currency || 'SAR'}` : '-'}
                   </td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
@@ -550,6 +553,7 @@ const ModernDashboard = () => {
         <MenuCardEditor
           item={selectedItem}
           categories={categories}
+          settings={settings}
           onSave={handleSaveItem}
           onClose={() => {
             setShowEditor(false);

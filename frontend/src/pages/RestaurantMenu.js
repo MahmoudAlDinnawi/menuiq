@@ -94,19 +94,21 @@ const RestaurantMenu = () => {
           <div className="flex items-center justify-between h-16 sm:h-20">
             {/* Left Side - Website Link */}
             <div className="flex-1 max-w-[100px] sm:max-w-none">
-              <a
-                href="https://entrecote.sa"
-                className="inline-flex items-center gap-1 sm:gap-2 text-gray-700 hover:text-gray-900 transition-colors group"
-              >
-                <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gray-100 group-hover:bg-gray-200 flex items-center justify-center transition-colors">
-                  <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                  </svg>
-                </div>
-                <span className="hidden sm:inline text-sm font-medium">
-                  {language === 'ar' ? 'الموقع الرئيسي' : 'Main Website'}
-                </span>
-              </a>
+              {settings?.websiteUrl && (
+                <a
+                  href={settings.websiteUrl}
+                  className="inline-flex items-center gap-1 sm:gap-2 text-gray-700 hover:text-gray-900 transition-colors group"
+                >
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gray-100 group-hover:bg-gray-200 flex items-center justify-center transition-colors">
+                    <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                  </div>
+                  <span className="hidden sm:inline text-sm font-medium">
+                    {language === 'ar' ? 'الموقع الرئيسي' : 'Main Website'}
+                  </span>
+                </a>
+              )}
             </div>
 
             {/* Center - Logo */}
@@ -124,21 +126,23 @@ const RestaurantMenu = () => {
 
             {/* Right Side - Actions */}
             <div className="flex-1 flex items-center justify-end gap-1 sm:gap-2 md:gap-3 max-w-[100px] sm:max-w-none">
-              {/* Instagram Button - Icon only on mobile */}
-              <a
-                href="https://instagram.com/entrecote.sa"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full hover:shadow-lg transition-all duration-300 group"
-                title="@entrecote.sa"
-              >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zM5.838 12a6.162 6.162 0 1112.324 0 6.162 6.162 0 01-12.324 0zM12 16a4 4 0 110-8 4 4 0 010 8zm4.965-10.405a1.44 1.44 0 112.881.001 1.44 1.44 0 01-2.881-.001z"/>
-                </svg>
-                <span className="text-xs sm:text-sm font-medium hidden sm:inline">
-                  entrecote.sa
-                </span>
-              </a>
+              {/* Instagram Button - Dynamic Handle */}
+              {settings?.instagramHandle && (
+                <a
+                  href={`https://instagram.com/${settings.instagramHandle.replace('@', '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full hover:shadow-lg transition-all duration-300 group"
+                  title={settings.instagramHandle}
+                >
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zM5.838 12a6.162 6.162 0 1112.324 0 6.162 6.162 0 01-12.324 0zM12 16a4 4 0 110-8 4 4 0 010 8zm4.965-10.405a1.44 1.44 0 112.881.001 1.44 1.44 0 01-2.881-.001z"/>
+                  </svg>
+                  <span className="text-xs sm:text-sm font-medium hidden sm:inline">
+                    {settings.instagramHandle.replace('@', '')}
+                  </span>
+                </a>
+              )}
 
               {/* Language Switcher - Compact on mobile */}
               <button
@@ -157,16 +161,23 @@ const RestaurantMenu = () => {
         </div>
       </nav>
       
-      {/* Hero Section */}
-      <div className="bg-gradient-to-br from-[#00594f] to-[#003d35] text-white pt-20 sm:pt-28 pb-8 sm:pb-12">
+      {/* Hero Section - Dynamic Colors */}
+      <div 
+        className="text-white pt-20 sm:pt-28 pb-8 sm:pb-12"
+        style={{
+          background: settings?.primaryColor 
+            ? `linear-gradient(to bottom right, ${settings.primaryColor}, ${settings.primaryColor}dd)`
+            : 'linear-gradient(to bottom right, #00594f, #003d35)'
+        }}
+      >
         <div className="container mx-auto px-4 text-center">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 sm:mb-4">
             {language === 'ar' ? 'قائمة الطعام' : 'Our Menu'}
           </h1>
           <p className="text-base sm:text-lg md:text-xl text-white/90 max-w-2xl mx-auto px-4">
             {language === 'ar' 
-              ? 'اكتشف تشكيلتنا الرائعة من الأطباق الفرنسية الأصيلة'
-              : 'Discover our exquisite selection of authentic French cuisine'
+              ? (settings?.heroSubtitleAr || 'اكتشف تشكيلتنا الرائعة من الأطباق الفرنسية الأصيلة')
+              : (settings?.heroSubtitleEn || 'Discover our exquisite selection of authentic French cuisine')
             }
           </p>
         </div>
@@ -194,6 +205,7 @@ const RestaurantMenu = () => {
                 language={language}
                 formatCategory={formatCategory}
                 categories={categories}
+                settings={settings}
               />
             ))}
           </div>
@@ -207,6 +219,7 @@ const RestaurantMenu = () => {
                 language={language}
                 formatCategory={formatCategory}
                 categories={categories}
+                settings={settings}
               />
             ))}
           </div>
@@ -221,8 +234,13 @@ const RestaurantMenu = () => {
         )}
       </main>
       
-      {/* Footer */}
-      <footer className="bg-[#00594f] text-white mt-auto">
+      {/* Footer - Dynamic Color */}
+      <footer 
+        className="text-white mt-auto"
+        style={{
+          backgroundColor: settings?.primaryColor || '#00594f'
+        }}
+      >
         <div className="container mx-auto px-4 py-8">
           {/* Restaurant Info */}
           <div className="text-center">
@@ -237,8 +255,8 @@ const RestaurantMenu = () => {
             />
             <p className="text-white/80 max-w-2xl mx-auto mb-6">
               {language === 'ar' 
-                ? 'تجربة طعام فرنسية أصيلة في قلب المملكة'
-                : 'Authentic French dining experience in the heart of the Kingdom'
+                ? (settings?.footerTaglineAr || 'تجربة طعام فرنسية أصيلة في قلب المملكة')
+                : (settings?.footerTaglineEn || 'Authentic French dining experience in the heart of the Kingdom')
               }
             </p>
           </div>

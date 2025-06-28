@@ -198,6 +198,10 @@ class SettingsUpdate(BaseModel):
     footer_enabled: Optional[bool] = None
     footer_text_en: Optional[str] = None
     footer_text_ar: Optional[str] = None
+    hero_subtitle_en: Optional[str] = None
+    hero_subtitle_ar: Optional[str] = None
+    footer_tagline_en: Optional[str] = None
+    footer_tagline_ar: Optional[str] = None
     instagram_handle: Optional[str] = None
     facebook_url: Optional[str] = None
     twitter_handle: Optional[str] = None
@@ -219,6 +223,10 @@ class SettingsResponse(BaseModel):
     footer_enabled: bool
     footer_text_en: Optional[str]
     footer_text_ar: Optional[str]
+    hero_subtitle_en: Optional[str]
+    hero_subtitle_ar: Optional[str]
+    footer_tagline_en: Optional[str]
+    footer_tagline_ar: Optional[str]
     instagram_handle: Optional[str]
     facebook_url: Optional[str]
     twitter_handle: Optional[str]

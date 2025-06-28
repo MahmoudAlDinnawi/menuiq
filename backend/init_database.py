@@ -19,7 +19,7 @@ load_dotenv(env_file)
 from database import engine, Base
 from models import (
     Tenant, User, SystemAdmin, Category, MenuItem, 
-    ItemAllergen, Settings, AllergenIcon, ActivityLog
+    Settings, AllergenIcon, ActivityLog
 )
 
 def init_database():

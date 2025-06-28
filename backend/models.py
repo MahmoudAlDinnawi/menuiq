@@ -1,13 +1,17 @@
 """
 Enhanced models for the modern menu card system with rich content support
 """
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, DECIMAL, JSON, Date
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, DECIMAL, JSON, Date, Table, Numeric
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
-from sqlalchemy.ext.declarative import declarative_base
+from database import Base
 from datetime import datetime
 
-Base = declarative_base()
+# Association table for many-to-many relationship between items and allergens
+item_allergens = Table('item_allergens', Base.metadata,
+    Column('item_id', Integer, ForeignKey('menu_items.id', ondelete='CASCADE')),
+    Column('allergen_id', Integer, ForeignKey('allergen_icons.id', ondelete='CASCADE'))
+)
 
 class Tenant(Base):
     __tablename__ = "tenants"
@@ -43,7 +47,7 @@ class User(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False)
-    email = Column(String(255), unique=True, nullable=False, index=True)
+    email = Column(String(255), nullable=False)  # Removed unique=True
     username = Column(String(100), nullable=False)
     password_hash = Column(String(255), nullable=False)
     role = Column(String(50), default="admin")
@@ -53,6 +57,18 @@ class User(Base):
     
     # Relationships
     tenant = relationship("Tenant", back_populates="users")
+
+class SystemAdmin(Base):
+    __tablename__ = "system_admins"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(255), unique=True, nullable=False)
+    username = Column(String(100), unique=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    is_active = Column(Boolean, default=True)
+    is_super_admin = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_login = Column(DateTime)
 
 class Category(Base):
     __tablename__ = "categories"
@@ -208,7 +224,7 @@ class MenuItem(Base):
     # Relationships
     tenant = relationship("Tenant", back_populates="menu_items")
     category = relationship("Category", back_populates="menu_items")
-    allergens = relationship("ItemAllergen", back_populates="menu_item", cascade="all, delete-orphan")
+    allergens = relationship("AllergenIcon", secondary=item_allergens, back_populates="menu_items")
     images = relationship("MenuItemImage", back_populates="menu_item", cascade="all, delete-orphan")
     reviews = relationship("MenuItemReview", back_populates="menu_item", cascade="all, delete-orphan")
     certifications = relationship("DietaryCertification", back_populates="menu_item", cascade="all, delete-orphan")
@@ -330,6 +346,7 @@ class Settings(Base):
     # Social media
     instagram_handle = Column(String(50))
     tiktok_handle = Column(String(50))
+    website_url = Column(String(255))
     
     # Display toggles
     show_calories = Column(Boolean, default=True)
@@ -341,6 +358,12 @@ class Settings(Base):
     footer_enabled = Column(Boolean, default=True)
     footer_text_en = Column(Text)
     footer_text_ar = Column(Text)
+    
+    # Hero section settings
+    hero_subtitle_en = Column(Text, default="Discover our exquisite selection of authentic French cuisine")
+    hero_subtitle_ar = Column(Text, default="اكتشف تشكيلتنا الرائعة من الأطباق الفرنسية الأصيلة")
+    footer_tagline_en = Column(Text, default="Authentic French dining experience in the heart of the Kingdom")
+    footer_tagline_ar = Column(Text, default="تجربة طعام فرنسية أصيلة في قلب المملكة")
     
     # Metadata
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -364,17 +387,7 @@ class AllergenIcon(Base):
     
     # Relationships
     tenant = relationship("Tenant", back_populates="allergen_icons")
-
-class ItemAllergen(Base):
-    __tablename__ = "item_allergens"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    item_id = Column(Integer, ForeignKey("menu_items.id"), nullable=False)
-    allergen_name = Column(String(100), nullable=False)
-    severity = Column(String(50), default="moderate")
-    
-    # Relationships
-    menu_item = relationship("MenuItem", back_populates="allergens")
+    menu_items = relationship("MenuItem", secondary=item_allergens, back_populates="allergens")
 
 class ActivityLog(Base):
     __tablename__ = "activity_logs"
@@ -389,16 +402,5 @@ class ActivityLog(Base):
     details = Column(JSON)
     ip_address = Column(String(45))
     user_agent = Column(String(255))
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-class SystemAdmin(Base):
-    __tablename__ = "system_admins"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    email = Column(String(255), unique=True, nullable=False)
-    username = Column(String(100), unique=True, nullable=False)
-    password_hash = Column(String(255), nullable=False)
-    is_active = Column(Boolean, default=True)
-    is_super_admin = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     last_login = Column(DateTime)

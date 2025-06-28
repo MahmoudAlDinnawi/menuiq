@@ -33,6 +33,7 @@ function App() {
           <Route path="/" element={
             isMainDomain ? <Navigate to="/login" replace /> :
             isSystemAdmin ? <Navigate to="/admin/login" replace /> :
+            isLocalhost ? <Navigate to="/login" replace /> :
             <Navigate to="/menu" replace />
           } />
           

@@ -288,6 +288,16 @@ const SettingsPanel = ({ onUpdate }) => {
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Website URL</label>
+                  <input
+                    type="url"
+                    value={settings.website_url || ''}
+                    onChange={(e) => handleChange('website_url', e.target.value)}
+                    placeholder="https://yourrestaurant.com"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Instagram Handle</label>
                   <input
                     type="text"
@@ -310,7 +320,56 @@ const SettingsPanel = ({ onUpdate }) => {
               </div>
 
               <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Hero Section</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Hero Subtitle (English)</label>
+                    <textarea
+                      value={settings.hero_subtitle_en || ''}
+                      onChange={(e) => handleChange('hero_subtitle_en', e.target.value)}
+                      rows={2}
+                      placeholder="Discover our exquisite selection..."
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Hero Subtitle (Arabic)</label>
+                    <textarea
+                      value={settings.hero_subtitle_ar || ''}
+                      onChange={(e) => handleChange('hero_subtitle_ar', e.target.value)}
+                      rows={2}
+                      dir="rtl"
+                      placeholder="اكتشف تشكيلتنا الرائعة..."
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Footer Settings</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Footer Tagline (English)</label>
+                    <textarea
+                      value={settings.footer_tagline_en || ''}
+                      onChange={(e) => handleChange('footer_tagline_en', e.target.value)}
+                      rows={2}
+                      placeholder="Authentic French dining experience..."
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Footer Tagline (Arabic)</label>
+                    <textarea
+                      value={settings.footer_tagline_ar || ''}
+                      onChange={(e) => handleChange('footer_tagline_ar', e.target.value)}
+                      rows={2}
+                      dir="rtl"
+                      placeholder="تجربة طعام فرنسية أصيلة..."
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+                
                 <label className="flex items-center gap-2 mb-4">
                   <input
                     type="checkbox"

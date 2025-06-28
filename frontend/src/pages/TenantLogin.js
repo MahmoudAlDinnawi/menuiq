@@ -22,9 +22,9 @@ const TenantLogin = () => {
     if (hostname.includes('.menuiq.io')) {
       subdomain = hostname.split('.')[0];
     } else if (hostname === 'localhost') {
-      // For local testing, use a query parameter
+      // For local testing, use a query parameter or default to 'demo'
       const params = new URLSearchParams(window.location.search);
-      subdomain = params.get('tenant') || '';
+      subdomain = params.get('tenant') || 'demo';
     }
     
     if (subdomain && subdomain !== 'www' && subdomain !== 'menuiq') {

@@ -20,7 +20,7 @@ load_dotenv('.env' if os.getenv('ENVIRONMENT') != 'production' else '.env.produc
 from database import get_db, engine
 from models import (
     Base, Tenant, User, SystemAdmin, Category, MenuItem, 
-    ItemAllergen, Settings, AllergenIcon, ActivityLog,
+    Settings, AllergenIcon, ActivityLog,
     MenuItemImage, MenuItemReview, DietaryCertification, PreparationStep
 )
 from auth import (

@@ -1,5 +1,26 @@
 {
-  "footerEnabled": true,
-  "footerTextEn": "Adults need 2,000 calories on average daily, and individual calories needs may vary from person to person\n\n*Additional nutritional data upon request\n\n*All Prices include VAT",
-  "footerTextAr": ""
+  "api": {
+    "host": "0.0.0.0",
+    "port": 8000,
+    "cors": {
+      "origins": ["http://localhost:3000", "http://localhost:3001"],
+      "allow_credentials": true,
+      "allow_methods": ["*"],
+      "allow_headers": ["*"]
+    }
+  },
+  "database": {
+    "pool_size": 10,
+    "max_overflow": 20,
+    "pool_pre_ping": true
+  },
+  "security": {
+    "algorithm": "HS256",
+    "access_token_expire_minutes": 30
+  },
+  "features": {
+    "enable_file_uploads": true,
+    "max_upload_size": 5242880,
+    "allowed_extensions": [".jpg", ".jpeg", ".png", ".gif", ".webp"]
+  }
 }

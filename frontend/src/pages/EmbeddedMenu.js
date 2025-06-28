@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import CategoryFilter from '../components/CategoryFilter';
-import { menuAPI } from '../services/api';
-import MenuItemCard from '../components/MenuItemCard';
-import MobileMenuCard from '../components/MobileMenuCard';
+import LuxuryCategoryFilter from '../components/LuxuryCategoryFilter';
+import publicMenuAPI from '../services/publicMenuApi';
+import GuestFriendlyMenuCard from '../components/GuestFriendlyMenuCard';
+import GuestFriendlyMobileCard from '../components/GuestFriendlyMobileCard';
 import DOMPurify from 'dompurify';
 
 const EmbeddedMenu = () => {
@@ -32,14 +32,14 @@ const EmbeddedMenu = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [itemsData, categoriesData, settingsData] = await Promise.all([
-        menuAPI.getMenuItems(),
-        menuAPI.getCategories(),
-        menuAPI.getSettings()
+      const [itemsResponse, categoriesResponse, settingsResponse] = await Promise.all([
+        publicMenuAPI.getMenuItems(),
+        publicMenuAPI.getCategories(),
+        publicMenuAPI.getSettings()
       ]);
-      setMenuItems(itemsData);
-      setCategories(categoriesData.categories);
-      setSettings(settingsData);
+      setMenuItems(itemsResponse);
+      setCategories(categoriesResponse);
+      setSettings(settingsResponse);
     } catch (err) {
       setError('Failed to load menu. Please try again later.');
       console.error('Error fetching data:', err);
@@ -117,7 +117,7 @@ const EmbeddedMenu = () => {
         </div>
       </div>
       
-      <CategoryFilter 
+      <LuxuryCategoryFilter 
         categories={categories}
         activeCategory={activeCategory}
         onCategoryChange={setActiveCategory}
@@ -152,11 +152,12 @@ const EmbeddedMenu = () => {
                   animation: 'fadeInUp 0.4s ease-out forwards'
                 }}
               >
-                <MobileMenuCard 
+                <GuestFriendlyMobileCard 
                   item={item}
                   language={language}
                   formatCategory={formatCategory}
                   categories={categories}
+                  settings={settings}
                 />
               </div>
             ))}
@@ -173,11 +174,12 @@ const EmbeddedMenu = () => {
                   animation: 'fadeInUp 0.6s ease-out forwards'
                 }}
               >
-                <MenuItemCard 
+                <GuestFriendlyMenuCard 
                   item={item}
                   language={language}
                   formatCategory={formatCategory}
                   categories={categories}
+                  settings={settings}
                 />
               </div>
             ))}
