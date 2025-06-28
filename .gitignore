@@ -56,3 +56,4 @@ node_modules/
 htmlcov/
 .env.postgres
 .env.production.postgresbackend/venv/
+backend/venv/
