@@ -50,6 +50,8 @@ const MenuCardEditor = ({ item, categories, onSave, onClose, settings }) => {
     spicy_level: 0,
     high_sodium: false,
     contains_caffeine: false,
+    caffeine_mg: '',
+    vitamin_d: '',
     
     // Culinary Details
     cooking_method: '',
@@ -240,8 +242,10 @@ const MenuCardEditor = ({ item, categories, onSave, onClose, settings }) => {
         protein: formData.protein ? parseFloat(formData.protein) : null,
         vitamin_a: formData.vitamin_a ? parseInt(formData.vitamin_a) : null,
         vitamin_c: formData.vitamin_c ? parseInt(formData.vitamin_c) : null,
+        vitamin_d: formData.vitamin_d ? parseInt(formData.vitamin_d) : null,
         calcium: formData.calcium ? parseInt(formData.calcium) : null,
         iron: formData.iron ? parseInt(formData.iron) : null,
+        caffeine_mg: formData.caffeine_mg ? parseInt(formData.caffeine_mg) : null,
         allergen_ids: formData.allergen_ids
       };
 
@@ -628,15 +632,29 @@ const MenuCardEditor = ({ item, categories, onSave, onClose, settings }) => {
                     <span className="text-sm text-gray-700">High Sodium Content</span>
                   </label>
 
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.contains_caffeine}
-                      onChange={(e) => handleChange('contains_caffeine', e.target.checked)}
-                      className="rounded text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <span className="text-sm text-gray-700">Contains Caffeine</span>
-                  </label>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.contains_caffeine}
+                        onChange={(e) => handleChange('contains_caffeine', e.target.checked)}
+                        className="rounded text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span className="text-sm text-gray-700">Contains Caffeine</span>
+                    </label>
+                    {formData.contains_caffeine && (
+                      <div className="ml-6">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Caffeine Amount (mg)</label>
+                        <input
+                          type="number"
+                          value={formData.caffeine_mg}
+                          onChange={(e) => handleChange('caffeine_mg', e.target.value)}
+                          className="w-full max-w-xs px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                          placeholder="e.g., 95 for coffee"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -988,6 +1006,16 @@ const MenuCardEditor = ({ item, categories, onSave, onClose, settings }) => {
                       type="number"
                       value={formData.vitamin_c}
                       onChange={(e) => handleChange('vitamin_c', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      placeholder="%"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Vitamin D</label>
+                    <input
+                      type="number"
+                      value={formData.vitamin_d}
+                      onChange={(e) => handleChange('vitamin_d', e.target.value)}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                       placeholder="%"
                     />

@@ -185,7 +185,7 @@ const AmazingDesktopCard = ({ item, language, formatCategory, categories, settin
           )}
 
           {/* Nutrition Quick Info */}
-          {(item.calories || item.walkMinutes || item.runMinutes) && (
+          {(item.calories || item.walkMinutes || item.runMinutes || item.vitaminD) && (
             <div className="flex items-center gap-6 mb-4 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl">
               {item.calories && (
                 <div className="flex items-center gap-2">
@@ -222,6 +222,18 @@ const AmazingDesktopCard = ({ item, language, formatCategory, categories, settin
                   </div>
                 </div>
               )}
+              
+              {item.vitaminD && (
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-full flex items-center justify-center shadow-md">
+                    <span className="text-white text-lg">☀️</span>
+                  </div>
+                  <div>
+                    <div className="text-base font-semibold text-yellow-700">{item.vitaminD}%</div>
+                    <div className="text-xs text-gray-500">Vitamin D</div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -255,6 +267,12 @@ const AmazingDesktopCard = ({ item, language, formatCategory, categories, settin
               <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-full text-sm font-medium">
                 <span>🌿</span>
                 <span>{language === 'ar' ? 'عضوي' : 'Organic'}</span>
+              </span>
+            )}
+            {item.caffeineMg && (
+              <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-amber-100 text-amber-700 rounded-full text-sm font-medium">
+                <span>☕</span>
+                <span>{item.caffeineMg}mg {language === 'ar' ? 'كافيين' : 'Caffeine'}</span>
               </span>
             )}
           </div>

@@ -331,9 +331,16 @@ const GuestFriendlyNutritionModal = ({ item, isOpen, onClose, language, formatCa
                       <div className="w-8 h-8 bg-amber-200/50 rounded-full flex items-center justify-center">
                         <span className="text-base">☕</span>
                       </div>
-                      <span className="text-sm text-amber-800 font-medium">
-                        {formatLabel('Contains Caffeine', 'يحتوي على كافيين')}
-                      </span>
+                      <div className="flex-1">
+                        <span className="text-sm text-amber-800 font-medium">
+                          {formatLabel('Contains Caffeine', 'يحتوي على كافيين')}
+                        </span>
+                        {item.caffeineMg && (
+                          <span className="text-sm text-amber-700 ml-2">
+                            ({item.caffeineMg}mg)
+                          </span>
+                        )}
+                      </div>
                     </div>
                   )}
                   
@@ -460,6 +467,12 @@ const GuestFriendlyNutritionModal = ({ item, isOpen, onClose, language, formatCa
                       <div className="flex justify-between border-b border-gray-300 pb-1">
                         <span className="text-sm">{formatLabel('Vitamin C', 'فيتامين ج')}</span>
                         <span className="text-sm font-bold">{item.vitaminC}%</span>
+                      </div>
+                    )}
+                    {item.vitaminD !== null && (
+                      <div className="flex justify-between border-b border-gray-300 pb-1">
+                        <span className="text-sm">{formatLabel('Vitamin D', 'فيتامين د')}</span>
+                        <span className="text-sm font-bold">{item.vitaminD}%</span>
                       </div>
                     )}
                     {item.calcium !== null && (

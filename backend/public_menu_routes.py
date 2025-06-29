@@ -100,8 +100,10 @@ async def get_public_menu_items(
             "protein": float(item.protein) if item.protein else None,
             "vitaminA": item.vitamin_a,
             "vitaminC": item.vitamin_c,
+            "vitaminD": item.vitamin_d,
             "calcium": item.calcium,
-            "iron": item.iron
+            "iron": item.iron,
+            "caffeineMg": item.caffeine_mg
         }
         
         result.append(item_data)

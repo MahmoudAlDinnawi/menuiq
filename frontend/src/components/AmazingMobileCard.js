@@ -157,7 +157,7 @@ const AmazingMobileCard = ({ item, language, formatCategory, categories, setting
           )}
 
           {/* Nutrition Quick Info */}
-          {(item.calories || item.walkMinutes || item.runMinutes) && (
+          {(item.calories || item.walkMinutes || item.runMinutes || item.vitaminD) && (
             <div className="flex items-center gap-4 mb-3 p-3 bg-gray-50 rounded-lg">
               {item.calories && (
                 <div className="flex items-center gap-1">
@@ -194,6 +194,18 @@ const AmazingMobileCard = ({ item, language, formatCategory, categories, setting
                   </div>
                 </div>
               )}
+              
+              {item.vitaminD && (
+                <div className="flex items-center gap-1">
+                  <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
+                    <span className="text-sm">☀️</span>
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-yellow-700">{item.vitaminD}%</div>
+                    <div className="text-xs text-gray-500">Vit D</div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -221,6 +233,12 @@ const AmazingMobileCard = ({ item, language, formatCategory, categories, setting
               <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
                 <span>🌾</span>
                 <span>{language === 'ar' ? 'خالي من الجلوتين' : 'Gluten Free'}</span>
+              </span>
+            )}
+            {item.caffeineMg && (
+              <span className="inline-flex items-center gap-1 px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-medium">
+                <span>☕</span>
+                <span>{item.caffeineMg}mg {language === 'ar' ? 'كافيين' : 'Caffeine'}</span>
               </span>
             )}
           </div>

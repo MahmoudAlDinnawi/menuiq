@@ -561,8 +561,10 @@ async def get_menu_items(
             "protein": float(item.protein) if item.protein else None,
             "vitamin_a": item.vitamin_a,
             "vitamin_c": item.vitamin_c,
+            "vitamin_d": item.vitamin_d,
             "calcium": item.calcium,
             "iron": item.iron,
+            "caffeine_mg": item.caffeine_mg,
             # Sustainability
             "carbon_footprint": item.carbon_footprint,
             "sustainability_info": item.sustainability_info,
@@ -724,8 +726,10 @@ async def create_menu_item(
         protein=Decimal(str(item_data["protein"])) if item_data.get("protein") else None,
         vitamin_a=item_data.get("vitamin_a"),
         vitamin_c=item_data.get("vitamin_c"),
+        vitamin_d=item_data.get("vitamin_d"),
         calcium=item_data.get("calcium"),
         iron=item_data.get("iron"),
+        caffeine_mg=item_data.get("caffeine_mg"),
         # Sustainability
         carbon_footprint=item_data.get("carbon_footprint"),
         sustainability_info=item_data.get("sustainability_info"),
