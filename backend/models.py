@@ -190,8 +190,10 @@ class MenuItem(Base):
     protein = Column(DECIMAL(5, 2))
     vitamin_a = Column(Integer)
     vitamin_c = Column(Integer)
+    vitamin_d = Column(Integer)
     calcium = Column(Integer)
     iron = Column(Integer)
+    caffeine_mg = Column(Integer)  # Caffeine content in milligrams
     nutritional_info = Column(JSON)
     
     # Sustainability

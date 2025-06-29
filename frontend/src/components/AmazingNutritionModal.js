@@ -6,12 +6,18 @@ import AllergenSVGIcon from './AllergenSVGIcon';
 const AmazingNutritionModal = ({ item, isOpen, onClose, language, formatCategory, settings }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [showContent, setShowContent] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      setIsVisible(true);
+      requestAnimationFrame(() => {
+        setIsVisible(true);
+        setTimeout(() => setShowContent(true), 50);
+      });
       document.body.style.overflow = 'hidden';
     } else {
+      setShowContent(false);
+      setTimeout(() => setIsVisible(false), 300);
       document.body.style.overflow = 'unset';
     }
     return () => {
@@ -57,19 +63,46 @@ const AmazingNutritionModal = ({ item, isOpen, onClose, language, formatCategory
   const allergenInfo = getAllergenInfo();
 
   return (
-    <div 
-      className={`fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
-      onClick={onClose}
-    >
+    <div className={`fixed inset-0 z-50 ${isVisible ? '' : 'pointer-events-none'}`}>
+      {/* Animated backdrop */}
       <div 
-        className={`bg-white rounded-2xl md:rounded-3xl w-full max-w-6xl max-h-[95vh] overflow-hidden shadow-2xl transform transition-all duration-500 ${isVisible ? 'scale-100 translate-y-0' : 'scale-95 translate-y-10'}`}
-        onClick={(e) => e.stopPropagation()}
-        dir={language === 'ar' ? 'rtl' : 'ltr'}
+        className={`absolute inset-0 transition-all duration-700 ${isVisible ? 'backdrop-blur-xl bg-black/80' : 'backdrop-blur-none bg-black/0'}`}
+        onClick={onClose}
       >
+        {/* Animated gradient orbs */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div 
+            className={`absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full transition-all duration-1000 ${isVisible ? 'opacity-20 scale-100' : 'opacity-0 scale-0'}`}
+            style={{
+              background: `radial-gradient(circle, ${settings?.primaryColor || '#00594f'}40 0%, transparent 70%)`,
+              filter: 'blur(60px)'
+            }}
+          />
+          <div 
+            className={`absolute -bottom-40 -right-40 w-[500px] h-[500px] rounded-full transition-all duration-1000 delay-200 ${isVisible ? 'opacity-20 scale-100' : 'opacity-0 scale-0'}`}
+            style={{
+              background: `radial-gradient(circle, ${settings?.primaryColor || '#00594f'}30 0%, transparent 70%)`,
+              filter: 'blur(60px)'
+            }}
+          />
+        </div>
+      </div>
+      
+      {/* Modal container */}
+      <div className="relative flex items-center justify-center p-2 sm:p-4 min-h-screen">
+        <div 
+          className={`relative bg-white rounded-2xl md:rounded-3xl w-full max-w-6xl max-h-[92vh] sm:max-h-[95vh] overflow-hidden transform transition-all duration-700 ease-out ${showContent ? 'scale-100 translate-y-0' : 'scale-90 translate-y-8'}`}
+          onClick={(e) => e.stopPropagation()}
+          dir={language === 'ar' ? 'rtl' : 'ltr'}
+          style={{
+            maxHeight: 'calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 1rem)',
+            boxShadow: showContent ? '0 25px 100px -12px rgba(0, 0, 0, 0.5), 0 0 200px -50px rgba(0, 0, 0, 0.3)' : '0 10px 25px -5px rgba(0, 0, 0, 0.3)'
+          }}
+        >
         {/* Header with Split Layout for Desktop */}
         <div className="lg:flex lg:h-[90vh]">
           {/* Left Side - Image or Gradient */}
-          <div className="lg:w-1/2 relative h-64 lg:h-full">
+          <div className="lg:w-1/2 relative h-56 sm:h-64 lg:h-full">
             {item.image && !imageError ? (
               <>
                 <img 
@@ -189,8 +222,11 @@ const AmazingNutritionModal = ({ item, isOpen, onClose, language, formatCategory
           </div>
           
           {/* Right Side - Scrollable Content */}
-          <div className="lg:w-1/2 overflow-y-auto max-h-[calc(95vh-16rem)] lg:max-h-full">
-            <div className="p-6 md:p-8 lg:p-10">
+          <div className="lg:w-1/2 overflow-y-auto max-h-[calc(92vh-14rem)] sm:max-h-[calc(95vh-16rem)] lg:max-h-full" style={{
+            WebkitOverflowScrolling: 'touch',
+            overscrollBehavior: 'contain'
+          }}>
+            <div className="p-4 sm:p-6 md:p-8 lg:p-10">
               {/* Description */}
               {item.description && (
                 <div className="mb-8">
@@ -272,6 +308,34 @@ const AmazingNutritionModal = ({ item, isOpen, onClose, language, formatCategory
                       </div>
                     )}
                   </div>
+                </div>
+              )}
+              
+              {/* Caffeine Content Warning */}
+              {(item.containsCaffeine || item.caffeineMg) && (
+                <div className="mb-8 bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl p-4 md:p-6 border border-amber-200">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-orange-400 rounded-full flex items-center justify-center shadow-md">
+                      <span className="text-2xl">☕</span>
+                    </div>
+                    <h4 className="text-lg font-bold text-amber-800">
+                      {formatLabel('Caffeine Content', 'محتوى الكافيين')}
+                    </h4>
+                  </div>
+                  {item.caffeineMg && (
+                    <div className="bg-white/80 rounded-lg p-4 text-center">
+                      <div className="text-3xl font-bold text-amber-700 mb-1">{item.caffeineMg}mg</div>
+                      <div className="text-sm text-gray-600">
+                        {formatLabel('of caffeine per serving', 'من الكافيين لكل حصة')}
+                      </div>
+                      <div className="mt-3 text-xs text-gray-500">
+                        {formatLabel(
+                          'For reference: A cup of coffee contains ~95mg',
+                          'للمقارنة: كوب من القهوة يحتوي على ~95 ملغ'
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
               
@@ -479,6 +543,12 @@ const AmazingNutritionModal = ({ item, isOpen, onClose, language, formatCategory
                             <span className="text-sm font-bold">{item.vitaminC}%</span>
                           </div>
                         )}
+                        {item.vitaminD !== null && (
+                          <div className="flex justify-between border-b border-gray-300 pb-1">
+                            <span className="text-sm">{formatLabel('Vitamin D', 'فيتامين د')}</span>
+                            <span className="text-sm font-bold">{item.vitaminD}%</span>
+                          </div>
+                        )}
                         {item.calcium !== null && (
                           <div className="flex justify-between border-b border-gray-300 pb-1">
                             <span className="text-sm">{formatLabel('Calcium', 'الكالسيوم')}</span>
@@ -540,6 +610,7 @@ const AmazingNutritionModal = ({ item, isOpen, onClose, language, formatCategory
         </div>
       </div>
     </div>
+  </div>
   );
 };
 
