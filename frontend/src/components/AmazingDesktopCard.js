@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import AmazingNutritionModal from './AmazingNutritionModal';
 import AllergenSVGIcon from './AllergenSVGIcon';
+import analyticsTracker from '../services/analyticsTracker';
 
 const AmazingDesktopCard = ({ item, language, formatCategory, categories, settings }) => {
   const [showNutritionModal, setShowNutritionModal] = useState(false);
@@ -39,7 +40,11 @@ const AmazingDesktopCard = ({ item, language, formatCategory, categories, settin
     <>
       <div 
         className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 cursor-pointer group"
-        onClick={() => setShowNutritionModal(true)}
+        onClick={() => {
+          setShowNutritionModal(true);
+          // Track item click
+          analyticsTracker.trackItemClick(item.id, item.categoryId);
+        }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >

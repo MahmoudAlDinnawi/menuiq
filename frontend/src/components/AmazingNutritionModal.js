@@ -10,14 +10,12 @@ const AmazingNutritionModal = ({ item, isOpen, onClose, language, formatCategory
 
   useEffect(() => {
     if (isOpen) {
-      requestAnimationFrame(() => {
-        setIsVisible(true);
-        setTimeout(() => setShowContent(true), 50);
-      });
+      setIsVisible(true);
+      setShowContent(true);
       document.body.style.overflow = 'hidden';
     } else {
       setShowContent(false);
-      setTimeout(() => setIsVisible(false), 300);
+      setIsVisible(false);
       document.body.style.overflow = 'unset';
     }
     return () => {
@@ -64,39 +62,24 @@ const AmazingNutritionModal = ({ item, isOpen, onClose, language, formatCategory
 
   return (
     <div className={`fixed inset-0 z-50 ${isVisible ? '' : 'pointer-events-none'}`}>
-      {/* Animated backdrop */}
+      {/* Simple backdrop */}
       <div 
-        className={`absolute inset-0 transition-all duration-700 ${isVisible ? 'backdrop-blur-xl bg-black/80' : 'backdrop-blur-none bg-black/0'}`}
+        className="absolute inset-0 bg-black/70"
         onClick={onClose}
-      >
-        {/* Animated gradient orbs */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div 
-            className={`absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full transition-all duration-1000 ${isVisible ? 'opacity-20 scale-100' : 'opacity-0 scale-0'}`}
-            style={{
-              background: `radial-gradient(circle, ${settings?.primaryColor || '#00594f'}40 0%, transparent 70%)`,
-              filter: 'blur(60px)'
-            }}
-          />
-          <div 
-            className={`absolute -bottom-40 -right-40 w-[500px] h-[500px] rounded-full transition-all duration-1000 delay-200 ${isVisible ? 'opacity-20 scale-100' : 'opacity-0 scale-0'}`}
-            style={{
-              background: `radial-gradient(circle, ${settings?.primaryColor || '#00594f'}30 0%, transparent 70%)`,
-              filter: 'blur(60px)'
-            }}
-          />
-        </div>
-      </div>
+      />
       
       {/* Modal container */}
-      <div className="relative flex items-center justify-center p-2 sm:p-4 min-h-screen">
+      <div 
+        className="relative flex items-center justify-center p-2 sm:p-4 min-h-screen pointer-events-none"
+        onClick={onClose}
+      >
         <div 
-          className={`relative bg-white rounded-2xl md:rounded-3xl w-full max-w-6xl max-h-[92vh] sm:max-h-[95vh] overflow-hidden transform transition-all duration-700 ease-out ${showContent ? 'scale-100 translate-y-0' : 'scale-90 translate-y-8'}`}
+          className="relative bg-white rounded-2xl md:rounded-3xl w-full max-w-6xl max-h-[92vh] sm:max-h-[95vh] overflow-hidden pointer-events-auto"
           onClick={(e) => e.stopPropagation()}
           dir={language === 'ar' ? 'rtl' : 'ltr'}
           style={{
             maxHeight: 'calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 1rem)',
-            boxShadow: showContent ? '0 25px 100px -12px rgba(0, 0, 0, 0.5), 0 0 200px -50px rgba(0, 0, 0, 0.3)' : '0 10px 25px -5px rgba(0, 0, 0, 0.3)'
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
           }}
         >
         {/* Header with Split Layout for Desktop */}

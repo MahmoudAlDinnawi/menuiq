@@ -77,25 +77,58 @@ class MenuItemResponse(BaseModel):
 class CategoryCreate(BaseModel):
     name: str
     description: Optional[str] = None
+    description_ar: Optional[str] = None
     image_url: Optional[str] = None
+    hero_image: Optional[str] = None
+    icon: Optional[str] = None
+    color_theme: Optional[str] = None
     is_active: bool = True
+    is_featured: bool = False
+    display_style: Optional[str] = 'grid'
     sort_order: int = 0
+    value: Optional[str] = None
+    label: Optional[str] = None
+    label_ar: Optional[str] = None
+    meta_keywords: Optional[str] = None
+    meta_description: Optional[str] = None
 
 class CategoryUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
+    description_ar: Optional[str] = None
     image_url: Optional[str] = None
+    hero_image: Optional[str] = None
+    icon: Optional[str] = None
+    color_theme: Optional[str] = None
     is_active: Optional[bool] = None
+    is_featured: Optional[bool] = None
+    display_style: Optional[str] = None
     sort_order: Optional[int] = None
+    value: Optional[str] = None
+    label: Optional[str] = None
+    label_ar: Optional[str] = None
+    meta_keywords: Optional[str] = None
+    meta_description: Optional[str] = None
 
 class CategoryResponse(BaseModel):
     id: int
     tenant_id: int
     name: str
     description: Optional[str] = None
+    description_ar: Optional[str] = None
     image_url: Optional[str] = None
+    hero_image: Optional[str] = None
+    icon: Optional[str] = None
+    color_theme: Optional[str] = None
     is_active: bool = True
+    is_featured: bool = False
+    display_style: Optional[str] = 'grid'
     sort_order: int
+    value: Optional[str] = None
+    label: Optional[str] = None
+    label_ar: Optional[str] = None
+    meta_keywords: Optional[str] = None
+    meta_description: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

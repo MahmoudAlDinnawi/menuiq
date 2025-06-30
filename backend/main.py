@@ -1,3 +1,14 @@
+"""
+MenuIQ API - Multi-tenant Restaurant Menu Management System
+
+This is the main FastAPI application file that:
+- Configures the API server with middleware and routers
+- Handles CORS for cross-origin requests
+- Serves static files (images)
+- Provides public endpoints for tenant information
+- Manages file uploads for images
+"""
+
 from fastapi import FastAPI, HTTPException, Depends, status, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -13,63 +24,75 @@ import bcrypt
 import secrets
 from dotenv import load_dotenv
 
-# Load environment variables
+# Load environment variables based on the environment
+# In production, uses .env.production, otherwise uses .env
 load_dotenv('.env' if os.getenv('ENVIRONMENT') != 'production' else '.env.production')
 
-# Import database and enhanced models
+# Import database connection and models
 from database import get_db, engine
 from models import (
     Base, Tenant, User, SystemAdmin, Category, MenuItem, 
     Settings, AllergenIcon, ActivityLog,
     MenuItemImage, MenuItemReview, DietaryCertification, PreparationStep
 )
+
+# Import authentication utilities
 from auth import (
     verify_password, get_password_hash, create_access_token,
     get_current_user, get_current_admin
 )
-# Import routers
-from system_admin_routes import router as system_admin_router
-from tenant_auth_routes import router as tenant_auth_router
-from tenant_routes import router as tenant_router
-from public_menu_routes import router as public_menu_router
 
-# Create tables
+# Import API route handlers
+from system_admin_routes import router as system_admin_router  # System admin management
+from tenant_auth_routes import router as tenant_auth_router    # Tenant authentication
+from tenant_routes import router as tenant_router              # Tenant operations
+from public_menu_routes import router as public_menu_router    # Public menu viewing
+from analytics_routes import router as analytics_router        # Analytics tracking
+
+# Create all database tables if they don't exist
 Base.metadata.create_all(bind=engine)
 
+# Initialize FastAPI application
 app = FastAPI(title="MenuIQ Enhanced API")
 
-# Configure CORS
+# Configure CORS (Cross-Origin Resource Sharing)
+# This allows the frontend to communicate with the backend from different domains
 origins = [
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "https://app.menuiq.io",
-    "https://menuiq.io",
-    "https://*.menuiq.io"
+    "http://localhost:3000",      # Local development frontend
+    "http://localhost:3001",      # Alternative local port
+    "https://app.menuiq.io",      # Production frontend
+    "https://menuiq.io",          # Main domain
+    "https://*.menuiq.io"         # All subdomains
 ]
 
-# Add regex pattern for subdomain support
+# Add regex pattern for dynamic subdomain support
+# This allows tenant-specific subdomains like entrecote.menuiq.io
 import re
 subdomain_pattern = re.compile(r"https://[a-zA-Z0-9-]+\.menuiq\.io")
 
+# Configure CORS middleware with permissive settings
+# Note: In production, consider restricting origins for security
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, use specific origins
+    allow_origins=["*"],  # TODO: Use specific origins in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"]
 )
 
-# Mount static files for uploads
+# Mount static files directory for serving uploaded images
+# All uploaded images are accessible at /uploads/*
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
-# Include routers
-app.include_router(system_admin_router)
-app.include_router(tenant_auth_router)
-app.include_router(tenant_router)
-app.include_router(public_menu_router)
+# Include API routers for different functionalities
+app.include_router(system_admin_router)  # /api/system-admin/* endpoints
+app.include_router(tenant_auth_router)   # /api/auth/* endpoints
+app.include_router(tenant_router)        # /api/tenant/* endpoints
+app.include_router(public_menu_router)   # /api/public/* endpoints
+app.include_router(analytics_router)     # /api/analytics/* endpoints
 
-# Root endpoint
+# Root endpoint - provides API information
 @app.get("/")
 async def root():
     return {

@@ -1,3 +1,17 @@
+/**
+ * RestaurantMenu Component
+ * 
+ * This is the public-facing menu page that guests see when visiting a restaurant's subdomain.
+ * It dynamically loads menu items, categories, and settings for the specific tenant.
+ * 
+ * Features:
+ * - Responsive design with mobile/desktop specific components
+ * - Multi-language support (English/Arabic)
+ * - Category filtering
+ * - Dynamic theming based on tenant settings
+ * - Instagram integration
+ */
+
 import React, { useState, useEffect } from 'react';
 import LuxuryCategoryFilter from '../components/LuxuryCategoryFilter';
 import GuestFriendlyMenuCard from '../components/GuestFriendlyMenuCard';
@@ -5,7 +19,8 @@ import GuestFriendlyMobileCard from '../components/GuestFriendlyMobileCard';
 import AmazingMobileCard from '../components/AmazingMobileCard';
 import AmazingDesktopCard from '../components/AmazingDesktopCard';
 import publicMenuAPI from '../services/publicMenuApi';
-import DOMPurify from 'dompurify';
+import DOMPurify from 'dompurify';  // For sanitizing HTML content
+import analyticsTracker from '../services/analyticsTracker';  // Analytics tracking
 
 const RestaurantMenu = () => {
   const [menuItems, setMenuItems] = useState([]);
@@ -18,6 +33,14 @@ const RestaurantMenu = () => {
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
+    // Initialize analytics session
+    const initAnalytics = async () => {
+      await analyticsTracker.initSession(language);
+      // Track initial page view
+      analyticsTracker.trackPageView('menu');
+    };
+    
+    initAnalytics();
     fetchData();
     
     const checkMobile = () => {
@@ -27,7 +50,13 @@ const RestaurantMenu = () => {
     checkMobile();
     window.addEventListener('resize', checkMobile);
     
-    return () => window.removeEventListener('resize', checkMobile);
+    // Setup scroll tracking
+    const unsubscribeScroll = analyticsTracker.trackScrollDepth();
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+      if (unsubscribeScroll) unsubscribeScroll();
+    };
   }, []);
 
   const fetchData = async () => {
@@ -209,7 +238,12 @@ const RestaurantMenu = () => {
         <LuxuryCategoryFilter 
           categories={categories}
           activeCategory={activeCategory}
-          onCategoryChange={setActiveCategory}
+          onCategoryChange={(category) => {
+            setActiveCategory(category);
+            // Track category view
+            const categoryId = categories.find(c => c.value === category)?.id;
+            analyticsTracker.trackPageView('category', categoryId);
+          }}
           language={language}
           showAllCategory={settings?.showAllCategory === true}
         />

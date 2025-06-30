@@ -541,12 +541,18 @@ const ModernDashboard = () => {
     <div className="min-h-screen bg-gray-50 flex">
       {renderSidebar()}
       
-      <main className="flex-1 ml-64 p-8">
-        {activeView === 'overview' && renderOverview()}
-        {activeView === 'menu' && renderMenuItems()}
-        {activeView === 'categories' && <CategoryManager categories={categories} onUpdate={fetchDashboardData} />}
-        {activeView === 'analytics' && <Analytics />}
-        {activeView === 'settings' && <SettingsPanel onUpdate={fetchDashboardData} />}
+      <main className="flex-1 ml-64 h-screen overflow-hidden flex flex-col">
+        <div className="flex-1 overflow-y-auto p-8">
+          {activeView === 'overview' && renderOverview()}
+          {activeView === 'menu' && renderMenuItems()}
+          {activeView === 'categories' && <CategoryManager categories={categories} onUpdate={fetchDashboardData} />}
+          {activeView === 'analytics' && (
+            <div className="h-full max-w-7xl mx-auto">
+              <Analytics />
+            </div>
+          )}
+          {activeView === 'settings' && <SettingsPanel onUpdate={fetchDashboardData} />}
+        </div>
       </main>
 
       {showEditor && (

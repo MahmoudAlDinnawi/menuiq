@@ -1,19 +1,37 @@
 """
-Enhanced models for the modern menu card system with rich content support
+MenuIQ Database Models
+
+This module defines all database models for the multi-tenant restaurant menu system.
+It uses SQLAlchemy ORM for database abstraction and supports PostgreSQL.
+
+Key Models:
+- Tenant: Restaurant/business accounts
+- User: Tenant admin users
+- SystemAdmin: Super administrators
+- Category: Menu categories
+- MenuItem: Individual menu items with rich content
+- Settings: Tenant-specific configuration
+- AllergenIcon: Allergen information
 """
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, DECIMAL, JSON, Date, Table, Numeric
+
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, DECIMAL, JSON, Date, Table, Numeric, Index
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime
 
-# Association table for many-to-many relationship between items and allergens
+# Association table for many-to-many relationship between menu items and allergens
+# This allows items to have multiple allergens and allergens to be used by multiple items
 item_allergens = Table('item_allergens', Base.metadata,
     Column('item_id', Integer, ForeignKey('menu_items.id', ondelete='CASCADE')),
     Column('allergen_id', Integer, ForeignKey('allergen_icons.id', ondelete='CASCADE'))
 )
 
 class Tenant(Base):
+    """
+    Represents a restaurant/business account in the system.
+    Each tenant has their own subdomain, users, menu items, and settings.
+    """
     __tablename__ = "tenants"
     
     id = Column(Integer, primary_key=True, index=True)
@@ -407,3 +425,111 @@ class ActivityLog(Base):
     user_agent = Column(String(255))
     created_at = Column(DateTime, default=datetime.utcnow)
     last_login = Column(DateTime)
+
+
+# Analytics Models
+class AnalyticsSession(Base):
+    """
+    Tracks individual user sessions on the public menu.
+    A session starts when a user visits the menu and ends when they leave or are inactive.
+    """
+    __tablename__ = "analytics_sessions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    session_id = Column(String(100), unique=True, nullable=False, index=True)
+    started_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    ended_at = Column(DateTime)
+    duration_seconds = Column(Integer)
+    ip_address_hash = Column(String(64))  # Hashed for privacy
+    user_agent = Column(String(500))
+    device_type = Column(String(50))  # mobile, tablet, desktop
+    browser = Column(String(50))
+    os = Column(String(50))
+    referrer = Column(String(500))
+    language = Column(String(10))
+    country = Column(String(2))
+    city = Column(String(100))
+    
+    # Relationships
+    tenant = relationship("Tenant")
+    page_views = relationship("AnalyticsPageView", back_populates="session", cascade="all, delete-orphan")
+    item_clicks = relationship("AnalyticsItemClick", back_populates="session", cascade="all, delete-orphan")
+
+
+class AnalyticsPageView(Base):
+    """
+    Tracks page views within a session.
+    Records which pages/categories were viewed and for how long.
+    """
+    __tablename__ = "analytics_page_views"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(String(100), ForeignKey("analytics_sessions.session_id"), nullable=False, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    page_type = Column(String(50))  # menu, category, item_detail
+    category_id = Column(Integer, ForeignKey("categories.id"))
+    item_id = Column(Integer, ForeignKey("menu_items.id"))
+    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    time_on_page_seconds = Column(Integer)
+    scroll_depth = Column(Integer)  # Percentage of page scrolled
+    
+    # Relationships
+    session = relationship("AnalyticsSession", back_populates="page_views")
+    tenant = relationship("Tenant")
+    category = relationship("Category")
+    item = relationship("MenuItem")
+
+
+class AnalyticsItemClick(Base):
+    """
+    Tracks when users click on menu items for more details.
+    Helps identify popular items and user interest.
+    """
+    __tablename__ = "analytics_item_clicks"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    session_id = Column(String(100), ForeignKey("analytics_sessions.session_id"), nullable=False, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    item_id = Column(Integer, ForeignKey("menu_items.id"), nullable=False, index=True)
+    category_id = Column(Integer, ForeignKey("categories.id"))
+    action_type = Column(String(50))  # view_details, share, add_favorite
+    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    
+    # Relationships
+    session = relationship("AnalyticsSession", back_populates="item_clicks")
+    tenant = relationship("Tenant")
+    item = relationship("MenuItem")
+    category = relationship("Category")
+
+
+class AnalyticsDaily(Base):
+    """
+    Pre-aggregated daily analytics for fast dashboard queries.
+    Updated via scheduled job or triggers.
+    """
+    __tablename__ = "analytics_daily"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    date = Column(Date, nullable=False, index=True)
+    total_sessions = Column(Integer, default=0)
+    unique_visitors = Column(Integer, default=0)
+    total_page_views = Column(Integer, default=0)
+    total_item_clicks = Column(Integer, default=0)
+    avg_session_duration = Column(Integer)  # seconds
+    avg_pages_per_session = Column(DECIMAL(5, 2))
+    mobile_sessions = Column(Integer, default=0)
+    desktop_sessions = Column(Integer, default=0)
+    tablet_sessions = Column(Integer, default=0)
+    top_categories = Column(JSONB)  # [{category_id: count}, ...]
+    top_items = Column(JSONB)  # [{item_id: count}, ...]
+    hourly_distribution = Column(JSONB)  # {0: count, 1: count, ..., 23: count}
+    
+    # Unique constraint on tenant_id + date
+    __table_args__ = (
+        Index('idx_analytics_daily_tenant_date', 'tenant_id', 'date', unique=True),
+    )
+    
+    # Relationships
+    tenant = relationship("Tenant")
