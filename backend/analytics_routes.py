@@ -121,15 +121,18 @@ async def track_session_start(
     user_agent = request.headers.get("user-agent", "")
     referrer = request.headers.get("referer", "")
     
+    # Get device details once
+    device_details = get_device_details(user_agent)
+    
     # Create session
     session_id = str(uuid.uuid4())
     session = AnalyticsSession(
         tenant_id=tenant.id,
         session_id=session_id,
         ip_address_hash=hash_ip(client_ip),
-        device_brand=get_device_details(user_agent).get('brand'),
-        device_model=get_device_details(user_agent).get('model'),
-        device_full_name=get_device_details(user_agent).get('full_name'),
+        device_brand=device_details.get('brand'),
+        device_model=device_details.get('model'),
+        device_full_name=device_details.get('full_name'),
         user_agent=user_agent,
         device_type=get_device_type(user_agent),
         browser=parse(user_agent).browser.family,
@@ -318,6 +321,26 @@ async def get_analytics_overview(
         if device_type and device_type.lower() in device_realtime:
             device_realtime[device_type.lower()] = count
     
+    # Prepare device breakdown
+    device_breakdown = {
+        "mobile": 0,
+        "desktop": 0,
+        "tablet": 0
+    }
+    
+    # Add aggregated device data
+    if device_stats and device_stats.mobile is not None:
+        device_breakdown["mobile"] = device_stats.mobile
+    if device_stats and device_stats.desktop is not None:
+        device_breakdown["desktop"] = device_stats.desktop
+    if device_stats and device_stats.tablet is not None:
+        device_breakdown["tablet"] = device_stats.tablet
+    
+    # Add real-time device data (take the max of aggregated and real-time)
+    device_breakdown["mobile"] = max(device_breakdown["mobile"], device_realtime['mobile'])
+    device_breakdown["desktop"] = max(device_breakdown["desktop"], device_realtime['desktop'])
+    device_breakdown["tablet"] = max(device_breakdown["tablet"], device_realtime['tablet'])
+    
     return {
         "period": {
             "start_date": start_date.isoformat(),
@@ -329,12 +352,8 @@ async def get_analytics_overview(
             "total_page_views": total_page_views,
             "total_item_clicks": total_item_clicks,
             "avg_session_duration": int(daily_stats.avg_session_duration or 0),
-            "today_sessions": today_sessions
-        },
-        "device_breakdown": {
-            "mobile": max((device_stats.mobile if device_stats else 0) or 0, device_realtime['mobile']),
-            "desktop": max((device_stats.desktop if device_stats else 0) or 0, device_realtime['desktop']),
-            "tablet": max((device_stats.tablet if device_stats else 0) or 0, device_realtime['tablet'])
+            "today_sessions": today_sessions,
+            "device_breakdown": device_breakdown
         }
     }
 
@@ -498,6 +517,49 @@ async def get_category_performance(
                 "views": cat.view_count
             }
             for cat in category_stats
+        ]
+    }
+
+@router.get("/dashboard/device-details")
+async def get_device_details(
+    days: int = 30,
+    current_user: dict = Depends(get_current_user_dict),
+    db: Session = Depends(get_db)
+):
+    """Get detailed device information"""
+    tenant_id = current_user["tenant_id"]
+    start_date = datetime.utcnow() - timedelta(days=days)
+    
+    # Get all sessions with device details
+    device_sessions = db.query(
+        AnalyticsSession.device_brand,
+        AnalyticsSession.device_model,
+        AnalyticsSession.device_full_name,
+        AnalyticsSession.device_type,
+        func.count(AnalyticsSession.id).label("session_count")
+    ).filter(
+        AnalyticsSession.tenant_id == tenant_id,
+        AnalyticsSession.started_at >= start_date,
+        AnalyticsSession.device_brand.isnot(None)
+    ).group_by(
+        AnalyticsSession.device_brand,
+        AnalyticsSession.device_model,
+        AnalyticsSession.device_full_name,
+        AnalyticsSession.device_type
+    ).order_by(
+        desc("session_count")
+    ).limit(20).all()
+    
+    return {
+        "devices": [
+            {
+                "brand": device.device_brand,
+                "model": device.device_model,
+                "full_name": device.device_full_name,
+                "type": device.device_type,
+                "sessions": device.session_count
+            }
+            for device in device_sessions
         ]
     }
 

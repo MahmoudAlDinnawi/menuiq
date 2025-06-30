@@ -66,6 +66,7 @@ const Analytics = () => {
   const [timeline, setTimeline] = useState([]);
   const [topItems, setTopItems] = useState([]);
   const [categoryPerformance, setCategoryPerformance] = useState([]);
+  const [deviceDetails, setDeviceDetails] = useState([]);
 
   useEffect(() => {
     fetchAnalytics();
@@ -103,6 +104,35 @@ const Analytics = () => {
       setTimeline(timelineData.data.timeline);
       setTopItems(topItemsData.data.top_items);
       setCategoryPerformance(categoryData.data.categories);
+      
+      // Process device details for enhanced display
+      if (overviewData.data.overview?.device_breakdown) {
+        const breakdown = overviewData.data.overview.device_breakdown;
+        const total = (breakdown.mobile || 0) + (breakdown.desktop || 0) + (breakdown.tablet || 0);
+        setDeviceDetails([
+          {
+            type: 'Mobile',
+            count: breakdown.mobile || 0,
+            percentage: total > 0 ? ((breakdown.mobile || 0) / total * 100).toFixed(1) : 0,
+            icon: '📱',
+            color: 'bg-blue-500'
+          },
+          {
+            type: 'Desktop',
+            count: breakdown.desktop || 0,
+            percentage: total > 0 ? ((breakdown.desktop || 0) / total * 100).toFixed(1) : 0,
+            icon: '💻',
+            color: 'bg-green-500'
+          },
+          {
+            type: 'Tablet',
+            count: breakdown.tablet || 0,
+            percentage: total > 0 ? ((breakdown.tablet || 0) / total * 100).toFixed(1) : 0,
+            icon: '📱',
+            color: 'bg-orange-500'
+          }
+        ]);
+      }
       
     } catch (error) {
       console.error('Failed to fetch analytics:', error);
@@ -158,17 +188,24 @@ const Analytics = () => {
   };
 
   const getDeviceChartData = () => {
-    if (!overview) return null;
-    
-    const deviceData = overview.device_breakdown || {};
-    const hasData = (deviceData.mobile || 0) + (deviceData.desktop || 0) + (deviceData.tablet || 0) > 0;
-    
-    // If no data at all, show a message
-    if (!hasData) {
+    if (!overview) {
+      console.log('No overview data yet');
       return null;
     }
     
-    return {
+    const deviceData = overview.device_breakdown || {};
+    console.log('Device data from overview:', deviceData);
+    
+    const hasData = (deviceData.mobile || 0) + (deviceData.desktop || 0) + (deviceData.tablet || 0) > 0;
+    console.log('Total device count:', (deviceData.mobile || 0) + (deviceData.desktop || 0) + (deviceData.tablet || 0));
+    
+    // If no data at all, show a message
+    if (!hasData) {
+      console.log('No device data to display');
+      return null;
+    }
+    
+    const chartData = {
       labels: ['Mobile', 'Desktop', 'Tablet'],
       datasets: [{
         data: [
@@ -184,6 +221,9 @@ const Analytics = () => {
         borderWidth: 0
       }]
     };
+    
+    console.log('Chart data prepared:', chartData);
+    return chartData;
   };
 
   if (loading) {
@@ -303,41 +343,89 @@ const Analytics = () => {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Device Types</h3>
           <div style={{ height: '300px', position: 'relative' }}>
             {overview && getDeviceChartData() ? (
-              <Doughnut
-                data={getDeviceChartData()}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                  plugins: {
-                    legend: {
-                      position: 'bottom',
-                    },
-                    tooltip: {
-                      callbacks: {
-                        label: function(context) {
-                          let label = context.label || '';
-                          if (label) {
-                            label += ': ';
+              <>
+                <div className="mb-4">
+                  <Doughnut
+                    data={getDeviceChartData()}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: {
+                          display: false,
+                        },
+                        tooltip: {
+                          callbacks: {
+                            label: function(context) {
+                              let label = context.label || '';
+                              if (label) {
+                                label += ': ';
+                              }
+                              const value = context.parsed;
+                              const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                              const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                              label += value + ' (' + percentage + '%)';
+                              return label;
+                            }
                           }
-                          const value = context.parsed;
-                          const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                          const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
-                          label += value + ' (' + percentage + '%)';
-                          return label;
                         }
                       }
-                    }
-                  }
-                }}
-              />
+                    }}
+                  />
+                </div>
+                {/* Custom Legend with Details */}
+                <div className="mt-4 space-y-2">
+                  {deviceDetails.map((device, index) => (
+                    <div key={device.type} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl">{device.icon}</span>
+                        <div className="flex items-center gap-2">
+                          <div className={`w-3 h-3 rounded-full ${device.color}`}></div>
+                          <span className="font-medium text-gray-700">{device.type}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-semibold text-gray-900">{formatNumber(device.count)}</span>
+                        <span className="text-sm text-gray-500 ml-1">({device.percentage}%)</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
             ) : (
-              <div className="flex items-center justify-center h-full text-gray-500">
-                <div className="text-center">
-                  <svg className="w-16 h-16 mx-auto mb-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  <p className="text-sm">No device data available</p>
-                  <p className="text-xs mt-1">Data will appear as visitors use different devices</p>
+              <div className="flex flex-col items-center justify-center h-full">
+                {/* Placeholder chart */}
+                <div className="relative w-48 h-48 mb-4">
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-40 h-40 rounded-full border-8 border-gray-100"></div>
+                  </div>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-center">
+                      <p className="text-3xl font-bold text-gray-300">0</p>
+                      <p className="text-sm text-gray-400">sessions</p>
+                    </div>
+                  </div>
+                </div>
+                {/* Legend placeholder */}
+                <div className="space-y-2 w-full">
+                  {[
+                    { type: 'Mobile', icon: '📱', color: 'bg-gray-200' },
+                    { type: 'Desktop', icon: '💻', color: 'bg-gray-200' },
+                    { type: 'Tablet', icon: '📱', color: 'bg-gray-200' }
+                  ].map((device) => (
+                    <div key={device.type} className="flex items-center justify-between p-2 rounded-lg bg-gray-50">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xl opacity-50">{device.icon}</span>
+                        <div className="flex items-center gap-2">
+                          <div className={`w-3 h-3 rounded-full ${device.color}`}></div>
+                          <span className="text-gray-400">{device.type}</span>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-gray-400">-</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -415,7 +503,92 @@ const Analytics = () => {
           })}
         </div>
       </div>
+
+      {/* Detailed Device Information */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Device Details</h3>
+        <DeviceDetailsTable dateRange={dateRange} />
       </div>
+      </div>
+    </div>
+  );
+};
+
+// Device Details Table Component
+const DeviceDetailsTable = ({ dateRange }) => {
+  const [devices, setDevices] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDeviceDetails();
+  }, [dateRange]);
+
+  const fetchDeviceDetails = async () => {
+    try {
+      const response = await analyticsAPI.get('/api/analytics/dashboard/device-details', {
+        params: { days: dateRange }
+      });
+      setDevices(response.data.devices || []);
+    } catch (error) {
+      console.error('Failed to fetch device details:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="animate-pulse">
+        <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
+        <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
+        <div className="h-4 bg-gray-200 rounded w-full"></div>
+      </div>
+    );
+  }
+
+  if (devices.length === 0) {
+    return (
+      <div className="text-center py-8 text-gray-500">
+        <p>No detailed device data available yet</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b border-gray-200">
+            <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Device</th>
+            <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Brand</th>
+            <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Type</th>
+            <th className="text-right py-3 px-4 text-sm font-medium text-gray-700">Sessions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {devices.map((device, index) => (
+            <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
+              <td className="py-3 px-4">
+                <span className="font-medium text-gray-900">{device.full_name}</span>
+              </td>
+              <td className="py-3 px-4">
+                <span className="text-gray-600">{device.brand}</span>
+              </td>
+              <td className="py-3 px-4">
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                  ${device.type === 'mobile' ? 'bg-blue-100 text-blue-800' : 
+                    device.type === 'desktop' ? 'bg-green-100 text-green-800' : 
+                    'bg-orange-100 text-orange-800'}`}>
+                  {device.type}
+                </span>
+              </td>
+              <td className="py-3 px-4 text-right">
+                <span className="font-medium text-gray-900">{device.sessions}</span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 };
