@@ -22,6 +22,7 @@ engine = create_engine(DATABASE_URL)
 sql_commands = [
     # Add time_on_page_seconds to analytics_page_views if it doesn't exist
     "ALTER TABLE analytics_page_views ADD COLUMN IF NOT EXISTS time_on_page_seconds INTEGER DEFAULT 0;",
+    "ALTER TABLE analytics_page_views ADD COLUMN IF NOT EXISTS scroll_depth INTEGER DEFAULT 0;",
     
     # Add any other missing columns that might be needed
     "ALTER TABLE analytics_sessions ADD COLUMN IF NOT EXISTS city VARCHAR(100);",
