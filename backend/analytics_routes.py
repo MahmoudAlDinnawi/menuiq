@@ -15,6 +15,7 @@ from typing import Optional, Dict, List
 import hashlib
 import uuid
 from user_agents import parse
+import re
 
 from database import get_db
 from models import (
@@ -27,13 +28,72 @@ router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
 def get_device_type(user_agent_string: str) -> str:
     """Determine device type from user agent"""
-    user_agent = parse(user_agent_string)
-    if user_agent.is_mobile:
-        return "mobile"
-    elif user_agent.is_tablet:
+    ua_lower = user_agent_string.lower()
+    
+    # Check for tablets first
+    if 'ipad' in ua_lower or 'tablet' in ua_lower:
         return "tablet"
+    elif 'iphone' in ua_lower or 'android' in ua_lower or 'mobile' in ua_lower:
+        return "mobile"
     else:
         return "desktop"
+
+def get_device_details(user_agent_string: str) -> dict:
+    """Extract detailed device information from user agent"""
+    ua = user_agent_string
+    device_info = {
+        'brand': 'Unknown',
+        'model': 'Unknown',
+        'full_name': 'Unknown Device'
+    }
+    
+    # Apple devices
+    if 'iPhone' in ua:
+        device_info['brand'] = 'Apple'
+        # Look for iOS version
+        if 'iPhone OS ' in ua:
+            parts = ua.split('iPhone OS ')[1].split(' ')[0]
+            ios_version = parts.split('_')[0]
+            device_info['model'] = f'iPhone (iOS {ios_version})'
+            device_info['full_name'] = f'Apple iPhone (iOS {ios_version})'
+        else:
+            device_info['model'] = 'iPhone'
+            device_info['full_name'] = 'Apple iPhone'
+    
+    elif 'iPad' in ua:
+        device_info['brand'] = 'Apple'
+        device_info['model'] = 'iPad'
+        device_info['full_name'] = 'Apple iPad'
+    
+    elif 'Macintosh' in ua or 'Mac OS' in ua:
+        device_info['brand'] = 'Apple'
+        device_info['model'] = 'Mac'
+        device_info['full_name'] = 'Apple Mac'
+    
+    # Samsung devices
+    elif 'Samsung' in ua:
+        device_info['brand'] = 'Samsung'
+        device_info['model'] = 'Galaxy'
+        device_info['full_name'] = 'Samsung Galaxy'
+    
+    # Android devices
+    elif 'Android' in ua:
+        device_info['brand'] = 'Android'
+        device_info['model'] = 'Android Device'
+        device_info['full_name'] = 'Android Device'
+        # Try to get more specific
+        if 'Pixel' in ua:
+            device_info['brand'] = 'Google'
+            device_info['model'] = 'Pixel'
+            device_info['full_name'] = 'Google Pixel'
+    
+    # Windows
+    elif 'Windows' in ua:
+        device_info['brand'] = 'Windows'
+        device_info['model'] = 'PC'
+        device_info['full_name'] = 'Windows PC'
+    
+    return device_info
 
 def hash_ip(ip_address: str) -> str:
     """Hash IP address for privacy"""
@@ -67,6 +127,9 @@ async def track_session_start(
         tenant_id=tenant.id,
         session_id=session_id,
         ip_address_hash=hash_ip(client_ip),
+        device_brand=get_device_details(user_agent).get('brand'),
+        device_model=get_device_details(user_agent).get('model'),
+        device_full_name=get_device_details(user_agent).get('full_name'),
         user_agent=user_agent,
         device_type=get_device_type(user_agent),
         browser=parse(user_agent).browser.family,
@@ -269,9 +332,9 @@ async def get_analytics_overview(
             "today_sessions": today_sessions
         },
         "device_breakdown": {
-            "mobile": max(device_stats.mobile or 0, device_realtime['mobile']),
-            "desktop": max(device_stats.desktop or 0, device_realtime['desktop']),
-            "tablet": max(device_stats.tablet or 0, device_realtime['tablet'])
+            "mobile": max((device_stats.mobile if device_stats else 0) or 0, device_realtime['mobile']),
+            "desktop": max((device_stats.desktop if device_stats else 0) or 0, device_realtime['desktop']),
+            "tablet": max((device_stats.tablet if device_stats else 0) or 0, device_realtime['tablet'])
         }
     }
 

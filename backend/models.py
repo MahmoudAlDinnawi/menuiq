@@ -450,6 +450,10 @@ class AnalyticsSession(Base):
     language = Column(String(10))
     country = Column(String(2))
     city = Column(String(100))
+    device_brand = Column(String(50))
+    device_model = Column(String(100))
+    device_full_name = Column(String(150))
+    city = Column(String(100))
     
     # Relationships
     tenant = relationship("Tenant")
