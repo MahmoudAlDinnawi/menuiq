@@ -62,6 +62,9 @@ ChartJS.register(
 const Analytics = () => {
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState(30); // Days
+  const [customDateRange, setCustomDateRange] = useState(false);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [overview, setOverview] = useState(null);
   const [timeline, setTimeline] = useState([]);
   const [topItems, setTopItems] = useState([]);
@@ -70,33 +73,44 @@ const Analytics = () => {
 
   useEffect(() => {
     fetchAnalytics();
-  }, [dateRange]);
+  }, [dateRange, startDate, endDate]);
 
   const fetchAnalytics = async () => {
     try {
       setLoading(true);
       
       // Calculate date range
-      const endDate = new Date();
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - dateRange);
+      let calculatedStartDate, calculatedEndDate;
+      
+      if (customDateRange && startDate && endDate) {
+        calculatedStartDate = startDate;
+        calculatedEndDate = endDate;
+      } else {
+        calculatedEndDate = new Date().toISOString().split('T')[0];
+        const start = new Date();
+        start.setDate(start.getDate() - dateRange);
+        calculatedStartDate = start.toISOString().split('T')[0];
+      }
+      
+      // Calculate days for timeline endpoints
+      const daysDiff = Math.ceil((new Date(calculatedEndDate) - new Date(calculatedStartDate)) / (1000 * 60 * 60 * 24));
       
       // Fetch all analytics data
       const [overviewData, timelineData, topItemsData, categoryData] = await Promise.all([
         analyticsAPI.get('/api/analytics/dashboard/overview', {
           params: {
-            start_date: startDate.toISOString().split('T')[0],
-            end_date: endDate.toISOString().split('T')[0]
+            start_date: calculatedStartDate,
+            end_date: calculatedEndDate
           }
         }),
         analyticsAPI.get('/api/analytics/dashboard/timeline', {
-          params: { days: dateRange }
+          params: { days: customDateRange ? daysDiff : dateRange }
         }),
         analyticsAPI.get('/api/analytics/dashboard/top-items', {
-          params: { days: dateRange, limit: 10 }
+          params: { days: customDateRange ? daysDiff : dateRange, limit: 10 }
         }),
         analyticsAPI.get('/api/analytics/dashboard/category-performance', {
-          params: { days: dateRange }
+          params: { days: customDateRange ? daysDiff : dateRange }
         })
       ]);
       
@@ -238,17 +252,58 @@ const Analytics = () => {
     <div className="h-full overflow-y-auto">
       <div className="space-y-6 pb-8">
         {/* Header with Date Range Selector */}
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row gap-4 sm:justify-between sm:items-center">
           <h1 className="text-2xl font-bold text-gray-900">Analytics Dashboard</h1>
-          <select
-            value={dateRange}
-            onChange={(e) => setDateRange(Number(e.target.value))}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-          >
-            <option value={7}>Last 7 days</option>
-            <option value={30}>Last 30 days</option>
-            <option value={90}>Last 90 days</option>
-          </select>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <select
+              value={customDateRange ? 'custom' : dateRange}
+              onChange={(e) => {
+                if (e.target.value === 'custom') {
+                  setCustomDateRange(true);
+                  // Set default custom range to last 7 days
+                  const end = new Date();
+                  const start = new Date();
+                  start.setDate(start.getDate() - 7);
+                  setEndDate(end.toISOString().split('T')[0]);
+                  setStartDate(start.toISOString().split('T')[0]);
+                } else if (e.target.value === '1') {
+                  setCustomDateRange(false);
+                  setDateRange(1);
+                } else {
+                  setCustomDateRange(false);
+                  setDateRange(Number(e.target.value));
+                }
+              }}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            >
+              <option value={1}>Today</option>
+              <option value={7}>Last 7 days</option>
+              <option value={30}>Last 30 days</option>
+              <option value={90}>Last 90 days</option>
+              <option value="custom">Custom Range</option>
+            </select>
+            
+            {customDateRange && (
+              <div className="flex gap-2 items-center">
+                <input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  max={endDate}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
+                <span className="text-gray-500">to</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  min={startDate}
+                  max={new Date().toISOString().split('T')[0]}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
+              </div>
+            )}
+          </div>
         </div>
 
       {/* Overview Cards */}

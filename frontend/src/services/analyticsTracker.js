@@ -123,12 +123,17 @@ class AnalyticsTracker {
    */
   async trackItemClick(itemId, categoryId = null, actionType = 'view_details') {
     if (!this.sessionId) {
+      console.log('[Analytics] No session ID, attempting to get/create session...');
       await this.getSession();
     }
     
-    if (!this.sessionId) return;
+    if (!this.sessionId) {
+      console.error('[Analytics] Still no session ID after getSession, aborting tracking');
+      return;
+    }
     
     try {
+      console.log(`[Analytics] Tracking item click: item=${itemId}, category=${categoryId}, session=${this.sessionId}`);
       await axios.post(`${API_URL}/api/analytics/track/item-click`, null, {
         params: {
           session_id: this.sessionId,
@@ -137,8 +142,9 @@ class AnalyticsTracker {
           action_type: actionType
         }
       });
+      console.log('[Analytics] Item click tracked successfully');
     } catch (error) {
-      console.error('Failed to track item click:', error);
+      console.error('[Analytics] Failed to track item click:', error);
     }
   }
 

@@ -14,8 +14,6 @@
 
 import React, { useState, useEffect } from 'react';
 import LuxuryCategoryFilter from '../components/LuxuryCategoryFilter';
-import GuestFriendlyMenuCard from '../components/GuestFriendlyMenuCard';
-import GuestFriendlyMobileCard from '../components/GuestFriendlyMobileCard';
 import AmazingMobileCard from '../components/AmazingMobileCard';
 import AmazingDesktopCard from '../components/AmazingDesktopCard';
 import publicMenuAPI from '../services/publicMenuApi';
