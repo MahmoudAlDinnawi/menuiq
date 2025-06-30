@@ -166,7 +166,9 @@ async def get_public_settings(
             "showPreparationTime": True,
             "showAllergens": True,
             "enableSearch": True,
-            "showAllCategory": True
+            "showAllCategory": True,
+            "logoUrl": tenant.logo_url,
+            "tenantName": tenant.name
         }
     
     # Return settings in frontend format
@@ -198,5 +200,7 @@ async def get_public_settings(
         "instagramHandle": settings.instagram_handle,
         "tiktokHandle": settings.tiktok_handle,
         "websiteUrl": settings.website_url,
-        "showAllCategory": settings.show_all_category
+        "showAllCategory": settings.show_all_category,
+        "logoUrl": tenant.logo_url,  # Add tenant logo
+        "tenantName": tenant.name     # Add tenant name
     }

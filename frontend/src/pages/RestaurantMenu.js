@@ -154,15 +154,21 @@ const RestaurantMenu = () => {
 
             {/* Center - Logo */}
             <div className="flex-shrink-0 mx-2 sm:mx-4">
-              <img 
-                src="/logo.png" 
-                alt="Entrecôte Café de Paris" 
-                className="h-10 sm:h-14 md:h-16 object-contain"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                  e.target.parentElement.innerHTML = '<div class="text-lg sm:text-2xl font-bold text-gray-900">Entrecôte</div>';
-                }}
-              />
+              {settings?.logoUrl ? (
+                <img 
+                  src={`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}${settings.logoUrl}`}
+                  alt={settings.tenantName || 'Restaurant Logo'} 
+                  className="h-10 sm:h-14 md:h-16 object-contain"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.parentElement.innerHTML = `<div class="text-lg sm:text-2xl font-bold text-gray-900">${settings.tenantName || 'Restaurant'}</div>`;
+                  }}
+                />
+              ) : (
+                <div className="text-lg sm:text-2xl font-bold text-gray-900">
+                  {settings?.tenantName || 'Restaurant'}
+                </div>
+              )}
             </div>
 
             {/* Right Side - Actions */}
@@ -298,15 +304,21 @@ const RestaurantMenu = () => {
         <div className="container mx-auto px-4 py-8">
           {/* Restaurant Info */}
           <div className="text-center">
-            <img 
-              src="/logo.png" 
-              alt="Entrecôte Café de Paris" 
-              className="h-12 mb-4 mx-auto brightness-0 invert"
-              onError={(e) => {
-                e.target.style.display = 'none';
-                e.target.parentElement.innerHTML = '<div class="text-2xl font-bold text-white mb-4">Entrecôte</div>' + e.target.parentElement.innerHTML;
-              }}
-            />
+            {settings?.logoUrl ? (
+              <img 
+                src={`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}${settings.logoUrl}`}
+                alt={settings.tenantName || 'Restaurant Logo'} 
+                className="h-12 mb-4 mx-auto brightness-0 invert"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.parentElement.innerHTML = `<div class="text-2xl font-bold text-white mb-4">${settings.tenantName || 'Restaurant'}</div>` + e.target.parentElement.innerHTML;
+                }}
+              />
+            ) : (
+              <div className="text-2xl font-bold text-white mb-4">
+                {settings?.tenantName || 'Restaurant'}
+              </div>
+            )}
             <p className="text-white/80 max-w-2xl mx-auto mb-6">
               {language === 'ar' 
                 ? (settings?.footerTaglineAr || 'تجربة طعام فرنسية أصيلة في قلب المملكة')
