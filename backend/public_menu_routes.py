@@ -167,8 +167,17 @@ async def get_public_settings(
             "showAllergens": True,
             "enableSearch": True,
             "showAllCategory": True,
+            "showIncludeVat": True,
             "logoUrl": tenant.logo_url,
-            "tenantName": tenant.name
+            "tenantName": tenant.name,
+            # SEO defaults
+            "metaTitleEn": None,
+            "metaTitleAr": None,
+            "metaDescriptionEn": None,
+            "metaDescriptionAr": None,
+            "metaKeywordsEn": None,
+            "metaKeywordsAr": None,
+            "ogImageUrl": None
         }
     
     # Return settings in frontend format
@@ -201,6 +210,15 @@ async def get_public_settings(
         "tiktokHandle": settings.tiktok_handle,
         "websiteUrl": settings.website_url,
         "showAllCategory": settings.show_all_category,
+        "showIncludeVat": settings.show_include_vat,
         "logoUrl": tenant.logo_url,  # Add tenant logo
-        "tenantName": tenant.name     # Add tenant name
+        "tenantName": tenant.name,     # Add tenant name
+        # SEO/Meta tags
+        "metaTitleEn": settings.meta_title_en,
+        "metaTitleAr": settings.meta_title_ar,
+        "metaDescriptionEn": settings.meta_description_en,
+        "metaDescriptionAr": settings.meta_description_ar,
+        "metaKeywordsEn": settings.meta_keywords_en,
+        "metaKeywordsAr": settings.meta_keywords_ar,
+        "ogImageUrl": settings.og_image_url
     }

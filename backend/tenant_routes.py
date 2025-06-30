@@ -353,7 +353,18 @@ async def get_settings(
         "show_preparation_time": settings.show_preparation_time,
         "show_allergens": settings.show_allergens,
         "show_price_without_vat": settings.show_price_without_vat,
-        "show_all_category": settings.show_all_category
+        "show_all_category": settings.show_all_category,
+        "show_include_vat": settings.show_include_vat,
+        # SEO/Meta tags
+        "meta_title_en": settings.meta_title_en,
+        "meta_title_ar": settings.meta_title_ar,
+        "meta_description_en": settings.meta_description_en,
+        "meta_description_ar": settings.meta_description_ar,
+        "meta_keywords_en": settings.meta_keywords_en,
+        "meta_keywords_ar": settings.meta_keywords_ar,
+        "og_image_url": settings.og_image_url,
+        # Include tenant name for better context
+        "tenantName": tenant.name
     }
 
 @router.put("/settings")

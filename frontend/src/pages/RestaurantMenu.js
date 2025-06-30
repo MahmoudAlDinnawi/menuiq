@@ -13,6 +13,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { Helmet } from 'react-helmet';
 import LuxuryCategoryFilter from '../components/LuxuryCategoryFilter';
 import AmazingMobileCard from '../components/AmazingMobileCard';
 import AmazingDesktopCard from '../components/AmazingDesktopCard';
@@ -129,6 +130,60 @@ const RestaurantMenu = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+      {/* SEO Meta Tags */}
+      <Helmet>
+        <title>
+          {language === 'ar' 
+            ? (settings?.metaTitleAr || `${settings?.tenantName || 'مطعم'} - قائمة الطعام`)
+            : (settings?.metaTitleEn || `${settings?.tenantName || 'Restaurant'} - Menu`)
+          }
+        </title>
+        <meta name="description" content={
+          language === 'ar'
+            ? (settings?.metaDescriptionAr || `اكتشف قائمة الطعام الرائعة في ${settings?.tenantName || 'مطعمنا'}`)
+            : (settings?.metaDescriptionEn || `Discover our amazing menu at ${settings?.tenantName || 'our restaurant'}`)
+        } />
+        {(settings?.metaKeywordsEn || settings?.metaKeywordsAr) && (
+          <meta name="keywords" content={
+            language === 'ar' 
+              ? (settings?.metaKeywordsAr || settings?.metaKeywordsEn)
+              : (settings?.metaKeywordsEn || settings?.metaKeywordsAr)
+          } />
+        )}
+        
+        {/* Open Graph Tags for Social Media */}
+        <meta property="og:title" content={
+          language === 'ar' 
+            ? (settings?.metaTitleAr || `${settings?.tenantName || 'مطعم'} - قائمة الطعام`)
+            : (settings?.metaTitleEn || `${settings?.tenantName || 'Restaurant'} - Menu`)
+        } />
+        <meta property="og:description" content={
+          language === 'ar'
+            ? (settings?.metaDescriptionAr || `اكتشف قائمة الطعام الرائعة في ${settings?.tenantName || 'مطعمنا'}`)
+            : (settings?.metaDescriptionEn || `Discover our amazing menu at ${settings?.tenantName || 'our restaurant'}`)
+        } />
+        <meta property="og:type" content="website" />
+        {settings?.ogImageUrl && (
+          <meta property="og:image" content={settings.ogImageUrl} />
+        )}
+        
+        {/* Twitter Card Tags */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content={
+          language === 'ar' 
+            ? (settings?.metaTitleAr || `${settings?.tenantName || 'مطعم'} - قائمة الطعام`)
+            : (settings?.metaTitleEn || `${settings?.tenantName || 'Restaurant'} - Menu`)
+        } />
+        <meta name="twitter:description" content={
+          language === 'ar'
+            ? (settings?.metaDescriptionAr || `اكتشف قائمة الطعام الرائعة في ${settings?.tenantName || 'مطعمنا'}`)
+            : (settings?.metaDescriptionEn || `Discover our amazing menu at ${settings?.tenantName || 'our restaurant'}`)
+        } />
+        {settings?.ogImageUrl && (
+          <meta name="twitter:image" content={settings.ogImageUrl} />
+        )}
+      </Helmet>
+      
       {/* Top Navigation Bar */}
       <nav className="bg-white shadow-lg fixed top-0 left-0 right-0 z-50">
         <div className="container mx-auto px-3 sm:px-4">

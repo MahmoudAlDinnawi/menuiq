@@ -70,7 +70,7 @@ const SettingsPanel = ({ onUpdate }) => {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="border-b border-gray-200">
           <nav className="flex -mb-px">
-            {['general', 'logo', 'display', 'features', 'social'].map((tab) => (
+            {['general', 'logo', 'seo', 'display', 'features', 'social'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -147,6 +147,150 @@ const SettingsPanel = ({ onUpdate }) => {
           {activeTab === 'logo' && (
             <div className="space-y-6">
               <LogoSettings />
+            </div>
+          )}
+
+          {/* SEO Settings */}
+          {activeTab === 'seo' && (
+            <div className="space-y-6">
+              <div className="bg-gray-50 rounded-lg p-4 mb-6">
+                <h3 className="text-sm font-medium text-gray-900 mb-2">SEO & Meta Tags</h3>
+                <p className="text-sm text-gray-600">
+                  Optimize your restaurant's search engine visibility and social media sharing appearance.
+                </p>
+              </div>
+
+              {/* Meta Title */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-gray-900">Page Title</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Title (English)
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.meta_title_en || ''}
+                      onChange={(e) => handleChange('meta_title_en', e.target.value)}
+                      placeholder={`${settings.tenantName || 'Restaurant'} - Menu`}
+                      maxLength={60}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      {(settings.meta_title_en || '').length}/60 characters
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Title (Arabic)
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.meta_title_ar || ''}
+                      onChange={(e) => handleChange('meta_title_ar', e.target.value)}
+                      placeholder={`${settings.tenantName || 'مطعم'} - قائمة الطعام`}
+                      maxLength={60}
+                      dir="rtl"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      {(settings.meta_title_ar || '').length}/60 characters
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Meta Description */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-gray-900">Meta Description</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Description (English)
+                    </label>
+                    <textarea
+                      value={settings.meta_description_en || ''}
+                      onChange={(e) => handleChange('meta_description_en', e.target.value)}
+                      placeholder="Describe your restaurant and menu for search engines..."
+                      maxLength={160}
+                      rows={3}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      {(settings.meta_description_en || '').length}/160 characters
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Description (Arabic)
+                    </label>
+                    <textarea
+                      value={settings.meta_description_ar || ''}
+                      onChange={(e) => handleChange('meta_description_ar', e.target.value)}
+                      placeholder="وصف مطعمك وقائمة الطعام لمحركات البحث..."
+                      maxLength={160}
+                      rows={3}
+                      dir="rtl"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      {(settings.meta_description_ar || '').length}/160 characters
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Keywords */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-gray-900">Keywords</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Keywords (English)
+                    </label>
+                    <textarea
+                      value={settings.meta_keywords_en || ''}
+                      onChange={(e) => handleChange('meta_keywords_en', e.target.value)}
+                      placeholder="restaurant, menu, food, dining, cuisine (comma separated)"
+                      rows={2}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Keywords (Arabic)
+                    </label>
+                    <textarea
+                      value={settings.meta_keywords_ar || ''}
+                      onChange={(e) => handleChange('meta_keywords_ar', e.target.value)}
+                      placeholder="مطعم، قائمة طعام، طعام، مأكولات (مفصولة بفواصل)"
+                      rows={2}
+                      dir="rtl"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Open Graph Image */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-gray-900">Social Media Preview Image</h4>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Open Graph Image URL
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.og_image_url || ''}
+                    onChange={(e) => handleChange('og_image_url', e.target.value)}
+                    placeholder="https://example.com/preview-image.jpg"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Recommended size: 1200x630 pixels. This image appears when your menu is shared on social media.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
@@ -252,7 +396,8 @@ const SettingsPanel = ({ onUpdate }) => {
                   { key: 'show_preparation_time', label: 'Show Preparation Time' },
                   { key: 'show_allergens', label: 'Show Allergens' },
                   { key: 'show_price_without_vat', label: 'Show Price Without VAT' },
-                  { key: 'show_all_category', label: 'Show "All" Category' }
+                  { key: 'show_all_category', label: 'Show "All" Category' },
+                  { key: 'show_include_vat', label: 'Show "Include VAT" Text' }
                 ].map((feature) => (
                   <label key={feature.key} className="flex items-center gap-2 p-3 border rounded-lg hover:bg-gray-50">
                     <input
