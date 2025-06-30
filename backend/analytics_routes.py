@@ -54,20 +54,17 @@ def get_device_details(user_agent_string: str) -> dict:
     if 'iPhone' in ua:
         device_info['brand'] = 'Apple'
         # Try to extract iOS version
-        if 'OS ' in ua:
-            try:
-                version_match = re.search(r'OS (\d+)[_\s]', ua)
-                if version_match:
-                    ios_version = version_match.group(1)
-                    device_info['model'] = f'iPhone (iOS {ios_version})'
-                    device_info['full_name'] = f'Apple iPhone (iOS {ios_version})'
-                else:
-                    device_info['model'] = 'iPhone'
-                    device_info['full_name'] = 'Apple iPhone'
-            except:
+        try:
+            # Look for iOS version in different formats
+            version_match = re.search(r'iPhone OS (\d+)[_\s]', ua) or re.search(r'CPU iPhone OS (\d+)[_\s]', ua)
+            if version_match:
+                ios_version = version_match.group(1)
+                device_info['model'] = f'iPhone (iOS {ios_version})'
+                device_info['full_name'] = f'Apple iPhone (iOS {ios_version})'
+            else:
                 device_info['model'] = 'iPhone'
                 device_info['full_name'] = 'Apple iPhone'
-        else:
+        except:
             device_info['model'] = 'iPhone'
             device_info['full_name'] = 'Apple iPhone'
     
@@ -611,7 +608,7 @@ async def get_category_performance(
     }
 
 @router.get("/dashboard/device-details")
-async def get_device_details(
+async def get_device_details_dashboard(
     days: int = 30,
     current_user: dict = Depends(get_current_user_dict),
     db: Session = Depends(get_db)
