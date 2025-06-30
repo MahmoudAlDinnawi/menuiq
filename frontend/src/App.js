@@ -1,3 +1,17 @@
+/**
+ * MenuIQ Frontend Application
+ * 
+ * This is the main App component that handles:
+ * - Routing based on subdomain (tenant vs admin vs main site)
+ * - Authentication context provider
+ * - Protected route management
+ * 
+ * Domain routing logic:
+ * - app.menuiq.io -> System admin dashboard
+ * - tenant.menuiq.io -> Tenant's public menu
+ * - menuiq.io -> Main website (redirects to login)
+ */
+
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
@@ -9,13 +23,13 @@ import TenantLogin from './pages/TenantLogin';
 import SystemAdminDashboard from './pages/SystemAdminDashboard';
 
 function App() {
-  // Determine if we're on the main app domain or a subdomain
+  // Determine routing based on the current hostname
   const hostname = window.location.hostname;
   const isMainDomain = hostname === 'menuiq.io' || hostname === 'www.menuiq.io';
   const isSystemAdmin = hostname === 'app.menuiq.io';
   const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
 
-  // Debug logging
+  // Debug logging for development
   console.log('App loaded - Hostname:', hostname);
   console.log('Is System Admin:', isSystemAdmin);
   console.log('Is Main Domain:', isMainDomain);

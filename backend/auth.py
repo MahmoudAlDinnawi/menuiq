@@ -1,3 +1,13 @@
+"""
+Authentication and Authorization Module
+
+This module handles:
+- Password hashing and verification using bcrypt
+- JWT token creation and validation
+- User authentication for both tenant users and system admins
+- Authorization checks and permission validation
+"""
+
 from datetime import datetime, timedelta
 from typing import Optional, Dict
 from jose import JWTError, jwt
@@ -10,17 +20,21 @@ from models import User, SystemAdmin
 import os
 from dotenv import load_dotenv
 
+# Load environment variables
 load_dotenv()
 
 # Security configuration
+# SECRET_KEY should be a strong random string in production
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
+ALGORITHM = "HS256"  # JWT signing algorithm
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # Token expires after 24 hours
 
-# Password hashing
+# Password hashing context using bcrypt
+# Automatically handles salt generation and secure password storage
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# Bearer token
+# HTTP Bearer token authentication scheme
+# Expects tokens in Authorization: Bearer <token> header
 security = HTTPBearer()
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

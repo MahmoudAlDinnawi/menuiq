@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import AmazingNutritionModal from './AmazingNutritionModal';
 import AllergenSVGIcon from './AllergenSVGIcon';
+import analyticsTracker from '../services/analyticsTracker';
 
 const AmazingMobileCard = ({ item, language, formatCategory, categories, settings }) => {
   const [showNutritionModal, setShowNutritionModal] = useState(false);
@@ -38,7 +39,11 @@ const AmazingMobileCard = ({ item, language, formatCategory, categories, setting
     <>
       <div 
         className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 cursor-pointer"
-        onClick={() => setShowNutritionModal(true)}
+        onClick={() => {
+          setShowNutritionModal(true);
+          // Track item click
+          analyticsTracker.trackItemClick(item.id, item.categoryId);
+        }}
       >
         {/* Image Section with Overlay Info */}
         <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200">
