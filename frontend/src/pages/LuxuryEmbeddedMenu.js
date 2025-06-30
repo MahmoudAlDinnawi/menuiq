@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import LuxuryCategoryFilter from '../components/LuxuryCategoryFilter';
-import LuxuryMenuCard from '../components/LuxuryMenuCard';
-import LuxuryMobileCard from '../components/LuxuryMobileCard';
 import AmazingMobileCard from '../components/AmazingMobileCard';
 import AmazingDesktopCard from '../components/AmazingDesktopCard';
 import api from '../services/api';

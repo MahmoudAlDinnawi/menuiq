@@ -24,9 +24,8 @@ import bcrypt
 import secrets
 from dotenv import load_dotenv
 
-# Load environment variables based on the environment
-# In production, uses .env.production, otherwise uses .env
-load_dotenv('.env' if os.getenv('ENVIRONMENT') != 'production' else '.env.production')
+# Load environment variables from .env file
+load_dotenv('.env')
 
 # Import database connection and models
 from database import get_db, engine
@@ -70,11 +69,11 @@ origins = [
 import re
 subdomain_pattern = re.compile(r"https://[a-zA-Z0-9-]+\.menuiq\.io")
 
-# Configure CORS middleware with permissive settings
-# Note: In production, consider restricting origins for security
+# Configure CORS middleware
+# For production, we need to allow all subdomains of menuiq.io
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # TODO: Use specific origins in production
+    allow_origin_regex=r"^https?://(localhost:\d+|([a-zA-Z0-9-]+\.)?menuiq\.io)$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
