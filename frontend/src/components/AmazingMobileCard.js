@@ -119,10 +119,22 @@ const AmazingMobileCard = ({ item, language, formatCategory, categories, setting
                 <div className="text-right">
                   <div className="text-xs text-gray-500 line-through">{formatPrice(item.price)}</div>
                   <div className="text-lg font-bold text-red-600">{formatPrice(item.promotionPrice)}</div>
+                  {settings?.showIncludeVat && (
+                    <div className="text-xs text-gray-600 mt-0.5">
+                      {language === 'ar' ? 'شامل الضريبة' : 'Include VAT'}
+                    </div>
+                  )}
                 </div>
               ) : (
-                <div className="text-lg font-bold" style={{ color: primaryColor }}>
-                  {formatPrice(item.price)}
+                <div>
+                  <div className="text-lg font-bold" style={{ color: primaryColor }}>
+                    {formatPrice(item.price)}
+                  </div>
+                  {settings?.showIncludeVat && (
+                    <div className="text-xs text-gray-600 mt-0.5">
+                      {language === 'ar' ? 'شامل الضريبة' : 'Include VAT'}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -162,7 +174,7 @@ const AmazingMobileCard = ({ item, language, formatCategory, categories, setting
           )}
 
           {/* Nutrition Quick Info */}
-          {(item.calories || item.walkMinutes || item.runMinutes || item.vitaminD) && (
+          {(item.calories || (item.walkMinutes && item.walkMinutes > 0) || (item.runMinutes && item.runMinutes > 0)) && (
             <div className="flex items-center gap-4 mb-3 p-3 bg-gray-50 rounded-lg">
               {item.calories && (
                 <div className="flex items-center gap-1">
@@ -176,7 +188,7 @@ const AmazingMobileCard = ({ item, language, formatCategory, categories, setting
                 </div>
               )}
               
-              {item.walkMinutes && (
+              {item.walkMinutes && item.walkMinutes > 0 && (
                 <div className="flex items-center gap-1">
                   <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                     <span className="text-sm">🚶</span>
@@ -188,7 +200,7 @@ const AmazingMobileCard = ({ item, language, formatCategory, categories, setting
                 </div>
               )}
               
-              {item.runMinutes && (
+              {item.runMinutes && item.runMinutes > 0 && (
                 <div className="flex items-center gap-1">
                   <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
                     <span className="text-sm">🏃</span>
@@ -196,18 +208,6 @@ const AmazingMobileCard = ({ item, language, formatCategory, categories, setting
                   <div>
                     <div className="text-sm font-semibold text-purple-600">{item.runMinutes}</div>
                     <div className="text-xs text-gray-500">min</div>
-                  </div>
-                </div>
-              )}
-              
-              {item.vitaminD && (
-                <div className="flex items-center gap-1">
-                  <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                    <span className="text-sm">☀️</span>
-                  </div>
-                  <div>
-                    <div className="text-sm font-semibold text-yellow-700">{item.vitaminD}%</div>
-                    <div className="text-xs text-gray-500">Vit D</div>
                   </div>
                 </div>
               )}

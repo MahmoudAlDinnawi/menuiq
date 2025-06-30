@@ -374,6 +374,7 @@ class Settings(Base):
     show_allergens = Column(Boolean, default=True)
     show_price_without_vat = Column(Boolean, default=True)
     show_all_category = Column(Boolean, default=True)
+    show_include_vat = Column(Boolean, default=True)
     
     # Footer settings
     footer_enabled = Column(Boolean, default=True)
@@ -385,6 +386,15 @@ class Settings(Base):
     hero_subtitle_ar = Column(Text, default="اكتشف تشكيلتنا الرائعة من الأطباق الفرنسية الأصيلة")
     footer_tagline_en = Column(Text, default="Authentic French dining experience in the heart of the Kingdom")
     footer_tagline_ar = Column(Text, default="تجربة طعام فرنسية أصيلة في قلب المملكة")
+    
+    # SEO/Meta tags
+    meta_title_en = Column(String(255))
+    meta_title_ar = Column(String(255))
+    meta_description_en = Column(Text)
+    meta_description_ar = Column(Text)
+    meta_keywords_en = Column(Text)
+    meta_keywords_ar = Column(Text)
+    og_image_url = Column(String(500))  # Open Graph image for social sharing
     
     # Metadata
     created_at = Column(DateTime, default=datetime.utcnow)

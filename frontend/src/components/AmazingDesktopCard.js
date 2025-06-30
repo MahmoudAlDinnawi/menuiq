@@ -147,10 +147,22 @@ const AmazingDesktopCard = ({ item, language, formatCategory, categories, settin
                 <div className="text-right">
                   <div className="text-sm text-gray-500 line-through">{formatPrice(item.price)}</div>
                   <div className="text-xl font-bold text-red-600">{formatPrice(item.promotionPrice)}</div>
+                  {settings?.showIncludeVat && (
+                    <div className="text-xs text-gray-600 mt-1">
+                      {language === 'ar' ? 'شامل الضريبة' : 'Include VAT'}
+                    </div>
+                  )}
                 </div>
               ) : (
-                <div className="text-xl font-bold" style={{ color: primaryColor }}>
-                  {formatPrice(item.price)}
+                <div>
+                  <div className="text-xl font-bold" style={{ color: primaryColor }}>
+                    {formatPrice(item.price)}
+                  </div>
+                  {settings?.showIncludeVat && (
+                    <div className="text-xs text-gray-600 mt-1">
+                      {language === 'ar' ? 'شامل الضريبة' : 'Include VAT'}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -190,7 +202,7 @@ const AmazingDesktopCard = ({ item, language, formatCategory, categories, settin
           )}
 
           {/* Nutrition Quick Info */}
-          {(item.calories || item.walkMinutes || item.runMinutes || item.vitaminD) && (
+          {(item.calories || (item.walkMinutes && item.walkMinutes > 0) || (item.runMinutes && item.runMinutes > 0)) && (
             <div className="flex items-center gap-6 mb-4 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl">
               {item.calories && (
                 <div className="flex items-center gap-2">
@@ -204,7 +216,7 @@ const AmazingDesktopCard = ({ item, language, formatCategory, categories, settin
                 </div>
               )}
               
-              {item.walkMinutes && (
+              {item.walkMinutes && item.walkMinutes > 0 && (
                 <div className="flex items-center gap-2">
                   <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-blue-500 rounded-full flex items-center justify-center shadow-md">
                     <span className="text-white text-lg">🚶</span>
@@ -216,7 +228,7 @@ const AmazingDesktopCard = ({ item, language, formatCategory, categories, settin
                 </div>
               )}
               
-              {item.runMinutes && (
+              {item.runMinutes && item.runMinutes > 0 && (
                 <div className="flex items-center gap-2">
                   <div className="w-10 h-10 bg-gradient-to-br from-purple-400 to-purple-500 rounded-full flex items-center justify-center shadow-md">
                     <span className="text-white text-lg">🏃</span>
@@ -224,18 +236,6 @@ const AmazingDesktopCard = ({ item, language, formatCategory, categories, settin
                   <div>
                     <div className="text-base font-semibold text-purple-600">{item.runMinutes}</div>
                     <div className="text-xs text-gray-500">min run</div>
-                  </div>
-                </div>
-              )}
-              
-              {item.vitaminD && (
-                <div className="flex items-center gap-2">
-                  <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-yellow-500 rounded-full flex items-center justify-center shadow-md">
-                    <span className="text-white text-lg">☀️</span>
-                  </div>
-                  <div>
-                    <div className="text-base font-semibold text-yellow-700">{item.vitaminD}%</div>
-                    <div className="text-xs text-gray-500">Vitamin D</div>
                   </div>
                 </div>
               )}
@@ -321,9 +321,6 @@ const AmazingDesktopCard = ({ item, language, formatCategory, categories, settin
                       </div>
                     )}
                   </div>
-                  <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
                 </div>
               </div>
             </div>

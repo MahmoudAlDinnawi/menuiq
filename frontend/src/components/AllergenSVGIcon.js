@@ -10,9 +10,7 @@ import soyIcon from '../assets/allergy_icons/soy.svg';
 import sesameIcon from '../assets/allergy_icons/sesame.svg';
 import saltIcon from '../assets/allergy_icons/salt.svg';
 import mustardIcon from '../assets/allergy_icons/mustard.svg';
-
-// nuts icon is not available
-let nutsIcon = null;
+import nutsIcon from '../assets/allergy_icons/nuts.svg';
 
 const AllergenSVGIcon = ({ iconPath, size = 'w-8 h-8', primaryColor = '#00594f', className = '' }) => {
   // Extract filename from path
@@ -50,6 +48,7 @@ const AllergenSVGIcon = ({ iconPath, size = 'w-8 h-8', primaryColor = '#00594f',
     '/src/assets/allergy_icons/sesame.svg': sesameIcon,
     '/src/assets/allergy_icons/salt.svg': saltIcon,
     '/src/assets/allergy_icons/mustard.svg': mustardIcon,
+    '/src/assets/allergy_icons/nuts.svg': nutsIcon,
     // Additional path formats that might be returned by API
     'src/assets/allergy_icons/milk.svg': milkIcon,
     'src/assets/allergy_icons/egg.svg': eggIcon,
@@ -61,6 +60,7 @@ const AllergenSVGIcon = ({ iconPath, size = 'w-8 h-8', primaryColor = '#00594f',
     'src/assets/allergy_icons/sesame.svg': sesameIcon,
     'src/assets/allergy_icons/salt.svg': saltIcon,
     'src/assets/allergy_icons/mustard.svg': mustardIcon,
+    'src/assets/allergy_icons/nuts.svg': nutsIcon,
   };
 
   // Check all possible path formats
