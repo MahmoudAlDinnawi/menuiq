@@ -364,7 +364,8 @@ async def get_settings(
         "meta_keywords_ar": settings.meta_keywords_ar,
         "og_image_url": settings.og_image_url,
         # Include tenant name for better context
-        "tenantName": tenant.name
+        "tenantName": tenant.name,
+        "logo_url": tenant.logo_url
     }
 
 @router.put("/settings")
