@@ -16,6 +16,13 @@ const createTenantAPI = () => {
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
+      
+      // Remove Content-Type header for FormData
+      // Let browser set it automatically with boundary
+      if (config.data instanceof FormData) {
+        delete config.headers['Content-Type'];
+      }
+      
       return config;
     },
     (error) => {
@@ -79,11 +86,7 @@ const tenantAPI = {
     formData.append('file', file);
     formData.append('type', type);
     
-    return api.post('/api/tenant/upload-image', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    return api.post('/api/tenant/upload-image', formData);
   }
 };
 

@@ -62,11 +62,7 @@ const LogoSettings = () => {
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      const response = await tenantAPI.post('/upload-logo', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const response = await tenantAPI.post('/upload-logo', formData);
 
       setTenantInfo(prev => ({
         ...prev,
