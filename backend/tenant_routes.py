@@ -1012,8 +1012,8 @@ async def get_tenant_info(
         "address": tenant.address,
         "status": tenant.status,
         "created_at": tenant.created_at,
-        "subscription_status": tenant.subscription_status,
-        "subscription_plan": tenant.subscription_plan
+        "subscription_status": tenant.status,
+        "subscription_plan": tenant.plan
     }
 
 @router.post("/upload-logo")
