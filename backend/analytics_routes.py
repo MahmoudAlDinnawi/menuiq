@@ -122,7 +122,13 @@ async def track_session_start(
     referrer = request.headers.get("referer", "")
     
     # Get device details once
-    device_details = get_device_details(user_agent)
+    try:
+        device_details = get_device_details(user_agent)
+        if not isinstance(device_details, dict):
+            device_details = {'brand': 'Unknown', 'model': 'Unknown', 'full_name': 'Unknown Device'}
+    except Exception as e:
+        print(f"Error getting device details: {e}")
+        device_details = {'brand': 'Unknown', 'model': 'Unknown', 'full_name': 'Unknown Device'}
     
     # Create session
     session_id = str(uuid.uuid4())
@@ -130,9 +136,9 @@ async def track_session_start(
         tenant_id=tenant.id,
         session_id=session_id,
         ip_address_hash=hash_ip(client_ip),
-        device_brand=device_details.get('brand'),
-        device_model=device_details.get('model'),
-        device_full_name=device_details.get('full_name'),
+        device_brand=device_details.get('brand', 'Unknown'),
+        device_model=device_details.get('model', 'Unknown'),
+        device_full_name=device_details.get('full_name', 'Unknown Device'),
         user_agent=user_agent,
         device_type=get_device_type(user_agent),
         browser=parse(user_agent).browser.family,
