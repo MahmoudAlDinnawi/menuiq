@@ -47,15 +47,26 @@ def get_device_details(user_agent_string: str) -> dict:
         'full_name': 'Unknown Device'
     }
     
+    if not ua:
+        return device_info
+    
     # Apple devices
     if 'iPhone' in ua:
         device_info['brand'] = 'Apple'
-        # Look for iOS version
-        if 'iPhone OS ' in ua:
-            parts = ua.split('iPhone OS ')[1].split(' ')[0]
-            ios_version = parts.split('_')[0]
-            device_info['model'] = f'iPhone (iOS {ios_version})'
-            device_info['full_name'] = f'Apple iPhone (iOS {ios_version})'
+        # Try to extract iOS version
+        if 'OS ' in ua:
+            try:
+                version_match = re.search(r'OS (\d+)[_\s]', ua)
+                if version_match:
+                    ios_version = version_match.group(1)
+                    device_info['model'] = f'iPhone (iOS {ios_version})'
+                    device_info['full_name'] = f'Apple iPhone (iOS {ios_version})'
+                else:
+                    device_info['model'] = 'iPhone'
+                    device_info['full_name'] = 'Apple iPhone'
+            except:
+                device_info['model'] = 'iPhone'
+                device_info['full_name'] = 'Apple iPhone'
         else:
             device_info['model'] = 'iPhone'
             device_info['full_name'] = 'Apple iPhone'
@@ -70,28 +81,96 @@ def get_device_details(user_agent_string: str) -> dict:
         device_info['model'] = 'Mac'
         device_info['full_name'] = 'Apple Mac'
     
-    # Samsung devices
-    elif 'Samsung' in ua:
+    # Samsung devices - check first before generic Android
+    elif 'SM-' in ua or 'Samsung' in ua or 'SAMSUNG' in ua:
         device_info['brand'] = 'Samsung'
-        device_info['model'] = 'Galaxy'
-        device_info['full_name'] = 'Samsung Galaxy'
+        # Try to extract model
+        model_match = re.search(r'SM-[A-Z]\d+[A-Z]?', ua)
+        if model_match:
+            device_info['model'] = model_match.group(0)
+            device_info['full_name'] = f'Samsung {model_match.group(0)}'
+        else:
+            device_info['model'] = 'Galaxy'
+            device_info['full_name'] = 'Samsung Galaxy'
     
-    # Android devices
-    elif 'Android' in ua:
-        device_info['brand'] = 'Android'
-        device_info['model'] = 'Android Device'
-        device_info['full_name'] = 'Android Device'
-        # Try to get more specific
-        if 'Pixel' in ua:
-            device_info['brand'] = 'Google'
+    # Other specific Android devices
+    elif 'Pixel' in ua:
+        device_info['brand'] = 'Google'
+        # Try to extract Pixel model
+        pixel_match = re.search(r'Pixel\s?(\d+[a-zA-Z]?)', ua)
+        if pixel_match:
+            device_info['model'] = f'Pixel {pixel_match.group(1)}'
+            device_info['full_name'] = f'Google Pixel {pixel_match.group(1)}'
+        else:
             device_info['model'] = 'Pixel'
             device_info['full_name'] = 'Google Pixel'
     
+    # Xiaomi devices
+    elif 'Xiaomi' in ua or 'Mi ' in ua or 'Redmi' in ua:
+        device_info['brand'] = 'Xiaomi'
+        if 'Redmi' in ua:
+            device_info['model'] = 'Redmi'
+            device_info['full_name'] = 'Xiaomi Redmi'
+        else:
+            device_info['model'] = 'Mi'
+            device_info['full_name'] = 'Xiaomi Mi'
+    
+    # Huawei devices
+    elif 'HUAWEI' in ua or 'Huawei' in ua:
+        device_info['brand'] = 'Huawei'
+        device_info['model'] = 'Huawei Device'
+        device_info['full_name'] = 'Huawei Device'
+    
+    # OnePlus devices
+    elif 'OnePlus' in ua:
+        device_info['brand'] = 'OnePlus'
+        oneplus_match = re.search(r'OnePlus\s?([A-Z0-9]+)', ua)
+        if oneplus_match:
+            device_info['model'] = oneplus_match.group(1)
+            device_info['full_name'] = f'OnePlus {oneplus_match.group(1)}'
+        else:
+            device_info['model'] = 'OnePlus'
+            device_info['full_name'] = 'OnePlus Device'
+    
+    # Generic Android
+    elif 'Android' in ua:
+        device_info['brand'] = 'Android'
+        # Try to extract Android version
+        android_match = re.search(r'Android\s?(\d+)', ua)
+        if android_match:
+            device_info['model'] = f'Android {android_match.group(1)}'
+            device_info['full_name'] = f'Android {android_match.group(1)} Device'
+        else:
+            device_info['model'] = 'Android Device'
+            device_info['full_name'] = 'Android Device'
+    
     # Windows
-    elif 'Windows' in ua:
+    elif 'Windows NT' in ua:
         device_info['brand'] = 'Windows'
-        device_info['model'] = 'PC'
-        device_info['full_name'] = 'Windows PC'
+        if 'Windows NT 10' in ua:
+            device_info['model'] = 'Windows 10/11'
+            device_info['full_name'] = 'Windows 10/11 PC'
+        elif 'Windows NT 6.3' in ua:
+            device_info['model'] = 'Windows 8.1'
+            device_info['full_name'] = 'Windows 8.1 PC'
+        elif 'Windows NT 6.2' in ua:
+            device_info['model'] = 'Windows 8'
+            device_info['full_name'] = 'Windows 8 PC'
+        else:
+            device_info['model'] = 'Windows PC'
+            device_info['full_name'] = 'Windows PC'
+    
+    # Linux
+    elif 'Linux' in ua and 'X11' in ua:
+        device_info['brand'] = 'Linux'
+        device_info['model'] = 'Desktop'
+        device_info['full_name'] = 'Linux Desktop'
+    
+    # Check for bots/crawlers
+    elif any(bot in ua.lower() for bot in ['bot', 'spider', 'crawler', 'scraper']):
+        device_info['brand'] = 'Bot'
+        device_info['model'] = 'Crawler'
+        device_info['full_name'] = 'Web Crawler'
     
     return device_info
 
@@ -126,6 +205,11 @@ async def track_session_start(
         device_details = get_device_details(user_agent)
         if not isinstance(device_details, dict):
             device_details = {'brand': 'Unknown', 'model': 'Unknown', 'full_name': 'Unknown Device'}
+        
+        # Log unknown devices for future improvement
+        if device_details['brand'] == 'Unknown' and user_agent:
+            print(f"[Analytics] Unknown device detected - User Agent: {user_agent}")
+            
     except Exception as e:
         print(f"Error getting device details: {e}")
         device_details = {'brand': 'Unknown', 'model': 'Unknown', 'full_name': 'Unknown Device'}
