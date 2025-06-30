@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import tenantAPI from '../services/tenantApiV2';
+import LogoSettings from './LogoSettings';
 
 const SettingsPanel = ({ onUpdate }) => {
   const [settings, setSettings] = useState(null);
@@ -69,7 +70,7 @@ const SettingsPanel = ({ onUpdate }) => {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="border-b border-gray-200">
           <nav className="flex -mb-px">
-            {['general', 'display', 'features', 'social'].map((tab) => (
+            {['general', 'logo', 'display', 'features', 'social'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -139,6 +140,13 @@ const SettingsPanel = ({ onUpdate }) => {
                   </select>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Logo Settings */}
+          {activeTab === 'logo' && (
+            <div className="space-y-6">
+              <LogoSettings />
             </div>
           )}
 

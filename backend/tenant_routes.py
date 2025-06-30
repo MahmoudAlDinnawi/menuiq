@@ -21,6 +21,10 @@ from auth import get_current_user_dict
 
 router = APIRouter(prefix="/api/tenant", tags=["tenant"])
 
+# Ensure uploads directory exists
+UPLOAD_DIR = Path("uploads/logos")
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
 # Helper function
 def get_tenant_from_user(user_dict: dict, db: Session) -> Tenant:
     """Get tenant from authenticated user"""
@@ -976,3 +980,109 @@ async def upload_image(
         "url": f"/uploads/tenant_{tenant.id}/{filename}",
         "type": type
     }
+
+# Tenant Info Endpoints
+@router.get("/info")
+async def get_tenant_info(
+    current_user: dict = Depends(get_current_user_dict),
+    db: Session = Depends(get_db)
+):
+    """Get tenant information including logo"""
+    tenant = get_tenant_from_user(current_user, db)
+    
+    return {
+        "id": tenant.id,
+        "name": tenant.name,
+        "subdomain": tenant.subdomain,
+        "domain": tenant.domain,
+        "logo_url": tenant.logo_url,
+        "contact_email": tenant.contact_email,
+        "contact_phone": tenant.contact_phone,
+        "address": tenant.address,
+        "status": tenant.status,
+        "created_at": tenant.created_at,
+        "subscription_status": tenant.subscription_status,
+        "subscription_plan": tenant.subscription_plan
+    }
+
+@router.post("/upload-logo")
+async def upload_tenant_logo(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user_dict),
+    db: Session = Depends(get_db)
+):
+    """Upload tenant logo"""
+    tenant = get_tenant_from_user(current_user, db)
+    
+    # Validate file type
+    allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp']
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file type. Only JPEG, PNG, GIF, SVG, and WebP are allowed."
+        )
+    
+    # Validate file size (5MB max)
+    max_size = 5 * 1024 * 1024  # 5MB
+    file_size = 0
+    contents = await file.read()
+    file_size = len(contents)
+    
+    if file_size > max_size:
+        raise HTTPException(
+            status_code=400,
+            detail="File too large. Maximum size is 5MB."
+        )
+    
+    # Reset file position
+    await file.seek(0)
+    
+    # Create logos directory
+    logo_dir = Path("uploads/logos")
+    logo_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Delete old logo if exists
+    if tenant.logo_url and tenant.logo_url.startswith("/uploads/logos/"):
+        old_logo_path = Path("." + tenant.logo_url)
+        if old_logo_path.exists():
+            old_logo_path.unlink()
+    
+    # Generate unique filename
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    file_extension = file.filename.split('.')[-1].lower()
+    filename = f"tenant_{tenant.id}_logo_{timestamp}.{file_extension}"
+    file_path = logo_dir / filename
+    
+    # Save file
+    with open(file_path, "wb") as buffer:
+        buffer.write(contents)
+    
+    # Update tenant logo URL
+    logo_url = f"/uploads/logos/{filename}"
+    tenant.logo_url = logo_url
+    db.commit()
+    
+    return {
+        "logo_url": logo_url,
+        "message": "Logo uploaded successfully"
+    }
+
+@router.delete("/logo")
+async def delete_tenant_logo(
+    current_user: dict = Depends(get_current_user_dict),
+    db: Session = Depends(get_db)
+):
+    """Delete tenant logo"""
+    tenant = get_tenant_from_user(current_user, db)
+    
+    # Delete logo file if exists
+    if tenant.logo_url and tenant.logo_url.startswith("/uploads/logos/"):
+        logo_path = Path("." + tenant.logo_url)
+        if logo_path.exists():
+            logo_path.unlink()
+    
+    # Clear logo URL
+    tenant.logo_url = None
+    db.commit()
+    
+    return {"message": "Logo deleted successfully"}
