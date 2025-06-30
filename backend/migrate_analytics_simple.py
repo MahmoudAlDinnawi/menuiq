@@ -8,8 +8,8 @@ import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from dotenv import load_dotenv
 
-# Load environment
-env_file = '.env.production' if os.path.exists('.env.production') else '.env'
+# Load environment - production server uses .env
+env_file = '.env'
 load_dotenv(env_file)
 
 def get_db_config():

@@ -5,8 +5,8 @@ Check database configuration
 import os
 from dotenv import load_dotenv
 
-# Check both env files
-for env_file in ['.env', '.env.production']:
+# Check env file (production uses .env)
+for env_file in ['.env']:
     if os.path.exists(env_file):
         print(f"\n📋 Checking {env_file}:")
         load_dotenv(env_file, override=True)
