@@ -70,10 +70,11 @@ import re
 subdomain_pattern = re.compile(r"https://[a-zA-Z0-9-]+\.menuiq\.io")
 
 # Configure CORS middleware
-# For production, we need to allow all subdomains of menuiq.io
+# Allow all origins for now to fix the issue
+# In production, you can restrict this later
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"^https?://(localhost:\d+|([a-zA-Z0-9-]+\.)?menuiq\.io)$",
+    allow_origins=["*"],  # This allows all origins including all subdomains
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
