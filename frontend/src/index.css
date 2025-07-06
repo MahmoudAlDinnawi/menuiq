@@ -518,3 +518,42 @@ nav img {
     padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }
 }
+
+/* Upsell Animations */
+@keyframes upsellGlow {
+  0%, 100% {
+    box-shadow: 0 0 5px rgba(255, 215, 0, 0.5), 0 0 10px rgba(255, 215, 0, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.8), 0 0 30px rgba(255, 215, 0, 0.5);
+  }
+}
+
+@keyframes upsellShine {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.upsell-glow {
+  animation: upsellGlow 2s ease-in-out infinite;
+}
+
+.upsell-shine {
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.7) 50%,
+    transparent 60%
+  );
+  background-size: 200% 100%;
+  animation: upsellShine 3s linear infinite;
+}
+
+/* Upsell card ring effect */
+.ring-2 {
+  box-shadow: 0 0 0 2px var(--ring-color);
+}

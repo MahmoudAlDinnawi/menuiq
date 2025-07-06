@@ -310,7 +310,7 @@ const CreateTenantModal = ({ onClose, onSuccess }) => {
     setError('');
 
     try {
-      const response = await systemAPI.createTenant(formData);
+      await systemAPI.createTenant(formData);
       setSuccess(true);
       
       // Show success message

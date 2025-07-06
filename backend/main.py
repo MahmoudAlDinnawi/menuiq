@@ -11,6 +11,7 @@ This is the main FastAPI application file that:
 
 from fastapi import FastAPI, HTTPException, Depends, status, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
@@ -71,6 +72,9 @@ subdomain_pattern = re.compile(r"https://[a-zA-Z0-9-]+\.menuiq\.io")
 
 # Configure CORS middleware
 # Allow all origins for now to fix the issue
+# Add GZip compression middleware for better performance
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
 # In production, you can restrict this later
 app.add_middleware(
     CORSMiddleware,

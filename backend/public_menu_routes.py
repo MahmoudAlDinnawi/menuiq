@@ -7,6 +7,7 @@ from sqlalchemy import func
 from typing import List, Optional
 from database import get_db
 from models import Tenant, MenuItem, Category, Settings, AllergenIcon
+from simple_cache import cache, cached, CACHE_TTL
 
 router = APIRouter(prefix="/api/public", tags=["public-menu"])
 
@@ -30,6 +31,12 @@ async def get_public_menu_items(
     db: Session = Depends(get_db)
 ):
     """Get all menu items for public display in frontend format"""
+    # Check cache first
+    cache_key = f"public_menu:subdomain:{subdomain}"
+    cached_data = cache.get(cache_key)
+    if cached_data is not None:
+        return cached_data
+    
     tenant = get_tenant_by_subdomain(db, subdomain)
     
     # Get settings for currency
@@ -70,9 +77,14 @@ async def get_public_menu_items(
             "description": item.description,
             "descriptionAr": item.description_ar,
             "category": category_value,
+            "categoryId": item.category_id,
             "image": item.image,
             "price": f"{item.price:.2f} {currency}" if item.price else None,
             "priceWithoutVat": f"{item.price_without_vat:.2f} {currency}" if item.price_without_vat else None,
+            "promotionPrice": f"{item.promotion_price:.2f} {currency}" if item.promotion_price else None,
+            "signatureDish": item.signature_dish,
+            "instagramWorthy": item.instagram_worthy,
+            "isFeatured": item.is_featured,
             "calories": item.calories,
             "preparationTime": item.preparation_time,
             "servingSize": item.serving_size,
@@ -103,10 +115,22 @@ async def get_public_menu_items(
             "vitaminD": item.vitamin_d,
             "calcium": item.calcium,
             "iron": item.iron,
-            "caffeineMg": item.caffeine_mg
+            "caffeineMg": item.caffeine_mg,
+            # Upsell fields
+            "is_upsell": item.is_upsell,
+            "upsell_style": item.upsell_style,
+            "upsell_border_color": item.upsell_border_color,
+            "upsell_background_color": item.upsell_background_color,
+            "upsell_badge_text": item.upsell_badge_text,
+            "upsell_badge_color": item.upsell_badge_color,
+            "upsell_animation": item.upsell_animation,
+            "upsell_icon": item.upsell_icon
         }
         
         result.append(item_data)
+    
+    # Cache the result
+    cache.set(cache_key, result, CACHE_TTL["public_menu"])
     
     return result
 
@@ -116,6 +140,12 @@ async def get_public_categories(
     db: Session = Depends(get_db)
 ):
     """Get all categories for public display in frontend format"""
+    # Check cache first
+    cache_key = f"categories:subdomain:{subdomain}"
+    cached_data = cache.get(cache_key)
+    if cached_data is not None:
+        return cached_data
+    
     tenant = get_tenant_by_subdomain(db, subdomain)
     
     # Get all active categories
@@ -136,6 +166,9 @@ async def get_public_categories(
         }
         result.append(cat_data)
     
+    # Cache the result
+    cache.set(cache_key, result, CACHE_TTL["categories"])
+    
     return result
 
 @router.get("/{subdomain}/settings")
@@ -144,6 +177,12 @@ async def get_public_settings(
     db: Session = Depends(get_db)
 ):
     """Get public settings for menu display"""
+    # Check cache first
+    cache_key = f"settings:subdomain:{subdomain}"
+    cached_data = cache.get(cache_key)
+    if cached_data is not None:
+        return cached_data
+    
     tenant = get_tenant_by_subdomain(db, subdomain)
     
     # Get settings
@@ -153,7 +192,7 @@ async def get_public_settings(
     
     if not settings:
         # Return default settings
-        return {
+        result = {
             "footerEnabled": True,
             "footerTextEn": None,
             "footerTextAr": None,
@@ -179,9 +218,11 @@ async def get_public_settings(
             "metaKeywordsAr": None,
             "ogImageUrl": None
         }
+        cache.set(cache_key, result, CACHE_TTL["settings"])
+        return result
     
-    # Return settings in frontend format
-    return {
+    # Cache the result
+    result = {
         "footerEnabled": settings.footer_enabled,
         "footerTextEn": settings.footer_text_en,
         "footerTextAr": settings.footer_text_ar,
@@ -211,9 +252,8 @@ async def get_public_settings(
         "websiteUrl": settings.website_url,
         "showAllCategory": settings.show_all_category,
         "showIncludeVat": settings.show_include_vat,
-        "logoUrl": tenant.logo_url,  # Add tenant logo
-        "tenantName": tenant.name,     # Add tenant name
-        # SEO/Meta tags
+        "logoUrl": tenant.logo_url,
+        "tenantName": tenant.name,
         "metaTitleEn": settings.meta_title_en,
         "metaTitleAr": settings.meta_title_ar,
         "metaDescriptionEn": settings.meta_description_en,
@@ -222,3 +262,7 @@ async def get_public_settings(
         "metaKeywordsAr": settings.meta_keywords_ar,
         "ogImageUrl": settings.og_image_url
     }
+    
+    cache.set(cache_key, result, CACHE_TTL["settings"])
+    
+    return result

@@ -23,6 +23,15 @@ class MenuItemCreate(BaseModel):
     nutritional_info: Optional[dict] = None
     sort_order: int = 0
     allergen_ids: List[int] = []
+    # Upsell fields
+    is_upsell: bool = False
+    upsell_style: Optional[str] = 'standard'
+    upsell_border_color: Optional[str] = None
+    upsell_background_color: Optional[str] = None
+    upsell_badge_text: Optional[str] = None
+    upsell_badge_color: Optional[str] = None
+    upsell_animation: Optional[str] = None
+    upsell_icon: Optional[str] = None
 
 class MenuItemUpdate(BaseModel):
     category_id: Optional[int] = None
@@ -44,6 +53,15 @@ class MenuItemUpdate(BaseModel):
     nutritional_info: Optional[dict] = None
     sort_order: Optional[int] = None
     allergen_ids: Optional[List[int]] = None
+    # Upsell fields
+    is_upsell: Optional[bool] = None
+    upsell_style: Optional[str] = None
+    upsell_border_color: Optional[str] = None
+    upsell_background_color: Optional[str] = None
+    upsell_badge_text: Optional[str] = None
+    upsell_badge_color: Optional[str] = None
+    upsell_animation: Optional[str] = None
+    upsell_icon: Optional[str] = None
 
 class MenuItemResponse(BaseModel):
     id: int
@@ -69,6 +87,15 @@ class MenuItemResponse(BaseModel):
     created_at: Optional[datetime]
     updated_at: Optional[datetime]
     allergens: List[dict] = []
+    # Upsell fields
+    is_upsell: bool = False
+    upsell_style: Optional[str] = 'standard'
+    upsell_border_color: Optional[str] = None
+    upsell_background_color: Optional[str] = None
+    upsell_badge_text: Optional[str] = None
+    upsell_badge_color: Optional[str] = None
+    upsell_animation: Optional[str] = None
+    upsell_icon: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -244,6 +271,14 @@ class SettingsUpdate(BaseModel):
     show_allergens: Optional[bool] = None
     show_all_category: Optional[bool] = None
     enable_search: Optional[bool] = None
+    # Upsell settings
+    upsell_enabled: Optional[bool] = None
+    upsell_default_style: Optional[str] = None
+    upsell_default_border_color: Optional[str] = None
+    upsell_default_background_color: Optional[str] = None
+    upsell_default_badge_color: Optional[str] = None
+    upsell_default_animation: Optional[str] = None
+    upsell_default_icon: Optional[str] = None
 
 class SettingsResponse(BaseModel):
     id: int
@@ -270,6 +305,14 @@ class SettingsResponse(BaseModel):
     show_allergens: bool
     show_all_category: bool
     enable_search: bool
+    # Upsell settings
+    upsell_enabled: bool = True
+    upsell_default_style: str = 'premium'
+    upsell_default_border_color: str = '#FFD700'
+    upsell_default_background_color: str = '#FFF8DC'
+    upsell_default_badge_color: str = '#FF6B6B'
+    upsell_default_animation: str = 'pulse'
+    upsell_default_icon: str = 'star'
     updated_at: datetime
 
     class Config:

@@ -12,17 +12,35 @@
  * - menuiq.io -> Main website (redirects to login)
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { HelmetProvider } from 'react-helmet-async';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
-import RestaurantMenu from './pages/RestaurantMenu';
-import ModernDashboard from './components/ModernDashboard';
-import SystemAdminLogin from './pages/SystemAdminLogin';
-import TenantLogin from './pages/TenantLogin';
-import SystemAdminDashboard from './pages/SystemAdminDashboard';
+import { lazyLoad } from './utils/lazyLoad';
+import performanceMonitor from './utils/performanceMonitor';
+
+// Lazy load pages for better performance
+const RestaurantMenu = lazyLoad(() => import('./pages/RestaurantMenu'));
+const ModernDashboard = lazyLoad(() => import('./components/ModernDashboard'));
+const SystemAdminLogin = lazyLoad(() => import('./pages/SystemAdminLogin'));
+const TenantLogin = lazyLoad(() => import('./pages/TenantLogin'));
+const SystemAdminDashboard = lazyLoad(() => import('./pages/SystemAdminDashboard'));
 
 function App() {
+  // Monitor performance in development
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      // Log metrics after page load
+      window.addEventListener('load', () => {
+        setTimeout(() => {
+          performanceMonitor.logMetrics();
+          performanceMonitor.checkPerformanceBudget();
+        }, 2000);
+      });
+    }
+  }, []);
+
   // Determine routing based on the current hostname
   const hostname = window.location.hostname;
   const isMainDomain = hostname === 'menuiq.io' || hostname === 'www.menuiq.io';
@@ -40,9 +58,10 @@ function App() {
   }
 
   return (
-    <Router>
-      <AuthProvider>
-        <Routes>
+    <HelmetProvider>
+      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <AuthProvider>
+          <Routes>
           {/* Root path routing based on domain */}
           <Route path="/" element={
             isMainDomain ? <Navigate to="/login" replace /> :
@@ -80,6 +99,7 @@ function App() {
         </Routes>
       </AuthProvider>
     </Router>
+    </HelmetProvider>
   );
 }
 

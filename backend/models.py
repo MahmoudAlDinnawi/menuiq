@@ -236,6 +236,16 @@ class MenuItem(Base):
     promotion_start_date = Column(Date)
     promotion_end_date = Column(Date)
     
+    # Upsell Design Options
+    is_upsell = Column(Boolean, default=False)
+    upsell_style = Column(String(50), default='standard')  # standard, premium, deluxe, special
+    upsell_border_color = Column(String(7))  # Hex color for border
+    upsell_background_color = Column(String(7))  # Hex color for background
+    upsell_badge_text = Column(String(50))  # e.g., "Chef's Special", "Limited Time"
+    upsell_badge_color = Column(String(7))  # Hex color for badge
+    upsell_animation = Column(String(50))  # pulse, glow, shine, none
+    upsell_icon = Column(String(50))  # star, fire, crown, diamond, etc.
+    
     # Metadata
     sort_order = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -375,6 +385,15 @@ class Settings(Base):
     show_price_without_vat = Column(Boolean, default=True)
     show_all_category = Column(Boolean, default=True)
     show_include_vat = Column(Boolean, default=True)
+    
+    # Upsell default settings
+    upsell_enabled = Column(Boolean, default=True)
+    upsell_default_style = Column(String(50), default='premium')
+    upsell_default_border_color = Column(String(7), default='#FFD700')
+    upsell_default_background_color = Column(String(7), default='#FFF8DC')
+    upsell_default_badge_color = Column(String(7), default='#FF6B6B')
+    upsell_default_animation = Column(String(50), default='pulse')
+    upsell_default_icon = Column(String(50), default='star')
     
     # Footer settings
     footer_enabled = Column(Boolean, default=True)

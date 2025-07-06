@@ -13,7 +13,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Helmet } from 'react-helmet';
+import { Helmet } from 'react-helmet-async';
 import LuxuryCategoryFilter from '../components/LuxuryCategoryFilter';
 import AmazingMobileCard from '../components/AmazingMobileCard';
 import AmazingDesktopCard from '../components/AmazingDesktopCard';
@@ -56,6 +56,7 @@ const RestaurantMenu = () => {
       window.removeEventListener('resize', checkMobile);
       if (unsubscribeScroll) unsubscribeScroll();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchData = async () => {

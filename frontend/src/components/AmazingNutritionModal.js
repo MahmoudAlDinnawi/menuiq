@@ -1,20 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import CustomAllergenIcons from './CustomAllergenIcons';
-import DietaryIcons from './DietaryIcons';
 import AllergenSVGIcon from './AllergenSVGIcon';
 
 const AmazingNutritionModal = ({ item, isOpen, onClose, language, formatCategory, settings }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const [showContent, setShowContent] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setIsVisible(true);
-      setShowContent(true);
       document.body.style.overflow = 'hidden';
     } else {
-      setShowContent(false);
       setIsVisible(false);
       document.body.style.overflow = 'unset';
     }

@@ -117,7 +117,17 @@ const MenuCardEditor = ({ item, categories, onSave, onClose, settings }) => {
     tags: [],
     
     // Allergens
-    allergen_ids: []
+    allergen_ids: [],
+    
+    // Upsell Design
+    is_upsell: false,
+    upsell_style: settings?.upsell_default_style || 'premium',
+    upsell_border_color: settings?.upsell_default_border_color || '#FFD700',
+    upsell_background_color: settings?.upsell_default_background_color || '#FFF8DC',
+    upsell_badge_text: '',
+    upsell_badge_color: settings?.upsell_default_badge_color || '#FF6B6B',
+    upsell_animation: settings?.upsell_default_animation || 'pulse',
+    upsell_icon: settings?.upsell_default_icon || 'star'
   });
 
   useEffect(() => {
@@ -128,19 +138,35 @@ const MenuCardEditor = ({ item, categories, onSave, onClose, settings }) => {
         typeof a === 'object' ? a.id : a
       ) : [];
       
-      setFormData({
-        ...formData,
-        ...item,
+      // Clean item data to ensure no null values
+      const cleanedItem = Object.keys(item).reduce((acc, key) => {
+        acc[key] = item[key] === null ? '' : item[key];
+        return acc;
+      }, {});
+      
+      setFormData(prevData => ({
+        ...prevData,
+        ...cleanedItem,
         category_id: item.category_id || '',
-        price: item.price || '',
+        price: item.price === null || item.price === undefined ? '' : item.price,
+        price_without_vat: item.price_without_vat === null || item.price_without_vat === undefined ? '' : item.price_without_vat,
+        promotion_price: item.promotion_price === null || item.promotion_price === undefined ? '' : item.promotion_price,
         tags: item.tags || [],
-        allergen_ids: allergenIds
-      });
+        allergen_ids: allergenIds,
+        // Ensure upsell fields have defaults
+        upsell_style: item.upsell_style || settings?.upsell_default_style || 'premium',
+        upsell_border_color: item.upsell_border_color || settings?.upsell_default_border_color || '#FFD700',
+        upsell_background_color: item.upsell_background_color || settings?.upsell_default_background_color || '#FFF8DC',
+        upsell_badge_text: item.upsell_badge_text || '',
+        upsell_badge_color: item.upsell_badge_color || settings?.upsell_default_badge_color || '#FF6B6B',
+        upsell_animation: item.upsell_animation || settings?.upsell_default_animation || 'pulse',
+        upsell_icon: item.upsell_icon || settings?.upsell_default_icon || 'star'
+      }));
       if (item.image) {
         setImagePreview(item.image);
       }
     }
-  }, [item]);
+  }, [item, settings]);
 
   const fetchAllergenIcons = async () => {
     try {
@@ -263,12 +289,13 @@ const MenuCardEditor = ({ item, categories, onSave, onClose, settings }) => {
   };
 
   const tabs = [
-    { id: 'basic', label: 'Basic Info', icon: '📝' },
-    { id: 'dietary', label: 'Dietary & Allergens', icon: '🥗' },
-    { id: 'culinary', label: 'Culinary Details', icon: '👨‍🍳' },
-    { id: 'nutrition', label: 'Nutrition', icon: '📊' },
-    { id: 'marketing', label: 'Marketing', icon: '📣' },
-    { id: 'media', label: 'Media & Display', icon: '📸' }
+    { id: 'basic', label: 'Basic', icon: '📝', description: 'Name, price, category' },
+    { id: 'features', label: 'Features', icon: '✨', description: 'Special badges & availability' },
+    { id: 'dietary', label: 'Dietary', icon: '🥗', description: 'Allergens & restrictions' },
+    { id: 'nutrition', label: 'Nutrition', icon: '📊', description: 'Calories & nutrients' },
+    { id: 'details', label: 'Details', icon: '📖', description: 'Descriptions & pairings' },
+    { id: 'media', label: 'Media', icon: '📸', description: 'Images & videos' },
+    ...(settings?.upsell_enabled !== false ? [{ id: 'upsell', label: 'Upsell', icon: '⭐', description: 'Highlight this item' }] : [])
   ];
 
   return (
@@ -291,19 +318,26 @@ const MenuCardEditor = ({ item, categories, onSave, onClose, settings }) => {
           </div>
           
           {/* Tabs */}
-          <div className="flex gap-4 mt-6 overflow-x-auto">
+          <div className="flex gap-3 mt-6 overflow-x-auto pb-2">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all whitespace-nowrap ${
+                className={`group relative px-4 py-2 rounded-lg transition-all whitespace-nowrap ${
                   activeTab === tab.id 
                     ? 'bg-white text-indigo-600 shadow-lg' 
                     : 'text-white/80 hover:bg-white/20'
                 }`}
               >
-                <span className="text-lg">{tab.icon}</span>
-                <span className="font-medium">{tab.label}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{tab.icon}</span>
+                  <div className="text-left">
+                    <span className="font-medium block">{tab.label}</span>
+                    <span className={`text-xs ${activeTab === tab.id ? 'text-indigo-500' : 'text-white/60'}`}>
+                      {tab.description}
+                    </span>
+                  </div>
+                </div>
               </button>
             ))}
           </div>
@@ -441,52 +475,184 @@ const MenuCardEditor = ({ item, categories, onSave, onClose, settings }) => {
                 </div>
               </div>
 
-              {/* Availability Options */}
+
+            </div>
+          )}
+
+          {/* Features Tab */}
+          {activeTab === 'features' && (
+            <div className="space-y-6">
+              {/* Badges and Highlights */}
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-3">Availability & Features</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Badges & Highlights</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Badge Text</label>
+                    <input
+                      type="text"
+                      value={formData.badge_text}
+                      onChange={(e) => handleChange('badge_text', e.target.value)}
+                      placeholder="e.g., New, Popular, Limited"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Badge Color</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={formData.badge_color}
+                        onChange={(e) => handleChange('badge_color', e.target.value)}
+                        className="h-10 w-20 rounded cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={formData.badge_color}
+                        onChange={(e) => handleChange('badge_color', e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Highlight Message</label>
+                  <textarea
+                    value={formData.highlight_message}
+                    onChange={(e) => handleChange('highlight_message', e.target.value)}
+                    rows={2}
+                    placeholder="Special message to display with this item"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              {/* Special Features */}
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Special Features</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {[
-                    { key: 'is_available', label: 'Available' },
-                    { key: 'is_featured', label: 'Featured' },
-                    { key: 'signature_dish', label: 'Signature Dish' },
-                    { key: 'instagram_worthy', label: 'Instagram Worthy' },
-                    { key: 'limited_availability', label: 'Limited Availability' },
-                    { key: 'pre_order_required', label: 'Pre-order Required' }
-                  ].map((option) => (
-                    <label key={option.key} className="flex items-center gap-2 cursor-pointer">
+                    { key: 'is_featured', label: 'Featured Item', icon: '⭐' },
+                    { key: 'signature_dish', label: 'Signature Dish', icon: '👨‍🍳' },
+                    { key: 'instagram_worthy', label: 'Instagram Worthy', icon: '📸' },
+                    { key: 'michelin_recommended', label: 'Michelin Recommended', icon: '🌟' },
+                    { key: 'award_winning', label: 'Award Winning', icon: '🏆' },
+                    { key: 'best_seller_rank', label: 'Best Seller', icon: '🔥' }
+                  ].map((feature) => (
+                    <label key={feature.key} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
                       <input
                         type="checkbox"
-                        checked={formData[option.key]}
-                        onChange={(e) => handleChange(option.key, e.target.checked)}
-                        className="rounded text-indigo-600 focus:ring-indigo-500"
+                        checked={formData[feature.key] || false}
+                        onChange={(e) => handleChange(feature.key, e.target.checked)}
+                        className="w-5 h-5 rounded text-indigo-600 focus:ring-indigo-500"
                       />
-                      <span className="text-sm text-gray-700">{option.label}</span>
+                      <span className="text-lg">{feature.icon}</span>
+                      <span className="text-sm font-medium text-gray-700">{feature.label}</span>
                     </label>
                   ))}
                 </div>
               </div>
 
-              {/* Order Limits */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Min Order Quantity</label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={formData.min_order_quantity}
-                    onChange={(e) => handleChange('min_order_quantity', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  />
+              {/* Availability */}
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Availability Settings</h3>
+                <div className="space-y-4">
+                  <label className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      checked={formData.is_available}
+                      onChange={(e) => handleChange('is_available', e.target.checked)}
+                      className="w-5 h-5 rounded text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <div>
+                      <span className="text-base font-medium text-gray-700 block">Currently Available</span>
+                      <span className="text-sm text-gray-500">Uncheck to temporarily hide from menu</span>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      checked={formData.limited_availability}
+                      onChange={(e) => handleChange('limited_availability', e.target.checked)}
+                      className="w-5 h-5 rounded text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <div>
+                      <span className="text-base font-medium text-gray-700 block">Limited Availability</span>
+                      <span className="text-sm text-gray-500">Shows "While supplies last" message</span>
+                    </div>
+                  </label>
+
+                  <label className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <input
+                      type="checkbox"
+                      checked={formData.pre_order_required}
+                      onChange={(e) => handleChange('pre_order_required', e.target.checked)}
+                      className="w-5 h-5 rounded text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <div>
+                      <span className="text-base font-medium text-gray-700 block">Pre-order Required</span>
+                      <span className="text-sm text-gray-500">Customer must order in advance</span>
+                    </div>
+                  </label>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Max Daily Orders</label>
-                  <input
-                    type="number"
-                    value={formData.max_daily_orders}
-                    onChange={(e) => handleChange('max_daily_orders', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                    placeholder="Leave empty for unlimited"
-                  />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Min Order Quantity</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={formData.min_order_quantity}
+                      onChange={(e) => handleChange('min_order_quantity', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Max Daily Orders</label>
+                    <input
+                      type="number"
+                      value={formData.max_daily_orders}
+                      onChange={(e) => handleChange('max_daily_orders', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      placeholder="Leave empty for unlimited"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Promotions */}
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Promotions</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Promotion Price</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.promotion_price}
+                      onChange={(e) => handleChange('promotion_price', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      placeholder="Special offer price"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                    <input
+                      type="date"
+                      value={formData.promotion_start_date}
+                      onChange={(e) => handleChange('promotion_start_date', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                    <input
+                      type="date"
+                      value={formData.promotion_end_date}
+                      onChange={(e) => handleChange('promotion_end_date', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -671,8 +837,8 @@ const MenuCardEditor = ({ item, categories, onSave, onClose, settings }) => {
             </div>
           )}
 
-          {/* Culinary Tab */}
-          {activeTab === 'culinary' && (
+          {/* Details Tab */}
+          {activeTab === 'details' && (
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -1230,6 +1396,195 @@ const MenuCardEditor = ({ item, categories, onSave, onClose, settings }) => {
                   placeholder="Lower numbers appear first"
                 />
               </div>
+            </div>
+          )}
+
+          {/* Upsell Tab */}
+          {activeTab === 'upsell' && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-3">Upsell Settings</h3>
+                <p className="text-sm text-gray-600 mb-4">Make this item stand out with special visual effects to increase sales.</p>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_upsell}
+                    onChange={(e) => handleChange('is_upsell', e.target.checked)}
+                    className="w-5 h-5 rounded text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="text-base font-medium text-gray-700">Enable Upsell Design</span>
+                </label>
+                <p className="text-sm text-gray-500 mt-1">Highlight this item to increase sales with special visual effects</p>
+              </div>
+
+              {formData.is_upsell && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Upsell Style</label>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {[
+                        { value: 'standard', label: 'Standard', icon: '⭐' },
+                        { value: 'premium', label: 'Premium', icon: '👑' },
+                        { value: 'deluxe', label: 'Deluxe', icon: '💎' },
+                        { value: 'special', label: 'Special', icon: '🔥' }
+                      ].map((style) => (
+                        <label key={style.value} className="cursor-pointer">
+                          <input
+                            type="radio"
+                            name="upsell_style"
+                            value={style.value}
+                            checked={formData.upsell_style === style.value}
+                            onChange={(e) => handleChange('upsell_style', e.target.value)}
+                            className="sr-only"
+                          />
+                          <div className={`p-4 border-2 rounded-lg text-center transition-all ${
+                            formData.upsell_style === style.value
+                              ? 'border-indigo-600 bg-indigo-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}>
+                            <span className="text-2xl">{style.icon}</span>
+                            <p className="text-sm font-medium mt-1">{style.label}</p>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Border Color</label>
+                      <input
+                        type="color"
+                        value={formData.upsell_border_color}
+                        onChange={(e) => handleChange('upsell_border_color', e.target.value)}
+                        className="w-full h-10 rounded cursor-pointer"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Background Color</label>
+                      <input
+                        type="color"
+                        value={formData.upsell_background_color}
+                        onChange={(e) => handleChange('upsell_background_color', e.target.value)}
+                        className="w-full h-10 rounded cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Badge Text</label>
+                      <input
+                        type="text"
+                        value={formData.upsell_badge_text}
+                        onChange={(e) => handleChange('upsell_badge_text', e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        placeholder="e.g., Chef's Special, Limited Time"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Badge Color</label>
+                      <input
+                        type="color"
+                        value={formData.upsell_badge_color}
+                        onChange={(e) => handleChange('upsell_badge_color', e.target.value)}
+                        className="w-full h-10 rounded cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Animation Effect</label>
+                    <select
+                      value={formData.upsell_animation}
+                      onChange={(e) => handleChange('upsell_animation', e.target.value)}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    >
+                      <option value="none">None</option>
+                      <option value="pulse">Pulse</option>
+                      <option value="glow">Glow</option>
+                      <option value="shine">Shine</option>
+                      <option value="bounce">Bounce</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Icon</label>
+                    <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
+                      {[
+                        { value: 'star', icon: '⭐' },
+                        { value: 'fire', icon: '🔥' },
+                        { value: 'crown', icon: '👑' },
+                        { value: 'diamond', icon: '💎' },
+                        { value: 'rocket', icon: '🚀' },
+                        { value: 'heart', icon: '❤️' },
+                        { value: 'lightning', icon: '⚡' },
+                        { value: 'trophy', icon: '🏆' }
+                      ].map((icon) => (
+                        <label key={icon.value} className="cursor-pointer">
+                          <input
+                            type="radio"
+                            name="upsell_icon"
+                            value={icon.value}
+                            checked={formData.upsell_icon === icon.value}
+                            onChange={(e) => handleChange('upsell_icon', e.target.value)}
+                            className="sr-only"
+                          />
+                          <div className={`p-3 border-2 rounded text-center transition-all ${
+                            formData.upsell_icon === icon.value
+                              ? 'border-indigo-600 bg-indigo-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}>
+                            <span className="text-xl">{icon.icon}</span>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Live Preview */}
+                  <div className="mt-6">
+                    <h4 className="text-sm font-medium text-gray-700 mb-3">Preview</h4>
+                    <div className="bg-gray-100 p-6 rounded-lg">
+                      <div 
+                        className={`bg-white rounded-xl p-4 shadow-lg max-w-xs mx-auto relative ${
+                          formData.upsell_animation === 'pulse' ? 'animate-pulse' : 
+                          formData.upsell_animation === 'glow' ? 'upsell-glow' : 
+                          formData.upsell_animation === 'shine' ? 'upsell-shine' : 
+                          formData.upsell_animation === 'bounce' ? 'animate-bounce' : ''
+                        }`}
+                        style={{
+                          borderWidth: '2px',
+                          borderColor: formData.upsell_border_color || '#FFD700',
+                          backgroundColor: formData.upsell_background_color || '#FFFFFF'
+                        }}
+                      >
+                        {formData.upsell_badge_text && (
+                          <div 
+                            className="absolute -top-3 -right-3 px-3 py-1 rounded-full text-white text-sm font-bold shadow-md flex items-center gap-1"
+                            style={{ backgroundColor: formData.upsell_badge_color || '#FF6B6B' }}
+                          >
+                            <span>{
+                              formData.upsell_icon === 'star' ? '⭐' :
+                              formData.upsell_icon === 'fire' ? '🔥' :
+                              formData.upsell_icon === 'crown' ? '👑' :
+                              formData.upsell_icon === 'diamond' ? '💎' :
+                              formData.upsell_icon === 'rocket' ? '🚀' :
+                              formData.upsell_icon === 'heart' ? '❤️' :
+                              formData.upsell_icon === 'lightning' ? '⚡' :
+                              formData.upsell_icon === 'trophy' ? '🏆' : '⭐'
+                            }</span>
+                            {formData.upsell_badge_text}
+                          </div>
+                        )}
+                        <h5 className="font-semibold text-gray-900 mb-2">{formData.name || 'Menu Item Name'}</h5>
+                        <p className="text-sm text-gray-600 mb-3">{formData.description || 'Item description...'}</p>
+                        <p className="text-lg font-bold text-indigo-600">{formData.price ? `${formData.price} SAR` : 'Price'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </form>

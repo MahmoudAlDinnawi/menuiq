@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Loader2, Lock, Mail, AlertCircle } from 'lucide-react';
 
@@ -9,7 +8,6 @@ const SystemAdminLogin = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { systemAdminLogin } = useAuth();
-  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();

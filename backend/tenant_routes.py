@@ -7,9 +7,11 @@ from sqlalchemy import func, or_
 from typing import List, Optional
 import os
 import shutil
+import json
 from datetime import datetime
 from pathlib import Path
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
+import decimal
 
 from database import get_db
 from models import (
@@ -18,6 +20,7 @@ from models import (
     MenuItemReview, DietaryCertification, PreparationStep
 )
 from auth import get_current_user_dict
+from simple_cache import cache, invalidate_public_menu_cache
 
 router = APIRouter(prefix="/api/tenant", tags=["tenant"])
 
@@ -355,6 +358,14 @@ async def get_settings(
         "show_price_without_vat": settings.show_price_without_vat,
         "show_all_category": settings.show_all_category,
         "show_include_vat": settings.show_include_vat,
+        # Upsell settings
+        "upsell_enabled": settings.upsell_enabled,
+        "upsell_default_style": settings.upsell_default_style,
+        "upsell_default_border_color": settings.upsell_default_border_color,
+        "upsell_default_background_color": settings.upsell_default_background_color,
+        "upsell_default_badge_color": settings.upsell_default_badge_color,
+        "upsell_default_animation": settings.upsell_default_animation,
+        "upsell_default_icon": settings.upsell_default_icon,
         # SEO/Meta tags
         "meta_title_en": settings.meta_title_en,
         "meta_title_ar": settings.meta_title_ar,
@@ -399,6 +410,9 @@ async def update_settings(
     
     db.commit()
     db.refresh(settings)
+    
+    # Invalidate cache for this tenant
+    invalidate_public_menu_cache(tenant.subdomain)
     
     return {"message": "Settings updated successfully", "updated_fields": updated_fields}
 
@@ -599,6 +613,15 @@ async def get_menu_items(
             # Promotions
             "promotion_start_date": item.promotion_start_date.isoformat() if item.promotion_start_date else None,
             "promotion_end_date": item.promotion_end_date.isoformat() if item.promotion_end_date else None,
+            # Upsell fields
+            "is_upsell": item.is_upsell,
+            "upsell_style": item.upsell_style,
+            "upsell_border_color": item.upsell_border_color,
+            "upsell_background_color": item.upsell_background_color,
+            "upsell_badge_text": item.upsell_badge_text,
+            "upsell_badge_color": item.upsell_badge_color,
+            "upsell_animation": item.upsell_animation,
+            "upsell_icon": item.upsell_icon,
             # Metadata
             "sort_order": item.sort_order,
             "created_at": item.created_at.isoformat() if item.created_at else None,
@@ -672,9 +695,9 @@ async def create_menu_item(
         name_ar=item_data.get("name_ar"),
         description=item_data.get("description"),
         description_ar=item_data.get("description_ar"),
-        price=Decimal(str(item_data["price"])) if item_data.get("price") else None,
-        price_without_vat=Decimal(str(item_data["price_without_vat"])) if item_data.get("price_without_vat") else None,
-        promotion_price=Decimal(str(item_data["promotion_price"])) if item_data.get("promotion_price") else None,
+        price=Decimal(str(item_data["price"])) if item_data.get("price") and str(item_data["price"]).strip() else None,
+        price_without_vat=Decimal(str(item_data["price_without_vat"])) if item_data.get("price_without_vat") and str(item_data["price_without_vat"]).strip() else None,
+        promotion_price=Decimal(str(item_data["promotion_price"])) if item_data.get("promotion_price") and str(item_data["promotion_price"]).strip() else None,
         image=item_data.get("image"),
         video_url=item_data.get("video_url"),
         ar_model_url=item_data.get("ar_model_url"),
@@ -761,7 +784,16 @@ async def create_menu_item(
         promotion_start_date=datetime.fromisoformat(item_data["promotion_start_date"]).date() if item_data.get("promotion_start_date") else None,
         promotion_end_date=datetime.fromisoformat(item_data["promotion_end_date"]).date() if item_data.get("promotion_end_date") else None,
         # Metadata
-        sort_order=item_data.get("sort_order", 0)
+        sort_order=item_data.get("sort_order", 0),
+        # Upsell fields
+        is_upsell=item_data.get("is_upsell", False),
+        upsell_style=item_data.get("upsell_style", "standard"),
+        upsell_border_color=item_data.get("upsell_border_color"),
+        upsell_background_color=item_data.get("upsell_background_color"),
+        upsell_badge_text=item_data.get("upsell_badge_text"),
+        upsell_badge_color=item_data.get("upsell_badge_color"),
+        upsell_animation=item_data.get("upsell_animation"),
+        upsell_icon=item_data.get("upsell_icon")
     )
     
     db.add(db_item)
@@ -781,6 +813,9 @@ async def create_menu_item(
         
         db.commit()
     
+    # Invalidate cache for this tenant
+    invalidate_public_menu_cache(tenant.subdomain)
+    
     return {"id": db_item.id, "message": "Menu item created successfully"}
 
 @router.put("/menu-items/{item_id}")
@@ -791,54 +826,106 @@ async def update_menu_item(
     db: Session = Depends(get_db)
 ):
     """Update a menu item with all enhanced fields"""
-    tenant = get_tenant_from_user(current_user, db)
-    
-    item = db.query(MenuItem).filter(
-        MenuItem.id == item_id,
-        MenuItem.tenant_id == tenant.id
-    ).first()
-    
-    if not item:
-        raise HTTPException(status_code=404, detail="Menu item not found")
-    
-    # Update all fields
-    for field, value in item_data.items():
-        # Skip allergen_ids and allergens as they're handled separately
-        if field in ["allergen_ids", "allergens"]:
-            continue
-            
-        if field in ["price", "price_without_vat", "promotion_price", "total_fat", 
-                     "saturated_fat", "trans_fat", "total_carbs", "dietary_fiber", 
-                     "sugars", "protein", "reorder_rate"]:
-            if value is not None:
-                value = Decimal(str(value))
-        elif field in ["promotion_start_date", "promotion_end_date"]:
-            if value:
-                value = datetime.fromisoformat(value).date()
+    try:
+        # Log incoming data for debugging
+        print(f"[UPDATE MENU ITEM] ID: {item_id}")
+        print(f"[UPDATE MENU ITEM] User: {current_user.get('email', 'Unknown')}")
+        print(f"[UPDATE MENU ITEM] Data: {item_data}")
         
-        if hasattr(item, field) and field not in ["id", "tenant_id", "created_at", "allergens"]:
-            setattr(item, field, value)
-    
-    item.updated_at = datetime.utcnow()
-    
-    # Update allergens if provided
-    if "allergen_ids" in item_data:
-        # Clear existing allergens
-        item.allergens = []
+        tenant = get_tenant_from_user(current_user, db)
         
-        # Add new allergens
-        for allergen_id in item_data["allergen_ids"]:
-            allergen_icon = db.query(AllergenIcon).filter(
-                AllergenIcon.id == allergen_id,
-                AllergenIcon.tenant_id == tenant.id
-            ).first()
+        item = db.query(MenuItem).filter(
+            MenuItem.id == item_id,
+            MenuItem.tenant_id == tenant.id
+        ).first()
+        
+        if not item:
+            raise HTTPException(status_code=404, detail="Menu item not found")
+        
+        # Update all fields
+        for field, value in item_data.items():
+            # Skip allergen_ids and allergens as they're handled separately
+            if field in ["allergen_ids", "allergens"]:
+                continue
             
-            if allergen_icon:
-                item.allergens.append(allergen_icon)
+            try:
+                if field in ["price", "price_without_vat", "promotion_price", "total_fat", 
+                             "saturated_fat", "trans_fat", "total_carbs", "dietary_fiber", 
+                             "sugars", "protein", "reorder_rate", "customer_rating", "best_seller_rank"]:
+                    if value is not None and value != '':
+                        try:
+                            value = Decimal(str(value))
+                        except (ValueError, decimal.InvalidOperation):
+                            # If conversion fails, set to None for optional fields
+                            if field in ["price"]:
+                                value = Decimal('0')  # Price is required, default to 0
+                            else:
+                                value = None
+                    else:
+                        value = None
+                elif field in ["promotion_start_date", "promotion_end_date"]:
+                    if value and value != '':
+                        value = datetime.fromisoformat(value).date()
+                    else:
+                        value = None
+                elif field in ["pairs_well_with", "similar_items", "tags"]:
+                    # Handle JSONB fields
+                    if value == '' or value is None:
+                        value = [] if field == "tags" else None
+                    elif isinstance(value, str) and value:
+                        try:
+                            import json
+                            value = json.loads(value)
+                        except:
+                            value = [] if field == "tags" else None
+                
+                if hasattr(item, field) and field not in ["id", "tenant_id", "created_at", "allergens"]:
+                    setattr(item, field, value)
+            except Exception as e:
+                print(f"[UPDATE MENU ITEM] Error setting field '{field}' with value '{value}': {str(e)}")
+                raise HTTPException(status_code=400, detail=f"Invalid value for field '{field}': {str(e)}")
+        
+        item.updated_at = datetime.utcnow()
+        
+        # Update allergens if provided
+        if "allergen_ids" in item_data:
+            try:
+                # Clear existing allergens
+                item.allergens = []
+                
+                # Add new allergens
+                for allergen_id in item_data["allergen_ids"]:
+                    allergen_icon = db.query(AllergenIcon).filter(
+                        AllergenIcon.id == allergen_id,
+                        AllergenIcon.tenant_id == tenant.id
+                    ).first()
+                    
+                    if allergen_icon:
+                        item.allergens.append(allergen_icon)
+            except Exception as e:
+                print(f"[UPDATE MENU ITEM] Error updating allergens: {str(e)}")
+                raise HTTPException(status_code=400, detail=f"Error updating allergens: {str(e)}")
+        
+        try:
+            db.commit()
+            print(f"[UPDATE MENU ITEM] Successfully updated item ID: {item_id}")
+            
+            # Invalidate cache for this tenant
+            invalidate_public_menu_cache(tenant.subdomain)
+        except Exception as e:
+            db.rollback()
+            print(f"[UPDATE MENU ITEM] Database commit error: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        
+        return {"message": "Menu item updated successfully"}
     
-    db.commit()
-    
-    return {"message": "Menu item updated successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[UPDATE MENU ITEM] Unexpected error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 # Additional endpoints for images, reviews, etc.
 @router.post("/menu-items/{item_id}/images")

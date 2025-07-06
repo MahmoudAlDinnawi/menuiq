@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Loader2, Lock, Mail, AlertCircle, Building2 } from 'lucide-react';
 
@@ -12,7 +11,6 @@ const TenantLogin = () => {
   const [tenantInfo, setTenantInfo] = useState(null);
   const [isMainDomain, setIsMainDomain] = useState(false);
   const { tenantLogin } = useAuth();
-  const navigate = useNavigate();
 
   useEffect(() => {
     // Get subdomain from URL
@@ -189,9 +187,9 @@ const TenantLogin = () => {
 
             {/* Forgot Password Link */}
             <div className="text-center">
-              <a href="#" className="text-sm text-indigo-600 hover:text-indigo-700">
+              <button type="button" className="text-sm text-indigo-600 hover:text-indigo-700">
                 Forgot your password?
-              </a>
+              </button>
             </div>
           </form>
         </div>

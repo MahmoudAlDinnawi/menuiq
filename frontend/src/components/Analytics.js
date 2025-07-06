@@ -23,7 +23,7 @@ import {
   Legend,
   Filler
 } from 'chart.js';
-import { Line, Bar, Doughnut } from 'react-chartjs-2';
+import { Line, Doughnut } from 'react-chartjs-2';
 
 // Create axios instance with auth
 const analyticsAPI = axios.create({
@@ -73,6 +73,7 @@ const Analytics = () => {
 
   useEffect(() => {
     fetchAnalytics();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateRange, startDate, endDate]);
 
   const fetchAnalytics = async () => {
@@ -576,6 +577,7 @@ const DeviceDetailsTable = ({ dateRange }) => {
 
   useEffect(() => {
     fetchDeviceDetails();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateRange]);
 
   const fetchDeviceDetails = async () => {

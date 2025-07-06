@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import AmazingNutritionModal from './AmazingNutritionModal';
 import AllergenSVGIcon from './AllergenSVGIcon';
 import analyticsTracker from '../services/analyticsTracker';
+import LazyImage from './LazyImage';
 
 const AmazingDesktopCard = ({ item, language, formatCategory, categories, settings }) => {
   const [showNutritionModal, setShowNutritionModal] = useState(false);
@@ -36,10 +37,41 @@ const AmazingDesktopCard = ({ item, language, formatCategory, categories, settin
 
   const allergenInfo = getAllergenInfo();
 
+  // Get upsell icon emoji
+  const getUpsellIcon = () => {
+    const icons = {
+      star: '⭐',
+      fire: '🔥',
+      crown: '👑',
+      diamond: '💎',
+      rocket: '🚀',
+      heart: '❤️',
+      lightning: '⚡',
+      trophy: '🏆'
+    };
+    return icons[item.upsell_icon] || '⭐';
+  };
+
+  // Build card classes
+  const cardClasses = `bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 cursor-pointer group ${
+    item.is_upsell ? 'relative ring-2' : ''
+  } ${
+    item.is_upsell && item.upsell_animation === 'glow' ? 'upsell-glow' : ''
+  } ${
+    item.is_upsell && item.upsell_animation === 'shine' ? 'upsell-shine' : ''
+  }`;
+
+  const cardStyle = item.is_upsell ? {
+    borderColor: item.upsell_border_color || '#FFD700',
+    backgroundColor: item.upsell_background_color || '#FFFFFF',
+    '--ring-color': item.upsell_border_color || '#FFD700'
+  } : {};
+
   return (
     <>
       <div 
-        className="bg-white rounded-xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 cursor-pointer group"
+        className={cardClasses}
+        style={cardStyle}
         onClick={() => {
           setShowNutritionModal(true);
           // Track item click
@@ -52,11 +84,12 @@ const AmazingDesktopCard = ({ item, language, formatCategory, categories, settin
         <div className="relative h-64 bg-gradient-to-br from-gray-100 to-gray-200 overflow-hidden">
           {item.image && !imageError ? (
             <>
-              <img 
+              <LazyImage 
                 src={`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}${item.image}`}
                 alt={item.name}
                 className={`w-full h-full object-cover transition-transform duration-700 ${isHovered ? 'scale-110' : 'scale-100'}`}
                 onError={() => setImageError(true)}
+                placeholder="/images/placeholder.svg"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
               
@@ -108,7 +141,7 @@ const AmazingDesktopCard = ({ item, language, formatCategory, categories, settin
           )}
 
           {/* Top badges */}
-          <div className="absolute top-4 left-4 right-4 flex justify-between items-start">
+          <div className="absolute top-4 left-4 right-4">
             <div className="flex flex-wrap gap-2">
               {/* Category Badge - only show when there's an image */}
               {(item.image && !imageError) && (
@@ -117,6 +150,23 @@ const AmazingDesktopCard = ({ item, language, formatCategory, categories, settin
                   style={{ color: primaryColor }}
                 >
                   {formatCategory(item.category)}
+                </span>
+              )}
+              
+              {/* Upsell Badge */}
+              {item.is_upsell && item.upsell_badge_text && (
+                <span 
+                  className={`px-4 py-1.5 backdrop-blur-sm rounded-full text-sm font-bold shadow-lg transition-all duration-300 hover:scale-105 ${
+                    item.upsell_animation === 'pulse' ? 'animate-pulse' : 
+                    item.upsell_animation === 'bounce' ? 'animate-bounce' : ''
+                  }`}
+                  style={{ 
+                    backgroundColor: item.upsell_badge_color || '#FF6B6B',
+                    color: '#FFFFFF'
+                  }}
+                >
+                  <span className="mr-1">{getUpsellIcon()}</span>
+                  {item.upsell_badge_text}
                 </span>
               )}
 
@@ -140,13 +190,15 @@ const AmazingDesktopCard = ({ item, language, formatCategory, categories, settin
                 </span>
               )}
             </div>
+          </div>
 
-            {/* Price on image */}
+          {/* Price positioned at bottom right */}
+          <div className="absolute bottom-4 right-4">
             <div className="bg-white/95 backdrop-blur-sm rounded-xl px-4 py-3 shadow-lg transition-all duration-300 hover:scale-105">
               {item.promotionPrice ? (
                 <div className="text-right">
                   <div className="text-sm text-gray-500 line-through">{formatPrice(item.price)}</div>
-                  <div className="text-xl font-bold text-red-600">{formatPrice(item.promotionPrice)}</div>
+                  <div className="text-lg font-bold text-red-600">{formatPrice(item.promotionPrice)}</div>
                   {settings?.showIncludeVat && (
                     <div className="text-xs text-gray-600 mt-1">
                       {language === 'ar' ? 'شامل الضريبة' : 'Include VAT'}
@@ -155,7 +207,7 @@ const AmazingDesktopCard = ({ item, language, formatCategory, categories, settin
                 </div>
               ) : (
                 <div>
-                  <div className="text-xl font-bold" style={{ color: primaryColor }}>
+                  <div className="text-lg font-bold" style={{ color: primaryColor }}>
                     {formatPrice(item.price)}
                   </div>
                   {settings?.showIncludeVat && (

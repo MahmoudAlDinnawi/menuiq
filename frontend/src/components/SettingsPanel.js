@@ -70,7 +70,7 @@ const SettingsPanel = ({ onUpdate }) => {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="border-b border-gray-200">
           <nav className="flex -mb-px">
-            {['general', 'logo', 'seo', 'display', 'features', 'social'].map((tab) => (
+            {['general', 'logo', 'seo', 'display', 'features', 'social', 'upsell'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -558,6 +558,168 @@ const SettingsPanel = ({ onUpdate }) => {
                       />
                     </div>
                   </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Upsell Settings */}
+          {activeTab === 'upsell' && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Upsell Default Settings</h3>
+                <p className="text-sm text-gray-600 mb-4">Configure default upsell styles for menu items. Individual items can override these settings.</p>
+                
+                <div className="mb-6">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={settings.upsell_enabled !== false}
+                      onChange={(e) => handleChange('upsell_enabled', e.target.checked)}
+                      className="w-5 h-5 rounded text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span className="text-base font-medium text-gray-700">Enable Upsell Features</span>
+                  </label>
+                  <p className="text-sm text-gray-500 mt-1 ml-8">Allow menu items to use special upsell designs</p>
+                </div>
+
+                {settings.upsell_enabled !== false && (
+                  <>
+                    <div className="mb-6">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Default Style</label>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        {[
+                          { value: 'standard', label: 'Standard', icon: '⭐' },
+                          { value: 'premium', label: 'Premium', icon: '👑' },
+                          { value: 'deluxe', label: 'Deluxe', icon: '💎' },
+                          { value: 'special', label: 'Special', icon: '🔥' }
+                        ].map((style) => (
+                          <label key={style.value} className="cursor-pointer">
+                            <input
+                              type="radio"
+                              name="upsell_style"
+                              value={style.value}
+                              checked={settings.upsell_default_style === style.value}
+                              onChange={(e) => handleChange('upsell_default_style', e.target.value)}
+                              className="sr-only"
+                            />
+                            <div className={`p-4 border-2 rounded-lg text-center transition-all ${
+                              settings.upsell_default_style === style.value
+                                ? 'border-indigo-600 bg-indigo-50'
+                                : 'border-gray-200 hover:border-gray-300'
+                            }`}>
+                              <span className="text-2xl">{style.icon}</span>
+                              <p className="text-sm font-medium mt-1">{style.label}</p>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Default Border Color</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={settings.upsell_default_border_color || '#FFD700'}
+                            onChange={(e) => handleChange('upsell_default_border_color', e.target.value)}
+                            className="h-10 w-20 rounded cursor-pointer"
+                          />
+                          <input
+                            type="text"
+                            value={settings.upsell_default_border_color || '#FFD700'}
+                            onChange={(e) => handleChange('upsell_default_border_color', e.target.value)}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Default Background Color</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={settings.upsell_default_background_color || '#FFF8DC'}
+                            onChange={(e) => handleChange('upsell_default_background_color', e.target.value)}
+                            className="h-10 w-20 rounded cursor-pointer"
+                          />
+                          <input
+                            type="text"
+                            value={settings.upsell_default_background_color || '#FFF8DC'}
+                            onChange={(e) => handleChange('upsell_default_background_color', e.target.value)}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Default Badge Color</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={settings.upsell_default_badge_color || '#FF6B6B'}
+                            onChange={(e) => handleChange('upsell_default_badge_color', e.target.value)}
+                            className="h-10 w-20 rounded cursor-pointer"
+                          />
+                          <input
+                            type="text"
+                            value={settings.upsell_default_badge_color || '#FF6B6B'}
+                            onChange={(e) => handleChange('upsell_default_badge_color', e.target.value)}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Default Animation</label>
+                        <select
+                          value={settings.upsell_default_animation || 'pulse'}
+                          onChange={(e) => handleChange('upsell_default_animation', e.target.value)}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                        >
+                          <option value="none">None</option>
+                          <option value="pulse">Pulse</option>
+                          <option value="glow">Glow</option>
+                          <option value="shine">Shine</option>
+                          <option value="bounce">Bounce</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Default Icon</label>
+                        <div className="grid grid-cols-4 gap-2">
+                          {[
+                            { value: 'star', icon: '⭐' },
+                            { value: 'fire', icon: '🔥' },
+                            { value: 'crown', icon: '👑' },
+                            { value: 'diamond', icon: '💎' },
+                            { value: 'rocket', icon: '🚀' },
+                            { value: 'heart', icon: '❤️' },
+                            { value: 'lightning', icon: '⚡' },
+                            { value: 'trophy', icon: '🏆' }
+                          ].map((icon) => (
+                            <label key={icon.value} className="cursor-pointer">
+                              <input
+                                type="radio"
+                                name="upsell_icon"
+                                value={icon.value}
+                                checked={settings.upsell_default_icon === icon.value}
+                                onChange={(e) => handleChange('upsell_default_icon', e.target.value)}
+                                className="sr-only"
+                              />
+                              <div className={`p-3 border-2 rounded text-center transition-all ${
+                                settings.upsell_default_icon === icon.value
+                                  ? 'border-indigo-600 bg-indigo-50'
+                                  : 'border-gray-200 hover:border-gray-300'
+                              }`}>
+                                <span className="text-xl">{icon.icon}</span>
+                              </div>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
             </div>
