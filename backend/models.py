@@ -236,6 +236,24 @@ class MenuItem(Base):
     promotion_start_date = Column(Date)
     promotion_end_date = Column(Date)
     
+    # Upsell Design Options
+    is_upsell = Column(Boolean, default=False)
+    upsell_style = Column(String(50), default='standard')  # standard, premium, deluxe, special
+    upsell_border_color = Column(String(7))  # Hex color for border
+    upsell_background_color = Column(String(7))  # Hex color for background
+    upsell_badge_text = Column(String(50))  # e.g., "Chef's Special", "Limited Time"
+    upsell_badge_color = Column(String(7))  # Hex color for badge
+    upsell_animation = Column(String(50))  # pulse, glow, shine, none
+    upsell_icon = Column(String(50))  # star, fire, crown, diamond, etc.
+    
+    # Multi-item support fields
+    is_multi_item = Column(Boolean, default=False, nullable=False)
+    parent_item_id = Column(Integer, ForeignKey("menu_items.id", ondelete="CASCADE"))
+    price_min = Column(DECIMAL(10, 2))
+    price_max = Column(DECIMAL(10, 2))
+    display_as_grid = Column(Boolean, default=True, nullable=False)
+    sub_item_order = Column(Integer, default=0, nullable=False)
+    
     # Metadata
     sort_order = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -249,6 +267,10 @@ class MenuItem(Base):
     reviews = relationship("MenuItemReview", back_populates="menu_item", cascade="all, delete-orphan")
     certifications = relationship("DietaryCertification", back_populates="menu_item", cascade="all, delete-orphan")
     preparation_steps = relationship("PreparationStep", back_populates="menu_item", cascade="all, delete-orphan")
+    
+    # Multi-item relationships
+    parent_item = relationship("MenuItem", back_populates="sub_items", remote_side="MenuItem.id")
+    sub_items = relationship("MenuItem", back_populates="parent_item", cascade="all, delete-orphan", order_by="MenuItem.sub_item_order")
 
     @property
     def category_value(self):
@@ -262,6 +284,22 @@ class MenuItem(Base):
             return None
         total = sum(review.rating for review in self.reviews)
         return round(total / len(self.reviews), 1)
+    
+    def calculate_price_range(self):
+        """Calculate price range for multi-items based on sub-items"""
+        # Calculate price range for multi-items
+        
+        if not self.is_multi_item or not self.sub_items:
+            # Skip if not a multi-item or no sub-items
+            return
+        
+        prices = [sub_item.price for sub_item in self.sub_items if sub_item.price is not None]
+        # Process sub-item prices
+        
+        if prices:
+            self.price_min = min(prices)
+            self.price_max = max(prices)
+            # Price range calculated
 
 class MenuItemImage(Base):
     __tablename__ = "menu_item_images"
@@ -375,6 +413,15 @@ class Settings(Base):
     show_price_without_vat = Column(Boolean, default=True)
     show_all_category = Column(Boolean, default=True)
     show_include_vat = Column(Boolean, default=True)
+    
+    # Upsell default settings
+    upsell_enabled = Column(Boolean, default=True)
+    upsell_default_style = Column(String(50), default='premium')
+    upsell_default_border_color = Column(String(7), default='#FFD700')
+    upsell_default_background_color = Column(String(7), default='#FFF8DC')
+    upsell_default_badge_color = Column(String(7), default='#FF6B6B')
+    upsell_default_animation = Column(String(50), default='pulse')
+    upsell_default_icon = Column(String(50), default='star')
     
     # Footer settings
     footer_enabled = Column(Boolean, default=True)
@@ -547,3 +594,127 @@ class AnalyticsDaily(Base):
     
     # Relationships
     tenant = relationship("Tenant")
+
+
+# FlowIQ Models
+class Flow(Base):
+    """
+    Represents a FlowIQ conversation flow.
+    Each flow contains multiple steps that guide users through an interactive experience.
+    """
+    __tablename__ = "flows"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text)
+    is_active = Column(Boolean, default=True)
+    is_default = Column(Boolean, default=False)  # Default flow shown on menu load
+    trigger_type = Column(String(50), default="manual")  # manual, on_load, on_idle
+    trigger_delay = Column(Integer, default=0)  # Delay in seconds for on_load/on_idle
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    tenant = relationship("Tenant", back_populates="flows")
+    steps = relationship("FlowStep", back_populates="flow", cascade="all, delete-orphan", order_by="FlowStep.order_position")
+    interactions = relationship("FlowInteraction", back_populates="flow", cascade="all, delete-orphan")
+
+
+class FlowStep(Base):
+    """
+    Represents a single step in a flow.
+    Each step can be of different types (text, question) and can branch to other steps.
+    """
+    __tablename__ = "flow_steps"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    flow_id = Column(Integer, ForeignKey("flows.id"), nullable=False, index=True)
+    step_type = Column(String(50), nullable=False)  # text, question
+    order_position = Column(Integer, nullable=False)  # 1, 2, 3, etc.
+    
+    # Content fields
+    content_ar = Column(Text, nullable=False)  # Arabic content
+    content_en = Column(Text)  # English content
+    image_url = Column(String(500))  # Optional image for the step
+    
+    # Animation settings
+    animation_type = Column(String(50), default="fade_in")  # fade_in, slide_up, bounce, etc.
+    animation_duration = Column(Integer, default=500)  # Duration in milliseconds
+    delay_before = Column(Integer, default=0)  # Delay before showing this step
+    
+    # For question type - up to 4 options
+    option1_text_ar = Column(String(255))
+    option1_text_en = Column(String(255))
+    option1_next_step_id = Column(Integer, ForeignKey("flow_steps.id"))
+    option1_action = Column(String(100))  # Optional action like "go_to_menu", "go_to_category:id"
+    
+    option2_text_ar = Column(String(255))
+    option2_text_en = Column(String(255))
+    option2_next_step_id = Column(Integer, ForeignKey("flow_steps.id"))
+    option2_action = Column(String(100))
+    
+    option3_text_ar = Column(String(255))
+    option3_text_en = Column(String(255))
+    option3_next_step_id = Column(Integer, ForeignKey("flow_steps.id"))
+    option3_action = Column(String(100))
+    
+    option4_text_ar = Column(String(255))
+    option4_text_en = Column(String(255))
+    option4_next_step_id = Column(Integer, ForeignKey("flow_steps.id"))
+    option4_action = Column(String(100))
+    
+    # Default next step (for text type or if no option is selected)
+    default_next_step_id = Column(Integer, ForeignKey("flow_steps.id"))
+    auto_advance = Column(Boolean, default=True)  # For text steps, auto advance after delay
+    auto_advance_delay = Column(Integer, default=3000)  # Delay in milliseconds
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    flow = relationship("Flow", back_populates="steps")
+    option1_next_step = relationship("FlowStep", foreign_keys=[option1_next_step_id], remote_side=[id])
+    option2_next_step = relationship("FlowStep", foreign_keys=[option2_next_step_id], remote_side=[id])
+    option3_next_step = relationship("FlowStep", foreign_keys=[option3_next_step_id], remote_side=[id])
+    option4_next_step = relationship("FlowStep", foreign_keys=[option4_next_step_id], remote_side=[id])
+    default_next_step = relationship("FlowStep", foreign_keys=[default_next_step_id], remote_side=[id])
+
+
+class FlowInteraction(Base):
+    """
+    Tracks user interactions with flows.
+    Records each session and the path users take through the flow.
+    """
+    __tablename__ = "flow_interactions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    flow_id = Column(Integer, ForeignKey("flows.id"), nullable=False, index=True)
+    tenant_id = Column(Integer, ForeignKey("tenants.id"), nullable=False, index=True)
+    session_id = Column(String(100), nullable=False, index=True)
+    
+    # User info
+    user_agent = Column(String(500))
+    ip_address = Column(String(50))
+    device_type = Column(String(50))  # mobile, tablet, desktop
+    browser = Column(String(100))
+    
+    # Interaction data
+    started_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    completed_at = Column(DateTime)
+    is_completed = Column(Boolean, default=False)
+    last_step_id = Column(Integer, ForeignKey("flow_steps.id"))
+    
+    # Path taken through the flow
+    steps_path = Column(JSONB)  # [{"step_id": 1, "timestamp": "...", "option_selected": 2}, ...]
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    flow = relationship("Flow", back_populates="interactions")
+    tenant = relationship("Tenant")
+    last_step = relationship("FlowStep")
+
+
+# Update Tenant model to include flows relationship
+Tenant.flows = relationship("Flow", back_populates="tenant", cascade="all, delete-orphan")

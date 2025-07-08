@@ -1,15 +1,21 @@
 """
 Enhanced tenant routes with support for all rich menu fields
 """
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, BackgroundTasks
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_
 from typing import List, Optional
 import os
 import shutil
+import json
 from datetime import datetime
 from pathlib import Path
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
+import decimal
+import aiofiles
+from image_optimizer import ImageOptimizer
+from cache_warmer import CacheWarmer
+import asyncio
 
 from database import get_db
 from models import (
@@ -18,16 +24,32 @@ from models import (
     MenuItemReview, DietaryCertification, PreparationStep
 )
 from auth import get_current_user_dict
+from simple_cache import cache, invalidate_public_menu_cache
 
 router = APIRouter(prefix="/api/tenant", tags=["tenant"])
 
-# Ensure uploads directory exists
-UPLOAD_DIR = Path("uploads/logos")
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+# Ensure logos directory exists
+LOGOS_DIR = Path("uploads/logos")
+LOGOS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Helper function
 def get_tenant_from_user(user_dict: dict, db: Session) -> Tenant:
-    """Get tenant from authenticated user"""
+    """
+    Get tenant from authenticated user.
+    
+    This helper function retrieves the tenant associated with the authenticated user
+    and validates that the tenant exists and is active.
+    
+    Args:
+        user_dict: Dictionary containing user authentication data including tenant_id
+        db: SQLAlchemy database session
+        
+    Returns:
+        Tenant: The active tenant object
+        
+    Raises:
+        HTTPException: 404 if tenant not found, 403 if tenant is inactive
+    """
     tenant = db.query(Tenant).filter(
         Tenant.id == user_dict["tenant_id"]
     ).first()
@@ -355,6 +377,14 @@ async def get_settings(
         "show_price_without_vat": settings.show_price_without_vat,
         "show_all_category": settings.show_all_category,
         "show_include_vat": settings.show_include_vat,
+        # Upsell settings
+        "upsell_enabled": settings.upsell_enabled,
+        "upsell_default_style": settings.upsell_default_style,
+        "upsell_default_border_color": settings.upsell_default_border_color,
+        "upsell_default_background_color": settings.upsell_default_background_color,
+        "upsell_default_badge_color": settings.upsell_default_badge_color,
+        "upsell_default_animation": settings.upsell_default_animation,
+        "upsell_default_icon": settings.upsell_default_icon,
         # SEO/Meta tags
         "meta_title_en": settings.meta_title_en,
         "meta_title_ar": settings.meta_title_ar,
@@ -385,9 +415,6 @@ async def update_settings(
         settings = Settings(tenant_id=tenant.id)
         db.add(settings)
     
-    # Debug: print received fields
-    print(f"Received settings data: {list(settings_data.keys())}")
-    
     # Update fields
     updated_fields = []
     for field, value in settings_data.items():
@@ -395,10 +422,11 @@ async def update_settings(
             setattr(settings, field, value)
             updated_fields.append(field)
     
-    print(f"Updated fields: {updated_fields}")
-    
     db.commit()
     db.refresh(settings)
+    
+    # Invalidate and warm cache for this tenant
+    invalidate_public_menu_cache(tenant.subdomain, db=db, warm_cache=True)
     
     return {"message": "Settings updated successfully", "updated_fields": updated_fields}
 
@@ -443,7 +471,15 @@ async def get_menu_items(
     """Get menu items with enhanced filtering"""
     tenant = get_tenant_from_user(current_user, db)
     
-    query = db.query(MenuItem).filter(MenuItem.tenant_id == tenant.id)
+    query = db.query(MenuItem).filter(
+        MenuItem.tenant_id == tenant.id,
+        MenuItem.parent_item_id == None  # Exclude sub-items from main list
+    ).options(
+        joinedload(MenuItem.sub_items),
+        joinedload(MenuItem.allergens),
+        joinedload(MenuItem.images),
+        joinedload(MenuItem.certifications)
+    )
     
     # Apply filters
     if category_id:
@@ -599,6 +635,34 @@ async def get_menu_items(
             # Promotions
             "promotion_start_date": item.promotion_start_date.isoformat() if item.promotion_start_date else None,
             "promotion_end_date": item.promotion_end_date.isoformat() if item.promotion_end_date else None,
+            # Upsell fields
+            "is_upsell": item.is_upsell,
+            "upsell_style": item.upsell_style,
+            "upsell_border_color": item.upsell_border_color,
+            "upsell_background_color": item.upsell_background_color,
+            "upsell_badge_text": item.upsell_badge_text,
+            "upsell_badge_color": item.upsell_badge_color,
+            "upsell_animation": item.upsell_animation,
+            "upsell_icon": item.upsell_icon,
+            # Multi-item fields
+            "is_multi_item": item.is_multi_item,
+            "parent_item_id": item.parent_item_id,
+            "price_min": float(item.price_min) if item.price_min else None,
+            "price_max": float(item.price_max) if item.price_max else None,
+            "display_as_grid": item.display_as_grid,
+            "sub_item_order": item.sub_item_order,
+            "sub_items": [
+                {
+                    "id": sub.id,
+                    "name": sub.name,
+                    "name_ar": sub.name_ar,
+                    "description": sub.description,
+                    "description_ar": sub.description_ar,
+                    "price": float(sub.price) if sub.price else None,
+                    "image_url": sub.image,
+                    "sub_item_order": sub.sub_item_order
+                } for sub in item.sub_items
+            ] if item.is_multi_item else [],
             # Metadata
             "sort_order": item.sort_order,
             "created_at": item.created_at.isoformat() if item.created_at else None,
@@ -639,8 +703,32 @@ async def create_menu_item(
     current_user: dict = Depends(get_current_user_dict),
     db: Session = Depends(get_db)
 ):
-    """Create a new menu item with all enhanced fields"""
+    """
+    Create a new menu item with all enhanced fields.
+    
+    This endpoint handles creation of both regular menu items and multi-items.
+    Multi-items are special items that contain sub-items with a calculated price range.
+    
+    Args:
+        item_data: Dictionary containing all menu item fields including:
+            - Basic info: name, description, price, image
+            - Multi-item fields: is_multi_item, sub_item_ids
+            - Dietary info: halal, vegetarian, vegan, gluten_free
+            - Nutritional data: calories, protein, fats, carbs
+            - Enhanced features: badges, highlights, upsell settings
+            - Metadata: tags, sort_order, availability settings
+        current_user: Authenticated user from JWT token
+        db: Database session
+        
+    Returns:
+        dict: Contains the created item ID and success message
+        
+    Raises:
+        HTTPException: 400 if menu item limit reached, 404 if category not found
+    """
     tenant = get_tenant_from_user(current_user, db)
+    
+    # Process incoming data for menu item creation
     
     # Check limits
     current_count = db.query(func.count(MenuItem.id)).filter(
@@ -672,9 +760,9 @@ async def create_menu_item(
         name_ar=item_data.get("name_ar"),
         description=item_data.get("description"),
         description_ar=item_data.get("description_ar"),
-        price=Decimal(str(item_data["price"])) if item_data.get("price") else None,
-        price_without_vat=Decimal(str(item_data["price_without_vat"])) if item_data.get("price_without_vat") else None,
-        promotion_price=Decimal(str(item_data["promotion_price"])) if item_data.get("promotion_price") else None,
+        price=Decimal(str(item_data["price"])) if item_data.get("price") and str(item_data["price"]).strip() else None,
+        price_without_vat=Decimal(str(item_data["price_without_vat"])) if item_data.get("price_without_vat") and str(item_data["price_without_vat"]).strip() else None,
+        promotion_price=Decimal(str(item_data["promotion_price"])) if item_data.get("promotion_price") and str(item_data["promotion_price"]).strip() else None,
         image=item_data.get("image"),
         video_url=item_data.get("video_url"),
         ar_model_url=item_data.get("ar_model_url"),
@@ -761,12 +849,26 @@ async def create_menu_item(
         promotion_start_date=datetime.fromisoformat(item_data["promotion_start_date"]).date() if item_data.get("promotion_start_date") else None,
         promotion_end_date=datetime.fromisoformat(item_data["promotion_end_date"]).date() if item_data.get("promotion_end_date") else None,
         # Metadata
-        sort_order=item_data.get("sort_order", 0)
+        sort_order=item_data.get("sort_order", 0),
+        # Upsell fields
+        is_upsell=item_data.get("is_upsell", False),
+        upsell_style=item_data.get("upsell_style", "standard"),
+        upsell_border_color=item_data.get("upsell_border_color"),
+        upsell_background_color=item_data.get("upsell_background_color"),
+        upsell_badge_text=item_data.get("upsell_badge_text"),
+        upsell_badge_color=item_data.get("upsell_badge_color"),
+        upsell_animation=item_data.get("upsell_animation"),
+        upsell_icon=item_data.get("upsell_icon"),
+        # Multi-item fields
+        is_multi_item=item_data.get("is_multi_item", False),
+        display_as_grid=item_data.get("display_as_grid", True)
     )
     
     db.add(db_item)
     db.commit()
     db.refresh(db_item)
+    
+    # Item created successfully
     
     # Add allergens if provided
     if item_data.get("allergen_ids"):
@@ -781,6 +883,28 @@ async def create_menu_item(
         
         db.commit()
     
+    # Handle multi-item sub-items
+    if db_item.is_multi_item and item_data.get("sub_item_ids"):
+        for index, sub_item_id in enumerate(item_data["sub_item_ids"]):
+            sub_item = db.query(MenuItem).filter(
+                MenuItem.id == sub_item_id,
+                MenuItem.tenant_id == tenant.id,
+                MenuItem.is_multi_item == False,
+                MenuItem.parent_item_id == None
+            ).first()
+            
+            if sub_item:
+                sub_item.parent_item_id = db_item.id
+                sub_item.sub_item_order = index + 1
+        
+        db.commit()
+        # Calculate price range for multi-item
+        db_item.calculate_price_range()
+        db.commit()
+    
+    # Invalidate and warm cache for this tenant
+    invalidate_public_menu_cache(tenant.subdomain, db=db, warm_cache=True)
+    
     return {"id": db_item.id, "message": "Menu item created successfully"}
 
 @router.put("/menu-items/{item_id}")
@@ -790,7 +914,197 @@ async def update_menu_item(
     current_user: dict = Depends(get_current_user_dict),
     db: Session = Depends(get_db)
 ):
-    """Update a menu item with all enhanced fields"""
+    """
+    Update a menu item with all enhanced fields.
+    
+    This endpoint handles updating both regular items and multi-items.
+    It automatically handles type conversion for all field types:
+    - Integer fields (calories, preparation_time, etc.)
+    - Decimal fields (price, nutritional values)
+    - Date fields (promotion dates)
+    - JSON fields (tags, pairs_well_with)
+    - Relationship fields (allergens, sub-items)
+    
+    Args:
+        item_id: The ID of the menu item to update
+        item_data: Dictionary containing fields to update
+        current_user: Authenticated user from JWT token
+        db: Database session
+        
+    Returns:
+        dict: Success message
+        
+    Raises:
+        HTTPException: 404 if item not found, 400 if invalid field values
+    """
+    try:
+        # Process update request
+        
+        tenant = get_tenant_from_user(current_user, db)
+        
+        item = db.query(MenuItem).filter(
+            MenuItem.id == item_id,
+            MenuItem.tenant_id == tenant.id
+        ).first()
+        
+        if not item:
+            raise HTTPException(status_code=404, detail="Menu item not found")
+        
+        # Update all fields
+        for field, value in item_data.items():
+            # Skip allergen_ids, allergens, and sub_item_ids as they're handled separately
+            if field in ["allergen_ids", "allergens", "sub_item_ids", "sub_items"]:
+                continue
+            
+            try:
+                # Handle integer fields
+                if field in ["category_id", "calories", "preparation_time", "walk_minutes", "run_minutes",
+                             "min_order_quantity", "max_daily_orders", "reward_points", "spicy_level",
+                             "cholesterol", "sodium", "vitamin_a", "vitamin_c", "vitamin_d", 
+                             "calcium", "iron", "caffeine_mg", "sort_order", "parent_item_id", 
+                             "sub_item_order"]:
+                    if value is not None and value != '':
+                        try:
+                            value = int(value)
+                        except (ValueError, TypeError):
+                            value = None
+                    else:
+                        value = None
+                elif field in ["price", "price_without_vat", "promotion_price", "total_fat", 
+                             "saturated_fat", "trans_fat", "total_carbs", "dietary_fiber", 
+                             "sugars", "protein", "reorder_rate", "customer_rating", "best_seller_rank",
+                             "price_min", "price_max"]:
+                    if value is not None and value != '':
+                        try:
+                            value = Decimal(str(value))
+                        except (ValueError, decimal.InvalidOperation):
+                            # If conversion fails, set to None for optional fields
+                            if field in ["price"]:
+                                value = Decimal('0')  # Price is required, default to 0
+                            else:
+                                value = None
+                    else:
+                        value = None
+                elif field in ["promotion_start_date", "promotion_end_date"]:
+                    if value and value != '':
+                        value = datetime.fromisoformat(value).date()
+                    else:
+                        value = None
+                elif field in ["pairs_well_with", "similar_items", "tags"]:
+                    # Handle JSONB fields
+                    if value == '' or value is None:
+                        value = [] if field == "tags" else None
+                    elif isinstance(value, str) and value:
+                        try:
+                            import json
+                            value = json.loads(value)
+                        except:
+                            value = [] if field == "tags" else None
+                
+                if hasattr(item, field) and field not in ["id", "tenant_id", "created_at", "allergens"]:
+                    setattr(item, field, value)
+            except Exception as e:
+                # Error setting field - will be handled by exception below
+                raise HTTPException(status_code=400, detail=f"Invalid value for field '{field}': {str(e)}")
+        
+        item.updated_at = datetime.utcnow()
+        
+        # Update allergens if provided
+        if "allergen_ids" in item_data:
+            try:
+                # Clear existing allergens
+                item.allergens = []
+                
+                # Add new allergens
+                for allergen_id in item_data["allergen_ids"]:
+                    allergen_icon = db.query(AllergenIcon).filter(
+                        AllergenIcon.id == allergen_id,
+                        AllergenIcon.tenant_id == tenant.id
+                    ).first()
+                    
+                    if allergen_icon:
+                        item.allergens.append(allergen_icon)
+            except Exception as e:
+                print(f"[UPDATE MENU ITEM] Error updating allergens: {str(e)}")
+                raise HTTPException(status_code=400, detail=f"Error updating allergens: {str(e)}")
+        
+        # Handle multi-item sub-items updates
+        if item.is_multi_item and "sub_item_ids" in item_data:
+            try:
+                print(f"[UPDATE MENU ITEM] Processing sub-items: {item_data['sub_item_ids']}")
+                
+                # First, clear parent_item_id from all current sub-items
+                cleared = db.query(MenuItem).filter(
+                    MenuItem.parent_item_id == item.id
+                ).update({"parent_item_id": None, "sub_item_order": 0})
+                print(f"[UPDATE MENU ITEM] Cleared {cleared} existing sub-items")
+                
+                # Then assign new sub-items
+                for index, sub_item_id in enumerate(item_data["sub_item_ids"]):
+                    sub_item = db.query(MenuItem).filter(
+                        MenuItem.id == sub_item_id,
+                        MenuItem.tenant_id == tenant.id,
+                        MenuItem.is_multi_item == False
+                    ).first()
+                    
+                    if sub_item:
+                        sub_item.parent_item_id = item.id
+                        sub_item.sub_item_order = index + 1
+                        print(f"[UPDATE MENU ITEM] Assigned sub-item {sub_item_id} to parent {item.id}")
+                    else:
+                        print(f"[UPDATE MENU ITEM] Sub-item {sub_item_id} not found or invalid")
+                
+                # Calculate price range
+                db.commit()
+                item.calculate_price_range()
+            except Exception as e:
+                print(f"[UPDATE MENU ITEM] Error updating sub-items: {str(e)}")
+                raise HTTPException(status_code=400, detail=f"Error updating sub-items: {str(e)}")
+        
+        try:
+            db.commit()
+            print(f"[UPDATE MENU ITEM] Successfully updated item ID: {item_id}")
+            
+            # Invalidate cache for this tenant
+            invalidate_public_menu_cache(tenant.subdomain)
+        except Exception as e:
+            db.rollback()
+            print(f"[UPDATE MENU ITEM] Database commit error: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+        
+        return {"message": "Menu item updated successfully"}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[UPDATE MENU ITEM] Unexpected error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.delete("/menu-items/{item_id}")
+async def delete_menu_item(
+    item_id: int,
+    current_user: dict = Depends(get_current_user_dict),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a menu item.
+    
+    This endpoint handles deletion of both regular items and multi-items.
+    When deleting a multi-item, all sub-items are automatically unlinked.
+    
+    Args:
+        item_id: The ID of the menu item to delete
+        current_user: Authenticated user from JWT token
+        db: Database session
+        
+    Returns:
+        dict: Success message
+        
+    Raises:
+        HTTPException: 404 if item not found, 400 if item has dependencies
+    """
     tenant = get_tenant_from_user(current_user, db)
     
     item = db.query(MenuItem).filter(
@@ -801,44 +1115,31 @@ async def update_menu_item(
     if not item:
         raise HTTPException(status_code=404, detail="Menu item not found")
     
-    # Update all fields
-    for field, value in item_data.items():
-        # Skip allergen_ids and allergens as they're handled separately
-        if field in ["allergen_ids", "allergens"]:
-            continue
-            
-        if field in ["price", "price_without_vat", "promotion_price", "total_fat", 
-                     "saturated_fat", "trans_fat", "total_carbs", "dietary_fiber", 
-                     "sugars", "protein", "reorder_rate"]:
-            if value is not None:
-                value = Decimal(str(value))
-        elif field in ["promotion_start_date", "promotion_end_date"]:
-            if value:
-                value = datetime.fromisoformat(value).date()
-        
-        if hasattr(item, field) and field not in ["id", "tenant_id", "created_at", "allergens"]:
-            setattr(item, field, value)
+    # If this is a multi-item, unlink all sub-items first
+    if item.is_multi_item:
+        db.query(MenuItem).filter(
+            MenuItem.parent_item_id == item.id
+        ).update({"parent_item_id": None, "sub_item_order": 0})
     
-    item.updated_at = datetime.utcnow()
+    # If this item is a sub-item of another item, unlink it first
+    if item.parent_item_id:
+        parent_item = db.query(MenuItem).filter(
+            MenuItem.id == item.parent_item_id
+        ).first()
+        if parent_item:
+            # Recalculate price range for parent after removing this sub-item
+            item.parent_item_id = None
+            db.commit()
+            parent_item.calculate_price_range()
     
-    # Update allergens if provided
-    if "allergen_ids" in item_data:
-        # Clear existing allergens
-        item.allergens = []
-        
-        # Add new allergens
-        for allergen_id in item_data["allergen_ids"]:
-            allergen_icon = db.query(AllergenIcon).filter(
-                AllergenIcon.id == allergen_id,
-                AllergenIcon.tenant_id == tenant.id
-            ).first()
-            
-            if allergen_icon:
-                item.allergens.append(allergen_icon)
-    
+    # Delete the item
+    db.delete(item)
     db.commit()
     
-    return {"message": "Menu item updated successfully"}
+    # Invalidate and warm cache for this tenant
+    invalidate_public_menu_cache(tenant.subdomain, db=db, warm_cache=True)
+    
+    return {"message": "Menu item deleted successfully"}
 
 # Additional endpoints for images, reviews, etc.
 @router.post("/menu-items/{item_id}/images")
@@ -956,12 +1257,14 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 
 @router.post("/upload-image")
 async def upload_image(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     type: str = "item",
+    optimize: bool = True,
     current_user: dict = Depends(get_current_user_dict),
     db: Session = Depends(get_db)
 ):
-    """Upload an image for menu items or categories"""
+    """Upload and optimize an image for menu items or categories"""
     tenant = get_tenant_from_user(current_user, db)
     
     # Validate file type
@@ -972,26 +1275,102 @@ async def upload_image(
             detail=f"Invalid file type. Allowed types: {', '.join(allowed_types)}"
         )
     
-    # Create tenant directory
-    tenant_dir = UPLOAD_DIR / f"tenant_{tenant.id}"
-    tenant_dir.mkdir(exist_ok=True)
+    # Validate file size (10MB max before optimization)
+    max_size = 10 * 1024 * 1024  # 10MB
+    contents = await file.read()
+    if len(contents) > max_size:
+        raise HTTPException(
+            status_code=400,
+            detail="File too large. Maximum size is 10MB."
+        )
     
-    # Generate unique filename
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    file_extension = file.filename.split('.')[-1]
-    filename = f"{type}_{timestamp}.{file_extension}"
-    file_path = tenant_dir / filename
-    
-    # Save file
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    
-    # Return URL
-    return {
-        "filename": filename,
-        "url": f"/uploads/tenant_{tenant.id}/{filename}",
-        "type": type
-    }
+    try:
+        # Create tenant directory
+        tenant_dir = UPLOAD_DIR / f"tenant_{tenant.id}"
+        tenant_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Determine image type and format
+        image_type = "logo" if type == "logo" else "menu_item"
+        output_format = "PNG" if file.content_type == "image/png" else "JPEG"
+        
+        # Optimize image if requested
+        if optimize:
+            optimized_bytes, metadata = await ImageOptimizer.optimize_image(
+                contents,
+                image_type=image_type,
+                quality="high" if type == "logo" else "medium",
+                format=output_format
+            )
+            
+            # Check for duplicate images using hash
+            existing_file = None
+            for existing in tenant_dir.glob(f"{type}_*"):
+                if existing.stem.endswith(f"_{metadata['file_hash'][:8]}"):
+                    existing_file = existing
+                    break
+            
+            if existing_file:
+                # Return existing file if duplicate
+                return {
+                    "filename": existing_file.name,
+                    "url": f"/uploads/tenant_{tenant.id}/{existing_file.name}",
+                    "type": type,
+                    "metadata": metadata,
+                    "duplicate": True
+                }
+            
+            # Generate filename with hash for deduplication
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            file_extension = "jpg" if output_format == "JPEG" else "png"
+            filename = f"{type}_{timestamp}_{metadata['file_hash'][:8]}.{file_extension}"
+            file_path = tenant_dir / filename
+            
+            # Save optimized file asynchronously
+            async with aiofiles.open(file_path, "wb") as f:
+                await f.write(optimized_bytes)
+            
+            # Create thumbnail in background for menu items
+            if type == "item":
+                thumb_filename = f"{type}_{timestamp}_{metadata['file_hash'][:8]}_thumb.jpg"
+                thumb_path = tenant_dir / thumb_filename
+                
+                async def create_and_save_thumbnail():
+                    thumb_bytes = await ImageOptimizer.create_thumbnail(optimized_bytes)
+                    async with aiofiles.open(thumb_path, "wb") as f:
+                        await f.write(thumb_bytes)
+                
+                background_tasks.add_task(create_and_save_thumbnail)
+                metadata["thumbnail_url"] = f"/uploads/tenant_{tenant.id}/{thumb_filename}"
+        else:
+            # Save original file without optimization
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            file_extension = file.filename.split('.')[-1]
+            filename = f"{type}_{timestamp}.{file_extension}"
+            file_path = tenant_dir / filename
+            
+            async with aiofiles.open(file_path, "wb") as f:
+                await f.write(contents)
+            
+            metadata = {
+                "original_size": len(contents),
+                "optimized_size": len(contents),
+                "compression_ratio": 1.0
+            }
+        
+        # Return URL and metadata
+        return {
+            "filename": filename,
+            "url": f"/uploads/tenant_{tenant.id}/{filename}",
+            "type": type,
+            "metadata": metadata,
+            "duplicate": False
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to upload file: {str(e)}"
+        )
 
 # Tenant Info Endpoints
 @router.get("/info")
@@ -1034,20 +1413,16 @@ async def upload_tenant_logo(
             detail="Invalid file type. Only JPEG, PNG, GIF, SVG, and WebP are allowed."
         )
     
+    # Read file contents
+    contents = await file.read()
+    
     # Validate file size (5MB max)
     max_size = 5 * 1024 * 1024  # 5MB
-    file_size = 0
-    contents = await file.read()
-    file_size = len(contents)
-    
-    if file_size > max_size:
+    if len(contents) > max_size:
         raise HTTPException(
             status_code=400,
             detail="File too large. Maximum size is 5MB."
         )
-    
-    # Reset file position
-    await file.seek(0)
     
     # Create logos directory
     logo_dir = Path("uploads/logos")
@@ -1059,15 +1434,24 @@ async def upload_tenant_logo(
         if old_logo_path.exists():
             old_logo_path.unlink()
     
-    # Generate unique filename
+    # Optimize logo image
+    output_format = "PNG" if file.content_type in ["image/png", "image/svg+xml"] else "JPEG"
+    optimized_bytes, metadata = await ImageOptimizer.optimize_image(
+        contents,
+        image_type="logo",
+        quality="high",
+        format=output_format
+    )
+    
+    # Generate unique filename with hash
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    file_extension = file.filename.split('.')[-1].lower()
-    filename = f"tenant_{tenant.id}_logo_{timestamp}.{file_extension}"
+    file_extension = "png" if output_format == "PNG" else "jpg"
+    filename = f"tenant_{tenant.id}_logo_{timestamp}_{metadata['file_hash'][:8]}.{file_extension}"
     file_path = logo_dir / filename
     
-    # Save file
-    with open(file_path, "wb") as buffer:
-        buffer.write(contents)
+    # Save optimized file asynchronously
+    async with aiofiles.open(file_path, "wb") as buffer:
+        await buffer.write(optimized_bytes)
     
     # Update tenant logo URL
     logo_url = f"/uploads/logos/{filename}"

@@ -23,6 +23,7 @@ from models import (
     AnalyticsDaily, MenuItem, Category, Tenant
 )
 from auth import get_current_user_dict, get_tenant_id_from_request
+from analytics_optimizer import AnalyticsOptimizer
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 
@@ -327,7 +328,7 @@ async def get_analytics_overview(
     current_user: dict = Depends(get_current_user_dict),
     db: Session = Depends(get_db)
 ):
-    """Get analytics overview for tenant dashboard"""
+    """Get analytics overview for tenant dashboard using optimized queries"""
     tenant_id = current_user["tenant_id"]
     
     # Default to last 30 days
@@ -336,112 +337,17 @@ async def get_analytics_overview(
     if not start_date:
         start_date = end_date - timedelta(days=30)
     
-    # Get today's real-time stats
-    today_sessions = db.query(func.count(AnalyticsSession.id)).filter(
-        AnalyticsSession.tenant_id == tenant_id,
-        cast(AnalyticsSession.started_at, Date) == date.today()
-    ).scalar() or 0
-    
-    # Get aggregated stats from daily table
-    daily_stats = db.query(
-        func.sum(AnalyticsDaily.total_sessions).label("total_sessions"),
-        func.sum(AnalyticsDaily.unique_visitors).label("unique_visitors"),
-        func.sum(AnalyticsDaily.total_page_views).label("total_page_views"),
-        func.sum(AnalyticsDaily.total_item_clicks).label("total_item_clicks"),
-        func.avg(AnalyticsDaily.avg_session_duration).label("avg_session_duration")
-    ).filter(
-        AnalyticsDaily.tenant_id == tenant_id,
-        AnalyticsDaily.date >= start_date,
-        AnalyticsDaily.date <= end_date
-    ).first()
-    
-    # Also get real-time stats for the period (in case daily aggregation hasn't run)
-    realtime_stats = db.query(
-        func.count(AnalyticsSession.id).label("total_sessions"),
-        func.count(func.distinct(AnalyticsSession.ip_address_hash)).label("unique_visitors")
-    ).filter(
-        AnalyticsSession.tenant_id == tenant_id,
-        cast(AnalyticsSession.started_at, Date) >= start_date,
-        cast(AnalyticsSession.started_at, Date) <= end_date
-    ).first()
-    
-    # Get real-time page views
-    realtime_page_views = db.query(func.count(AnalyticsPageView.id)).filter(
-        AnalyticsPageView.tenant_id == tenant_id,
-        cast(AnalyticsPageView.timestamp, Date) >= start_date,
-        cast(AnalyticsPageView.timestamp, Date) <= end_date
-    ).scalar() or 0
-    
-    # Get real-time item clicks
-    realtime_item_clicks = db.query(func.count(AnalyticsItemClick.id)).filter(
-        AnalyticsItemClick.tenant_id == tenant_id,
-        cast(AnalyticsItemClick.timestamp, Date) >= start_date,
-        cast(AnalyticsItemClick.timestamp, Date) <= end_date
-    ).scalar() or 0
-    
-    # Use the maximum of aggregated and real-time data
-    total_sessions = max(daily_stats.total_sessions or 0, realtime_stats.total_sessions or 0)
-    unique_visitors = max(daily_stats.unique_visitors or 0, realtime_stats.unique_visitors or 0)
-    total_page_views = max(daily_stats.total_page_views or 0, realtime_page_views)
-    total_item_clicks = max(daily_stats.total_item_clicks or 0, realtime_item_clicks)
-    
-    # Get device breakdown
-    device_stats = db.query(
-        func.sum(AnalyticsDaily.mobile_sessions).label("mobile"),
-        func.sum(AnalyticsDaily.desktop_sessions).label("desktop"),
-        func.sum(AnalyticsDaily.tablet_sessions).label("tablet")
-    ).filter(
-        AnalyticsDaily.tenant_id == tenant_id,
-        AnalyticsDaily.date >= start_date,
-        AnalyticsDaily.date <= end_date
-    ).first()
-    
-    # Get real-time device breakdown for today
-    today_devices = db.query(AnalyticsSession.device_type, func.count(AnalyticsSession.id)).filter(
-        AnalyticsSession.tenant_id == tenant_id,
-        cast(AnalyticsSession.started_at, Date) >= start_date,
-        cast(AnalyticsSession.started_at, Date) <= end_date
-    ).group_by(AnalyticsSession.device_type).all()
-    
-    device_realtime = {'mobile': 0, 'desktop': 0, 'tablet': 0}
-    for device_type, count in today_devices:
-        if device_type and device_type.lower() in device_realtime:
-            device_realtime[device_type.lower()] = count
-    
-    # Prepare device breakdown
-    device_breakdown = {
-        "mobile": 0,
-        "desktop": 0,
-        "tablet": 0
-    }
-    
-    # Add aggregated device data
-    if device_stats and device_stats.mobile is not None:
-        device_breakdown["mobile"] = device_stats.mobile
-    if device_stats and device_stats.desktop is not None:
-        device_breakdown["desktop"] = device_stats.desktop
-    if device_stats and device_stats.tablet is not None:
-        device_breakdown["tablet"] = device_stats.tablet
-    
-    # Add real-time device data (take the max of aggregated and real-time)
-    device_breakdown["mobile"] = max(device_breakdown["mobile"], device_realtime['mobile'])
-    device_breakdown["desktop"] = max(device_breakdown["desktop"], device_realtime['desktop'])
-    device_breakdown["tablet"] = max(device_breakdown["tablet"], device_realtime['tablet'])
+    # Use optimized query
+    stats = AnalyticsOptimizer.get_dashboard_overview_optimized(
+        db, tenant_id, start_date, end_date
+    )
     
     return {
         "period": {
             "start_date": start_date.isoformat(),
             "end_date": end_date.isoformat()
         },
-        "overview": {
-            "total_sessions": total_sessions,
-            "unique_visitors": unique_visitors,
-            "total_page_views": total_page_views,
-            "total_item_clicks": total_item_clicks,
-            "avg_session_duration": int(daily_stats.avg_session_duration or 0),
-            "today_sessions": today_sessions,
-            "device_breakdown": device_breakdown
-        }
+        "overview": stats
     }
 
 @router.get("/dashboard/timeline")
@@ -450,82 +356,17 @@ async def get_analytics_timeline(
     current_user: dict = Depends(get_current_user_dict),
     db: Session = Depends(get_db)
 ):
-    """Get daily analytics for timeline chart"""
+    """Get daily analytics for timeline chart using optimized queries"""
     tenant_id = current_user["tenant_id"]
-    end_date = date.today()
-    start_date = end_date - timedelta(days=days)
     
-    daily_data = db.query(
-        AnalyticsDaily.date,
-        AnalyticsDaily.total_sessions,
-        AnalyticsDaily.unique_visitors,
-        AnalyticsDaily.total_page_views,
-        AnalyticsDaily.total_item_clicks
-    ).filter(
-        AnalyticsDaily.tenant_id == tenant_id,
-        AnalyticsDaily.date >= start_date,
-        AnalyticsDaily.date <= end_date
-    ).order_by(AnalyticsDaily.date).all()
+    # Use optimized query
+    timeline_data = AnalyticsOptimizer.get_timeline_optimized(
+        db, tenant_id, days
+    )
     
-    # Convert to dict for easier manipulation
-    daily_dict = {d.date: d for d in daily_data}
-    
-    # If today is in the range and not in daily data, add real-time stats
-    if date.today() <= end_date and date.today() >= start_date and date.today() not in daily_dict:
-        today_sessions = db.query(func.count(AnalyticsSession.id)).filter(
-            AnalyticsSession.tenant_id == tenant_id,
-            cast(AnalyticsSession.started_at, Date) == date.today()
-        ).scalar() or 0
-        
-        today_visitors = db.query(func.count(func.distinct(AnalyticsSession.ip_address_hash))).filter(
-            AnalyticsSession.tenant_id == tenant_id,
-            cast(AnalyticsSession.started_at, Date) == date.today()
-        ).scalar() or 0
-        
-        today_page_views = db.query(func.count(AnalyticsPageView.id)).filter(
-            AnalyticsPageView.tenant_id == tenant_id,
-            cast(AnalyticsPageView.timestamp, Date) == date.today()
-        ).scalar() or 0
-        
-        today_item_clicks = db.query(func.count(AnalyticsItemClick.id)).filter(
-            AnalyticsItemClick.tenant_id == tenant_id,
-            cast(AnalyticsItemClick.timestamp, Date) == date.today()
-        ).scalar() or 0
-        
-        # Add today's data
-        daily_dict[date.today()] = type('obj', (object,), {
-            'date': date.today(),
-            'total_sessions': today_sessions,
-            'unique_visitors': today_visitors,
-            'total_page_views': today_page_views,
-            'total_item_clicks': today_item_clicks
-        })()
-    
-    # Generate complete timeline with all dates
-    timeline = []
-    current_date = start_date
-    while current_date <= end_date:
-        if current_date in daily_dict:
-            d = daily_dict[current_date]
-            timeline.append({
-                "date": current_date.isoformat(),
-                "sessions": d.total_sessions,
-                "visitors": d.unique_visitors,
-                "page_views": d.total_page_views,
-                "item_clicks": d.total_item_clicks
-            })
-        else:
-            # No data for this date
-            timeline.append({
-                "date": current_date.isoformat(),
-                "sessions": 0,
-                "visitors": 0,
-                "page_views": 0,
-                "item_clicks": 0
-            })
-        current_date += timedelta(days=1)
-    
-    return {"timeline": timeline}
+    return {
+        "timeline": timeline_data
+    }
 
 @router.get("/dashboard/top-items")
 async def get_top_items(
@@ -534,38 +375,16 @@ async def get_top_items(
     current_user: dict = Depends(get_current_user_dict),
     db: Session = Depends(get_db)
 ):
-    """Get most clicked menu items"""
+    """Get most clicked menu items using optimized queries"""
     tenant_id = current_user["tenant_id"]
-    start_date = datetime.utcnow() - timedelta(days=days)
     
-    top_items = db.query(
-        MenuItem.id,
-        MenuItem.name,
-        MenuItem.name_ar,
-        MenuItem.image,
-        func.count(AnalyticsItemClick.id).label("click_count")
-    ).join(
-        AnalyticsItemClick, MenuItem.id == AnalyticsItemClick.item_id
-    ).filter(
-        AnalyticsItemClick.tenant_id == tenant_id,
-        AnalyticsItemClick.timestamp >= start_date
-    ).group_by(
-        MenuItem.id, MenuItem.name, MenuItem.name_ar, MenuItem.image
-    ).order_by(
-        desc("click_count")
-    ).limit(limit).all()
+    # Use optimized query
+    popular_items = AnalyticsOptimizer.get_popular_items_optimized(
+        db, tenant_id, days, limit
+    )
     
     return {
-        "top_items": [
-            {
-                "id": item.id,
-                "name": item.name,
-                "name_ar": item.name_ar,
-                "image": item.image,
-                "clicks": item.click_count
-            }
-            for item in top_items
-        ]
+        "top_items": popular_items
     }
 
 @router.get("/dashboard/category-performance")
