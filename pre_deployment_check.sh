@@ -51,14 +51,14 @@ else
     ERRORS=$((ERRORS + 1))
 fi
 
-# Check 2: No debug print/console.log statements
+# Check 2: No debug print/console.log statements (excluding venv)
 echo ""
 echo "Checking for debug statements..."
-DEBUG_COUNT=$(grep -r "console\.log\|print(" backend/ --include="*.py" --include="*.js" 2>/dev/null | grep -v "^Binary" | wc -l || echo "0")
+DEBUG_COUNT=$(grep -r "console\.log\|print(" backend/ --include="*.py" --include="*.js" 2>/dev/null | grep -v "^Binary" | grep -v "/venv/" | grep -v "__pycache__" | wc -l || echo "0")
 if [ "$DEBUG_COUNT" -eq "0" ]; then
-    print_check "No debug statements found"
+    print_check "No debug statements found in source code"
 else
-    print_warning "Found $DEBUG_COUNT debug statements (already cleaned in latest version)"
+    print_warning "Found $DEBUG_COUNT debug statements (verify these are intentional)"
     WARNINGS=$((WARNINGS + 1))
 fi
 
@@ -88,12 +88,12 @@ else
     ERRORS=$((ERRORS + 1))
 fi
 
-# Check 5: No test files
+# Check 5: No test files (excluding venv)
 echo ""
 echo "Checking for test files..."
-TEST_COUNT=$(find backend/ -name "test_*.py" -o -name "*.test.js" 2>/dev/null | wc -l)
+TEST_COUNT=$(find backend/ -name "test_*.py" -o -name "*.test.js" 2>/dev/null | grep -v "/venv/" | grep -v "__pycache__" | wc -l)
 if [ "$TEST_COUNT" -eq "0" ]; then
-    print_check "No test files found (good for production)"
+    print_check "No test files found in source code (good for production)"
 else
     print_fail "Found $TEST_COUNT test files that should be removed"
     ERRORS=$((ERRORS + 1))
