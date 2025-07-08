@@ -46,10 +46,11 @@ async def get_public_menu_items(
     
     currency = settings.currency if settings else "SAR"
     
-    # Get all active menu items
+    # Get all active menu items (exclude sub-items from main list)
     items = db.query(MenuItem).filter(
         MenuItem.tenant_id == tenant.id,
-        MenuItem.is_available == True
+        MenuItem.is_available == True,
+        MenuItem.parent_item_id == None  # Only get top-level items
     ).order_by(MenuItem.sort_order, MenuItem.id).all()
     
     # Convert to frontend format
@@ -124,7 +125,30 @@ async def get_public_menu_items(
             "upsell_badge_text": item.upsell_badge_text,
             "upsell_badge_color": item.upsell_badge_color,
             "upsell_animation": item.upsell_animation,
-            "upsell_icon": item.upsell_icon
+            "upsell_icon": item.upsell_icon,
+            # Multi-item fields
+            "is_multi_item": item.is_multi_item,
+            "price_min": f"{item.price_min:.2f} {currency}" if item.price_min else None,
+            "price_max": f"{item.price_max:.2f} {currency}" if item.price_max else None,
+            "display_as_grid": item.display_as_grid,
+            "sub_items": [
+                {
+                    "id": sub.id,
+                    "name": sub.name,
+                    "nameAr": sub.name_ar,
+                    "description": sub.description,
+                    "descriptionAr": sub.description_ar,
+                    "price": f"{sub.price:.2f} {currency}" if sub.price else None,
+                    "image": sub.image,
+                    "calories": sub.calories,
+                    "halal": sub.halal,
+                    "vegetarian": sub.vegetarian,
+                    "vegan": sub.vegan,
+                    "glutenFree": sub.gluten_free,
+                    "spicyLevel": sub.spicy_level,
+                    "sub_item_order": sub.sub_item_order
+                } for sub in sorted(item.sub_items, key=lambda x: x.sub_item_order)
+            ] if item.is_multi_item else []
         }
         
         result.append(item_data)

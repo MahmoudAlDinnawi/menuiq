@@ -30,6 +30,24 @@ export const publicMenuAPI = {
     const subdomain = getSubdomain();
     const response = await api.get(`/api/public/${subdomain}/settings`);
     return response.data;
+  },
+
+  // Generic get method for other endpoints
+  get: async (path) => {
+    const response = await api.get(`/api${path}`);
+    return response;
+  },
+
+  // Generic post method for other endpoints
+  post: async (path, data) => {
+    const response = await api.post(`/api${path}`, data);
+    return response;
+  },
+
+  // Generic put method for other endpoints
+  put: async (path, data) => {
+    const response = await api.put(`/api${path}`, data);
+    return response;
   }
 };
 

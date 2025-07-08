@@ -1,0 +1,249 @@
+/* Flow Builder Canvas Styles */
+
+/* Node shadows and transitions */
+.flow-node {
+  transition: all 0.2s ease;
+  cursor: move;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+.flow-node:hover {
+  transform: translateY(-2px);
+}
+
+.flow-node.dragging {
+  opacity: 0.8;
+  cursor: grabbing;
+  transition: none;
+}
+
+/* Connection line animations */
+.flow-connection {
+  transition: stroke-width 0.2s ease;
+}
+
+/* Connection hover effects */
+.flow-connection:hover {
+  stroke-width: 3;
+  filter: drop-shadow(0 0 3px rgba(251, 191, 36, 0.5));
+}
+
+/* Node type colors */
+.node-text {
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+}
+
+.node-question {
+  background: linear-gradient(135deg, #a855f7 0%, #9333ea 100%);
+}
+
+/* Canvas grid pattern */
+.canvas-grid {
+  background-image: 
+    linear-gradient(rgba(229, 231, 235, 0.5) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(229, 231, 235, 0.5) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Connection point hover */
+.connection-point {
+  position: relative;
+  overflow: hidden;
+}
+
+.connection-point::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transform: translateY(-50%);
+  transition: left 0.5s;
+}
+
+.connection-point:hover::before {
+  left: 100%;
+}
+
+/* Pulse animation for new nodes */
+@keyframes pulse-node {
+  0% {
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(251, 191, 36, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0);
+  }
+}
+
+.flow-node.new {
+  animation: pulse-node 1s ease-out;
+}
+
+/* Option button styles */
+.option-connect-btn {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.option-connect-btn:hover {
+  background-color: #e5e7eb;
+  transform: translateX(2px);
+}
+
+/* Empty state animation */
+@keyframes float-icon {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.empty-state-icon {
+  animation: float-icon 3s ease-in-out infinite;
+}
+
+/* Smooth cursor for connections */
+.canvas-connecting {
+  cursor: crosshair;
+}
+
+/* Node content styles */
+.node-content {
+  max-height: 150px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
+}
+
+.node-content::-webkit-scrollbar {
+  width: 4px;
+}
+
+.node-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.node-content::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 2px;
+}
+
+/* Connection labels */
+.connection-label {
+  background: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  font-size: 11px;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Zoom controls */
+.zoom-controls {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  gap: 1px;
+  overflow: hidden;
+}
+
+.zoom-btn {
+  padding: 8px 12px;
+  border: none;
+  background: white;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.zoom-btn:hover {
+  background: #f3f4f6;
+}
+
+.zoom-btn:active {
+  background: #e5e7eb;
+}
+
+/* Prevent text selection when dragging */
+.flow-builder-dragging {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}
+
+/* Connection target highlight */
+.flow-node.connection-target {
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
+  cursor: pointer;
+}
+
+.flow-node.connection-target:hover {
+  border-color: #059669;
+  transform: scale(1.02);
+}
+
+/* Connection points */
+.connection-point-out,
+.connection-point-in,
+.connection-point-option {
+  z-index: 10;
+  transition: transform 0.2s ease;
+}
+
+.connection-point-out:hover,
+.connection-point-in:hover,
+.connection-point-option:hover {
+  transform: scale(1.5) !important;
+}
+
+/* Active connection mode */
+.canvas-connecting .connection-point-in {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: translateX(-50%) scale(1);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+  }
+  50% {
+    transform: translateX(-50%) scale(1.2);
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+  }
+}
+
+/* Connection hover state */
+.flow-node.connection-hover {
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.4) !important;
+  transform: scale(1.02);
+}
+
+/* Temp connection line */
+.temp-connection {
+  pointer-events: none;
+  animation: dash-move 0.5s linear infinite;
+}
+
+@keyframes dash-move {
+  to {
+    stroke-dashoffset: -10;
+  }
+}

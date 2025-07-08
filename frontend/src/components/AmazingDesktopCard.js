@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import AmazingNutritionModal from './AmazingNutritionModal';
+import SubItemModal from './SubItemModal';
 import AllergenSVGIcon from './AllergenSVGIcon';
 import analyticsTracker from '../services/analyticsTracker';
 import LazyImage from './LazyImage';
 
 const AmazingDesktopCard = ({ item, language, formatCategory, categories, settings }) => {
   const [showNutritionModal, setShowNutritionModal] = useState(false);
+  const [showSubItemModal, setShowSubItemModal] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -73,7 +75,11 @@ const AmazingDesktopCard = ({ item, language, formatCategory, categories, settin
         className={cardClasses}
         style={cardStyle}
         onClick={() => {
-          setShowNutritionModal(true);
+          if (item.is_multi_item) {
+            setShowSubItemModal(true);
+          } else {
+            setShowNutritionModal(true);
+          }
           // Track item click
           analyticsTracker.trackItemClick(item.id, item.categoryId);
         }}
@@ -195,7 +201,22 @@ const AmazingDesktopCard = ({ item, language, formatCategory, categories, settin
           {/* Price positioned at bottom right */}
           <div className="absolute bottom-4 right-4">
             <div className="bg-white/95 backdrop-blur-sm rounded-xl px-4 py-3 shadow-lg transition-all duration-300 hover:scale-105">
-              {item.promotionPrice ? (
+              {item.is_multi_item ? (
+                <div>
+                  <div className="text-lg font-bold" style={{ color: primaryColor }}>
+                    {item.price_min && item.price_max ? (
+                      <span>{formatPrice(item.price_min)} - {formatPrice(item.price_max)}</span>
+                    ) : (
+                      <span>{language === 'ar' ? 'متعدد الأسعار' : 'Multiple Prices'}</span>
+                    )}
+                  </div>
+                  {settings?.showIncludeVat && (
+                    <div className="text-xs text-gray-600 mt-1">
+                      {language === 'ar' ? 'شامل الضريبة' : 'Include VAT'}
+                    </div>
+                  )}
+                </div>
+              ) : item.promotionPrice ? (
                 <div className="text-right">
                   <div className="text-sm text-gray-500 line-through">{formatPrice(item.price)}</div>
                   <div className="text-lg font-bold text-red-600">{formatPrice(item.promotionPrice)}</div>
@@ -391,14 +412,28 @@ const AmazingDesktopCard = ({ item, language, formatCategory, categories, settin
       </div>
       
       {/* Nutrition Modal */}
-      <AmazingNutritionModal 
-        item={item}
-        isOpen={showNutritionModal}
-        onClose={() => setShowNutritionModal(false)}
-        language={language}
-        formatCategory={formatCategory}
-        settings={settings}
-      />
+      {!item.is_multi_item && (
+        <AmazingNutritionModal 
+          item={item}
+          isOpen={showNutritionModal}
+          onClose={() => setShowNutritionModal(false)}
+          language={language}
+          formatCategory={formatCategory}
+          settings={settings}
+        />
+      )}
+      
+      {/* Sub-Items Modal */}
+      {item.is_multi_item && (
+        <SubItemModal
+          multiItem={item}
+          subItems={item.sub_items || []}
+          isOpen={showSubItemModal}
+          onClose={() => setShowSubItemModal(false)}
+          language={language}
+          settings={settings}
+        />
+      )}
     </>
   );
 };

@@ -1,0 +1,37 @@
+[Unit]
+Description=MenuIQ Backend API Service
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=notify
+User=root
+Group=root
+WorkingDirectory=/root/menuiq/backend
+Environment="PATH=/root/menuiq/backend/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="PYTHONPATH=/root/menuiq/backend"
+ExecStart=/root/menuiq/backend/venv/bin/gunicorn main:app \
+    --workers 4 \
+    --worker-class uvicorn.workers.UvicornWorker \
+    --bind 0.0.0.0:8000 \
+    --timeout 120 \
+    --keep-alive 5 \
+    --access-logfile /root/menuiq/backend/access.log \
+    --error-logfile /root/menuiq/backend/error.log \
+    --capture-output \
+    --enable-stdio-inheritance
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

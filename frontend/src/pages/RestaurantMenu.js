@@ -20,6 +20,9 @@ import AmazingDesktopCard from '../components/AmazingDesktopCard';
 import publicMenuAPI from '../services/publicMenuApi';
 import DOMPurify from 'dompurify';  // For sanitizing HTML content
 import analyticsTracker from '../services/analyticsTracker';  // Analytics tracking
+import FlowIQPopup from '../components/FlowIQPopup';
+import '../styles/flowiq-animations.css';
+import { getSubdomain } from '../utils/subdomain';
 
 const RestaurantMenu = () => {
   const [menuItems, setMenuItems] = useState([]);
@@ -27,9 +30,11 @@ const RestaurantMenu = () => {
   const [activeCategory, setActiveCategory] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [language, setLanguage] = useState('en');
+  const [language, setLanguage] = useState('ar'); // Default to Arabic since flow starts with language selection
   const [settings, setSettings] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [flowCompleted, setFlowCompleted] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
 
   useEffect(() => {
     // Initialize analytics session
@@ -71,9 +76,7 @@ const RestaurantMenu = () => {
       setCategories(categoriesResponse);
       setSettings(settingsResponse);
       
-      // Debug log
-      console.log('Settings received:', settingsResponse);
-      console.log('showAllCategory value:', settingsResponse?.showAllCategory);
+      // Process settings response
       
       // If "All" category is disabled and current category is "all", 
       // switch to first available category
@@ -129,8 +132,26 @@ const RestaurantMenu = () => {
     );
   }
 
+  // Hide content until flow is completed or dismissed
+  if (!flowCompleted) {
+    return (
+      <FlowIQPopup 
+        subdomain={getSubdomain()} 
+        language={language}
+        onComplete={() => {
+          setFlowCompleted(true);
+          // Add smooth transition to menu
+          setTimeout(() => setShowMenu(true), 300);
+        }}
+        onLanguageChange={(lang) => setLanguage(lang)}
+      />
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+    <div className={`min-h-screen bg-gray-50 flex flex-col transition-opacity duration-500 ${
+      showMenu ? 'opacity-100' : 'opacity-0'
+    }`} dir={language === 'ar' ? 'rtl' : 'ltr'}>
       {/* SEO Meta Tags */}
       <Helmet>
         <title>

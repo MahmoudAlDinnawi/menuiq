@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import AmazingNutritionModal from './AmazingNutritionModal';
+import SubItemModal from './SubItemModal';
 import AllergenSVGIcon from './AllergenSVGIcon';
 import analyticsTracker from '../services/analyticsTracker';
 import LazyImage from './LazyImage';
 
 const AmazingMobileCard = ({ item, language, formatCategory, categories, settings }) => {
   const [showNutritionModal, setShowNutritionModal] = useState(false);
+  const [showSubItemModal, setShowSubItemModal] = useState(false);
   const [imageError, setImageError] = useState(false);
 
   // Get primary color from settings
@@ -72,7 +74,11 @@ const AmazingMobileCard = ({ item, language, formatCategory, categories, setting
         className={cardClasses}
         style={cardStyle}
         onClick={() => {
-          setShowNutritionModal(true);
+          if (item.is_multi_item) {
+            setShowSubItemModal(true);
+          } else {
+            setShowNutritionModal(true);
+          }
           // Track item click
           analyticsTracker.trackItemClick(item.id, item.categoryId);
         }}
@@ -167,7 +173,22 @@ const AmazingMobileCard = ({ item, language, formatCategory, categories, setting
           {/* Price positioned at bottom right */}
           <div className="absolute bottom-3 right-3">
             <div className="bg-white/90 backdrop-blur-sm rounded-lg px-3 py-2 shadow-sm">
-              {item.promotionPrice ? (
+              {item.is_multi_item ? (
+                <div>
+                  <div className="text-base font-bold" style={{ color: primaryColor }}>
+                    {item.price_min && item.price_max ? (
+                      <span>{formatPrice(item.price_min)} - {formatPrice(item.price_max)}</span>
+                    ) : (
+                      <span>{language === 'ar' ? 'متعدد الأسعار' : 'Multiple Prices'}</span>
+                    )}
+                  </div>
+                  {settings?.showIncludeVat && (
+                    <div className="text-xs text-gray-600 mt-0.5">
+                      {language === 'ar' ? 'شامل الضريبة' : 'Include VAT'}
+                    </div>
+                  )}
+                </div>
+              ) : item.promotionPrice ? (
                 <div className="text-right">
                   <div className="text-xs text-gray-500 line-through">{formatPrice(item.price)}</div>
                   <div className="text-base font-bold text-red-600">{formatPrice(item.promotionPrice)}</div>
@@ -357,14 +378,28 @@ const AmazingMobileCard = ({ item, language, formatCategory, categories, setting
       </div>
       
       {/* Nutrition Modal */}
-      <AmazingNutritionModal 
-        item={item}
-        isOpen={showNutritionModal}
-        onClose={() => setShowNutritionModal(false)}
-        language={language}
-        formatCategory={formatCategory}
-        settings={settings}
-      />
+      {!item.is_multi_item && (
+        <AmazingNutritionModal 
+          item={item}
+          isOpen={showNutritionModal}
+          onClose={() => setShowNutritionModal(false)}
+          language={language}
+          formatCategory={formatCategory}
+          settings={settings}
+        />
+      )}
+      
+      {/* Sub-Items Modal */}
+      {item.is_multi_item && (
+        <SubItemModal
+          multiItem={item}
+          subItems={item.sub_items || []}
+          isOpen={showSubItemModal}
+          onClose={() => setShowSubItemModal(false)}
+          language={language}
+          settings={settings}
+        />
+      )}
     </>
   );
 };

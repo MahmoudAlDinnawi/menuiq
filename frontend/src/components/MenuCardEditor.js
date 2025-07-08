@@ -1,12 +1,43 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import tenantAPI from '../services/tenantApiV2';
 import AllergenSVGIcon from './AllergenSVGIcon';
+import '../styles/MenuCardEditor.css';
 
-const MenuCardEditor = ({ item, categories, onSave, onClose, settings }) => {
+/**
+ * MenuCardEditor Component
+ * 
+ * A comprehensive form component for creating and editing menu items.
+ * Supports both single items and multi-items with sub-items.
+ * 
+ * Features:
+ * - Multi-tab interface for organizing fields
+ * - Form validation with real-time error feedback
+ * - Progress tracking for form completion
+ * - Drag-and-drop image upload
+ * - Multi-item support with sub-item selection
+ * - Allergen selection with visual icons
+ * - VAT calculation
+ * - Upsell configuration
+ * 
+ * @param {Object} props
+ * @param {Object|null} props.item - Existing item to edit, null for new items
+ * @param {boolean} props.isCreatingMultiItem - Flag indicating if creating a multi-item
+ * @param {Array} props.categories - List of available categories
+ * @param {Function} props.onSave - Callback when item is saved
+ * @param {Function} props.onClose - Callback to close the editor
+ * @param {Object} props.settings - Tenant settings for defaults and configuration
+ */
+const MenuCardEditor = ({ item, isCreatingMultiItem, categories, onSave, onClose, settings }) => {
   const [activeTab, setActiveTab] = useState('basic');
   const [loading, setLoading] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
   const [allergenIcons, setAllergenIcons] = useState([]);
+  const [showItemSelector, setShowItemSelector] = useState(false);
+  const [availableItems, setAvailableItems] = useState([]);
+  const [errors, setErrors] = useState({});
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef(null);
+  const [formProgress, setFormProgress] = useState(0);
   const [formData, setFormData] = useState({
     // Basic Info
     name: '',
@@ -127,6 +158,11 @@ const MenuCardEditor = ({ item, categories, onSave, onClose, settings }) => {
     upsell_badge_text: '',
     upsell_badge_color: settings?.upsell_default_badge_color || '#FF6B6B',
     upsell_animation: settings?.upsell_default_animation || 'pulse',
+    
+    // Multi-item fields
+    is_multi_item: isCreatingMultiItem || false,
+    display_as_grid: true,
+    sub_items: [],
     upsell_icon: settings?.upsell_default_icon || 'star'
   });
 
@@ -160,7 +196,11 @@ const MenuCardEditor = ({ item, categories, onSave, onClose, settings }) => {
         upsell_badge_text: item.upsell_badge_text || '',
         upsell_badge_color: item.upsell_badge_color || settings?.upsell_default_badge_color || '#FF6B6B',
         upsell_animation: item.upsell_animation || settings?.upsell_default_animation || 'pulse',
-        upsell_icon: item.upsell_icon || settings?.upsell_default_icon || 'star'
+        upsell_icon: item.upsell_icon || settings?.upsell_default_icon || 'star',
+        // Multi-item fields
+        is_multi_item: item.is_multi_item || false,
+        display_as_grid: item.display_as_grid !== undefined ? item.display_as_grid : true,
+        sub_items: item.sub_items || []
       }));
       if (item.image) {
         setImagePreview(item.image);
@@ -168,10 +208,20 @@ const MenuCardEditor = ({ item, categories, onSave, onClose, settings }) => {
     }
   }, [item, settings]);
 
+  useEffect(() => {
+    if (formData.is_multi_item && showItemSelector) {
+      fetchAvailableItems();
+    }
+  }, [formData.is_multi_item, showItemSelector]);
+
+  /**
+   * Fetch allergen icons from the API
+   * Falls back to default icons if API fails or returns empty
+   */
   const fetchAllergenIcons = async () => {
     try {
       const response = await tenantAPI.get('/allergen-icons');
-      console.log('Allergen icons response:', response.data);
+      // Process allergen icons response
       
       // Handle different response formats
       let icons = [];
@@ -185,7 +235,7 @@ const MenuCardEditor = ({ item, categories, onSave, onClose, settings }) => {
       
       // If no icons returned from API, use defaults
       if (icons.length === 0) {
-        console.log('No allergen icons from API, using defaults');
+        // Use default allergen icons
         icons = [
           { id: 1, display_name: 'Milk', display_name_ar: 'حليب', icon_url: '/src/assets/allergy_icons/milk.svg' },
           { id: 2, display_name: 'Egg', display_name_ar: 'بيض', icon_url: '/src/assets/allergy_icons/egg.svg' },
@@ -217,28 +267,47 @@ const MenuCardEditor = ({ item, categories, onSave, onClose, settings }) => {
     }
   };
 
+  /**
+   * Handle image file upload
+   * @param {Event} e - File input change event
+   */
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('type', 'item');
-
-    try {
-      const response = await tenantAPI.post('/upload-image', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      setFormData(prev => ({ ...prev, image: response.data.url }));
-      setImagePreview(response.data.url);
-    } catch (error) {
-      console.error('Failed to upload image:', error);
-      alert('Failed to upload image');
-    }
+    handleImageFile(file);
   };
 
+  /**
+   * Handle form submission
+   * Validates required fields and saves the item
+   * @param {Event} e - Form submit event
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate required fields
+    if (!formData.name || !formData.name.trim()) {
+      alert('Please enter item name');
+      return;
+    }
+    
+    if (!formData.category_id) {
+      alert('Please select a category');
+      return;
+    }
+    
+    // For non-multi-items, price is required
+    if (!formData.is_multi_item && !formData.price) {
+      alert('Please enter price');
+      return;
+    }
+    
+    // For multi-items, at least one sub-item is required
+    if (formData.is_multi_item && (!formData.sub_items || formData.sub_items.length === 0)) {
+      alert('Please select at least one sub-item for the multi-item');
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -272,8 +341,18 @@ const MenuCardEditor = ({ item, categories, onSave, onClose, settings }) => {
         calcium: formData.calcium ? parseInt(formData.calcium) : null,
         iron: formData.iron ? parseInt(formData.iron) : null,
         caffeine_mg: formData.caffeine_mg ? parseInt(formData.caffeine_mg) : null,
-        allergen_ids: formData.allergen_ids
+        allergen_ids: formData.allergen_ids,
+        // Multi-item fields
+        is_multi_item: formData.is_multi_item,
+        display_as_grid: formData.display_as_grid,
+        // Send sub-item IDs to link in the backend
+        sub_item_ids: formData.is_multi_item ? formData.sub_items.map(item => item.id) : []
       };
+
+      // Override price for multi-items (will be calculated from sub-items)
+      if (formData.is_multi_item) {
+        submitData.price = null;
+      }
 
       await onSave(submitData);
     } catch (error) {
@@ -288,7 +367,38 @@ const MenuCardEditor = ({ item, categories, onSave, onClose, settings }) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const tabs = [
+  const removeSubItem = (itemId) => {
+    setFormData(prev => ({
+      ...prev,
+      sub_items: prev.sub_items.filter(item => item.id !== itemId)
+    }));
+  };
+
+  const fetchAvailableItems = async () => {
+    try {
+      const response = await tenantAPI.get('/menu-items');
+      // Filter out multi-items and the current item being edited
+      const filtered = response.data.filter(menuItem => 
+        !menuItem.is_multi_item && 
+        menuItem.id !== item?.id &&
+        !menuItem.parent_item_id // Don't show items that are already sub-items
+      );
+      setAvailableItems(filtered);
+    } catch (error) {
+      console.error('Failed to fetch menu items:', error);
+    }
+  };
+
+  // Define tabs based on whether it's a multi-item
+  const isMultiItem = formData.is_multi_item;
+  
+  const tabs = isMultiItem ? [
+    // Multi-items only show Basic, Dietary, and Upsell tabs
+    { id: 'basic', label: 'Basic', icon: '📝', description: 'Name, category, sub-items' },
+    { id: 'dietary', label: 'Dietary', icon: '🥗', description: 'Allergens & restrictions' },
+    ...(settings?.upsell_enabled !== false ? [{ id: 'upsell', label: 'Upsell', icon: '⭐', description: 'Highlight this item' }] : [])
+  ] : [
+    // Single items show all tabs except multi-item
     { id: 'basic', label: 'Basic', icon: '📝', description: 'Name, price, category' },
     { id: 'features', label: 'Features', icon: '✨', description: 'Special badges & availability' },
     { id: 'dietary', label: 'Dietary', icon: '🥗', description: 'Allergens & restrictions' },
@@ -298,18 +408,135 @@ const MenuCardEditor = ({ item, categories, onSave, onClose, settings }) => {
     ...(settings?.upsell_enabled !== false ? [{ id: 'upsell', label: 'Upsell', icon: '⭐', description: 'Highlight this item' }] : [])
   ];
 
+  // Calculate form completion progress
+  useEffect(() => {
+    const requiredFields = isMultiItem ? ['name', 'category_id'] : ['name', 'category_id', 'price'];
+    const filledFields = requiredFields.filter(field => formData[field]);
+    const progress = (filledFields.length / requiredFields.length) * 100;
+    setFormProgress(progress);
+  }, [formData, isMultiItem]);
+
+  // Validate field
+  const validateField = (field, value) => {
+    const newErrors = { ...errors };
+    
+    switch (field) {
+      case 'name':
+        if (!value || !value.trim()) {
+          newErrors.name = 'Item name is required';
+        } else {
+          delete newErrors.name;
+        }
+        break;
+      case 'price':
+        if (!isMultiItem && (!value || parseFloat(value) <= 0)) {
+          newErrors.price = 'Valid price is required';
+        } else {
+          delete newErrors.price;
+        }
+        break;
+      case 'category_id':
+        if (!value) {
+          newErrors.category_id = 'Category is required';
+        } else {
+          delete newErrors.category_id;
+        }
+        break;
+      default:
+        break;
+    }
+    
+    setErrors(newErrors);
+  };
+
+  // Handle drag and drop
+  const handleDragEnter = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    const files = e.dataTransfer.files;
+    if (files && files[0]) {
+      handleImageFile(files[0]);
+    }
+  };
+
+  const handleImageFile = async (file) => {
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file');
+      return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    try {
+      const response = await tenantAPI.post('/upload/menu-item', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setFormData(prev => ({ ...prev, image: response.data.url }));
+      setImagePreview(response.data.url);
+    } catch (error) {
+      console.error('Failed to upload image:', error);
+      alert('Failed to upload image');
+    }
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+      <div className="bg-white rounded-3xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden transform transition-all duration-300 scale-100">
         {/* Header */}
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold">
-              {item ? 'Edit Menu Item' : 'Create Menu Item'}
-            </h2>
+        <div className="relative bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-6">
+          <div className="flex justify-between items-center mb-2">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                {isMultiItem ? (
+                  <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                ) : (
+                  <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                )}
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold">
+                  {item ? `Edit ${isMultiItem ? 'Multi-Item' : 'Item'}` : `Create ${isMultiItem ? 'Multi-Item' : 'Item'}`}
+                </h2>
+                <p className="text-indigo-100 text-sm">
+                  {isMultiItem ? 'Configure item variations and options' : 'Add details for your menu item'}
+                </p>
+              </div>
+              {isMultiItem && (
+                <div className="multi-item-indicator">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                  </svg>
+                  Multi-Item
+                </div>
+              )}
+            </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+              className="p-2 hover:bg-white/20 rounded-xl transition-all duration-200 hover:scale-110"
             >
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -318,82 +545,136 @@ const MenuCardEditor = ({ item, categories, onSave, onClose, settings }) => {
           </div>
           
           {/* Tabs */}
-          <div className="flex gap-3 mt-6 overflow-x-auto pb-2">
-            {tabs.map((tab) => (
+          <div className="tabs-container flex gap-3 mt-6 overflow-x-auto pb-2 px-6 -mx-6">
+            {tabs.map((tab, index) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`group relative px-4 py-2 rounded-lg transition-all whitespace-nowrap ${
+                className={`tab-button group relative px-5 py-3 rounded-xl transition-all duration-200 whitespace-nowrap transform hover:scale-105 ${
                   activeTab === tab.id 
-                    ? 'bg-white text-indigo-600 shadow-lg' 
+                    ? 'bg-white text-indigo-600 shadow-xl scale-105' 
                     : 'text-white/80 hover:bg-white/20'
                 }`}
+                style={{ animationDelay: `${index * 0.05}s` }}
               >
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">{tab.icon}</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">{tab.icon}</span>
                   <div className="text-left">
-                    <span className="font-medium block">{tab.label}</span>
+                    <span className="font-semibold block">{tab.label}</span>
                     <span className={`text-xs ${activeTab === tab.id ? 'text-indigo-500' : 'text-white/60'}`}>
                       {tab.description}
                     </span>
                   </div>
                 </div>
+                {activeTab === tab.id && (
+                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-white rounded-full" />
+                )}
               </button>
             ))}
+          </div>
+          
+          {/* Progress Bar */}
+          <div className="form-progress">
+            <div className="form-progress-bar" style={{ width: `${formProgress}%` }} />
           </div>
         </div>
 
         {/* Content */}
-        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+        <form onSubmit={handleSubmit} className="p-8 overflow-y-auto max-h-[calc(90vh-220px)] custom-scrollbar">
           {/* Basic Info Tab */}
           {activeTab === 'basic' && (
             <div className="space-y-6">
               {/* Image Upload */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Item Image</label>
-                <div className="flex items-center gap-4">
-                  {imagePreview && (
+              <div className="form-field">
+                <label className="block text-sm font-semibold text-gray-800 mb-3 flex items-center">
+                  Item Image
+                  <span className="field-tooltip ml-2 text-gray-400" data-tooltip="Upload a high-quality image of your item">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </span>
+                </label>
+                
+                {imagePreview ? (
+                  <div className="relative group">
                     <img 
                       src={imagePreview} 
                       alt="Preview" 
-                      className="w-32 h-32 object-cover rounded-lg"
+                      className="w-full max-w-md h-64 object-cover rounded-2xl shadow-lg"
                     />
-                  )}
-                  <div>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="hidden"
-                      id="image-upload"
-                    />
-                    <label
-                      htmlFor="image-upload"
-                      className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg cursor-pointer transition-colors inline-flex items-center gap-2"
-                    >
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      Upload Image
-                    </label>
+                    <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-2xl flex items-center justify-center">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-4 py-2 bg-white text-gray-800 rounded-lg font-medium hover:bg-gray-100 transition-colors mr-2"
+                      >
+                        Change Image
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImagePreview(null);
+                          handleChange('image', '');
+                        }}
+                        className="px-4 py-2 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div
+                    className={`image-upload-area ${isDragging ? 'dragging' : ''}`}
+                    onDragEnter={handleDragEnter}
+                    onDragLeave={handleDragLeave}
+                    onDragOver={handleDragOver}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    <p className="text-gray-600 font-medium mb-2">Drop your image here, or click to browse</p>
+                    <p className="text-gray-400 text-sm">Supports: JPG, PNG, GIF (Max 5MB)</p>
+                  </div>
+                )}
+                
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => e.target.files?.[0] && handleImageFile(e.target.files[0])}
+                  className="hidden"
+                />
               </div>
 
               {/* Name Fields */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Name (English) *</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="form-field">
+                  <label className="block text-sm font-semibold text-gray-800 mb-2">Name (English) *</label>
                   <input
                     type="text"
                     value={formData.name}
-                    onChange={(e) => handleChange('name', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                    onChange={(e) => {
+                      handleChange('name', e.target.value);
+                      validateField('name', e.target.value);
+                    }}
+                    onBlur={(e) => validateField('name', e.target.value)}
+                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 ${errors.name ? 'field-error border-red-400' : 'border-gray-200 hover:border-gray-300'}`}
+                    placeholder="Enter item name"
                     required
                   />
+                  {errors.name && (
+                    <p className="error-message">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      {errors.name}
+                    </p>
+                  )}
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Name (Arabic)</label>
+                <div className="form-field">
+                  <label className="block text-sm font-semibold text-gray-800 mb-2">Name (Arabic)</label>
                   <input
                     type="text"
                     value={formData.name_ar}
@@ -428,7 +709,7 @@ const MenuCardEditor = ({ item, categories, onSave, onClose, settings }) => {
               </div>
 
               {/* Category and Pricing */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className={`grid grid-cols-1 ${isMultiItem ? '' : 'md:grid-cols-4'} gap-4`}>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
                   <select
@@ -443,37 +724,107 @@ const MenuCardEditor = ({ item, categories, onSave, onClose, settings }) => {
                     ))}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Price (SAR)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.price}
-                    onChange={(e) => handleChange('price', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Price without VAT</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.price_without_vat}
-                    onChange={(e) => handleChange('price_without_vat', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Promo Price</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.promotion_price}
-                    onChange={(e) => handleChange('promotion_price', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  />
-                </div>
+                {!isMultiItem && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Price (SAR) *</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={formData.price}
+                        onChange={(e) => handleChange('price', e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Price without VAT</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={formData.price_without_vat}
+                        onChange={(e) => handleChange('price_without_vat', e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Promo Price</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={formData.promotion_price}
+                        onChange={(e) => handleChange('promotion_price', e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      />
+                    </div>
+                  </>
+                )}
               </div>
+
+              {/* Sub-Items Section for Multi-Items */}
+              {isMultiItem && (
+                <div className="mt-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="font-medium text-gray-900">Sub-Items</h3>
+                      <p className="text-sm text-gray-500">Select existing items to include as variations</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowItemSelector(true)}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Add Items
+                    </button>
+                  </div>
+
+                  {/* Selected Sub-Items List */}
+                  {formData.sub_items && formData.sub_items.length > 0 ? (
+                    <div className="space-y-2">
+                      {formData.sub_items.map((subItem, index) => (
+                        <div key={subItem.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm text-gray-500">#{index + 1}</span>
+                            <div>
+                              <p className="font-medium">{subItem.name}</p>
+                              <p className="text-sm text-gray-500">{subItem.price} SAR</p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeSubItem(subItem.id)}
+                            className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                          >
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 bg-gray-50 rounded-lg">
+                      <svg className="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                      </svg>
+                      <p className="text-gray-500">No sub-items added yet</p>
+                      <p className="text-sm text-gray-400 mt-1">Click "Add Items" to select variations</p>
+                    </div>
+                  )}
+
+                  {/* Price Range Display */}
+                  {formData.price_min !== null && formData.price_max !== null && (
+                    <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+                      <p className="text-sm text-blue-700">
+                        Price Range: <span className="font-semibold">{formData.price_min} - {formData.price_max} SAR</span>
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
 
 
             </div>
@@ -1587,32 +1938,173 @@ const MenuCardEditor = ({ item, categories, onSave, onClose, settings }) => {
               )}
             </div>
           )}
+
         </form>
 
         {/* Footer */}
-        <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 border-t">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {loading && (
-              <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
+        <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-8 py-6 flex items-center justify-between border-t">
+          <div className="flex items-center gap-4">
+            {formProgress < 100 && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <svg className="w-5 h-5 text-indigo-500" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+                <span>Complete all required fields</span>
+              </div>
             )}
-            {item ? 'Update Item' : 'Create Item'}
-          </button>
+            {Object.keys(errors).length > 0 && (
+              <div className="flex items-center gap-2 text-sm text-red-600">
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                <span>{Object.keys(errors).length} validation error{Object.keys(errors).length > 1 ? 's' : ''}</span>
+              </div>
+            )}
+          </div>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-3 text-gray-700 bg-white border-2 border-gray-200 rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={loading || formProgress < 100 || Object.keys(errors).length > 0}
+              className={`px-8 py-3 rounded-xl font-semibold transition-all duration-200 flex items-center gap-2 transform ${
+                loading || formProgress < 100 || Object.keys(errors).length > 0
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:shadow-lg hover:scale-105'
+              }`}
+            >
+              {loading ? (
+                <>
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  {item ? (
+                    <>
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      Update {isMultiItem ? 'Multi-Item' : 'Item'}
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Create {isMultiItem ? 'Multi-Item' : 'Item'}
+                    </>
+                  )}
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Item Selector Modal */}
+      {showItemSelector && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[80vh] overflow-hidden">
+            <div className="p-6 border-b">
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-semibold">Select Items to Add</h3>
+                <button
+                  onClick={() => setShowItemSelector(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              {availableItems.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {availableItems.map(menuItem => {
+                    const isSelected = formData.sub_items.some(sub => sub.id === menuItem.id);
+                    return (
+                      <div
+                        key={menuItem.id}
+                        onClick={() => {
+                          if (!isSelected) {
+                            setFormData(prev => ({
+                              ...prev,
+                              sub_items: [...prev.sub_items, {
+                                id: menuItem.id,
+                                name: menuItem.name,
+                                name_ar: menuItem.name_ar,
+                                price: menuItem.price,
+                                description: menuItem.description,
+                                image: menuItem.image || menuItem.image_url
+                              }]
+                            }));
+                          }
+                        }}
+                        className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                          isSelected 
+                            ? 'border-green-500 bg-green-50' 
+                            : 'border-gray-200 hover:border-indigo-300 hover:bg-indigo-50'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          {(menuItem.image || menuItem.image_url) && (
+                            <img 
+                              src={menuItem.image || menuItem.image_url} 
+                              alt={menuItem.name}
+                              className="w-16 h-16 rounded-lg object-cover"
+                            />
+                          )}
+                          <div className="flex-1">
+                            <h4 className="font-medium text-gray-900">
+                              {menuItem.name}
+                              {menuItem.name_ar && <span className="text-gray-500 text-sm ml-2">({menuItem.name_ar})</span>}
+                            </h4>
+                            <p className="text-sm text-gray-600 mt-1">{menuItem.description}</p>
+                            <p className="text-lg font-semibold text-indigo-600 mt-2">${menuItem.price}</p>
+                          </div>
+                          {isSelected && (
+                            <svg className="w-6 h-6 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  <p className="text-gray-500">No available items found</p>
+                  <p className="text-sm text-gray-400 mt-2">All items are either multi-items or already assigned</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-6 border-t bg-gray-50 flex justify-end">
+              <button
+                onClick={() => setShowItemSelector(false)}
+                className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

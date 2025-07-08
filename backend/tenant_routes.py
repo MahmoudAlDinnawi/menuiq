@@ -2,7 +2,7 @@
 Enhanced tenant routes with support for all rich menu fields
 """
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_
 from typing import List, Optional
 import os
@@ -30,7 +30,22 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # Helper function
 def get_tenant_from_user(user_dict: dict, db: Session) -> Tenant:
-    """Get tenant from authenticated user"""
+    """
+    Get tenant from authenticated user.
+    
+    This helper function retrieves the tenant associated with the authenticated user
+    and validates that the tenant exists and is active.
+    
+    Args:
+        user_dict: Dictionary containing user authentication data including tenant_id
+        db: SQLAlchemy database session
+        
+    Returns:
+        Tenant: The active tenant object
+        
+    Raises:
+        HTTPException: 404 if tenant not found, 403 if tenant is inactive
+    """
     tenant = db.query(Tenant).filter(
         Tenant.id == user_dict["tenant_id"]
     ).first()
@@ -396,17 +411,12 @@ async def update_settings(
         settings = Settings(tenant_id=tenant.id)
         db.add(settings)
     
-    # Debug: print received fields
-    print(f"Received settings data: {list(settings_data.keys())}")
-    
     # Update fields
     updated_fields = []
     for field, value in settings_data.items():
         if hasattr(settings, field) and field not in ["id", "tenant_id", "created_at", "updated_at"]:
             setattr(settings, field, value)
             updated_fields.append(field)
-    
-    print(f"Updated fields: {updated_fields}")
     
     db.commit()
     db.refresh(settings)
@@ -457,7 +467,15 @@ async def get_menu_items(
     """Get menu items with enhanced filtering"""
     tenant = get_tenant_from_user(current_user, db)
     
-    query = db.query(MenuItem).filter(MenuItem.tenant_id == tenant.id)
+    query = db.query(MenuItem).filter(
+        MenuItem.tenant_id == tenant.id,
+        MenuItem.parent_item_id == None  # Exclude sub-items from main list
+    ).options(
+        joinedload(MenuItem.sub_items),
+        joinedload(MenuItem.allergens),
+        joinedload(MenuItem.images),
+        joinedload(MenuItem.certifications)
+    )
     
     # Apply filters
     if category_id:
@@ -622,6 +640,25 @@ async def get_menu_items(
             "upsell_badge_color": item.upsell_badge_color,
             "upsell_animation": item.upsell_animation,
             "upsell_icon": item.upsell_icon,
+            # Multi-item fields
+            "is_multi_item": item.is_multi_item,
+            "parent_item_id": item.parent_item_id,
+            "price_min": float(item.price_min) if item.price_min else None,
+            "price_max": float(item.price_max) if item.price_max else None,
+            "display_as_grid": item.display_as_grid,
+            "sub_item_order": item.sub_item_order,
+            "sub_items": [
+                {
+                    "id": sub.id,
+                    "name": sub.name,
+                    "name_ar": sub.name_ar,
+                    "description": sub.description,
+                    "description_ar": sub.description_ar,
+                    "price": float(sub.price) if sub.price else None,
+                    "image_url": sub.image,
+                    "sub_item_order": sub.sub_item_order
+                } for sub in item.sub_items
+            ] if item.is_multi_item else [],
             # Metadata
             "sort_order": item.sort_order,
             "created_at": item.created_at.isoformat() if item.created_at else None,
@@ -662,8 +699,32 @@ async def create_menu_item(
     current_user: dict = Depends(get_current_user_dict),
     db: Session = Depends(get_db)
 ):
-    """Create a new menu item with all enhanced fields"""
+    """
+    Create a new menu item with all enhanced fields.
+    
+    This endpoint handles creation of both regular menu items and multi-items.
+    Multi-items are special items that contain sub-items with a calculated price range.
+    
+    Args:
+        item_data: Dictionary containing all menu item fields including:
+            - Basic info: name, description, price, image
+            - Multi-item fields: is_multi_item, sub_item_ids
+            - Dietary info: halal, vegetarian, vegan, gluten_free
+            - Nutritional data: calories, protein, fats, carbs
+            - Enhanced features: badges, highlights, upsell settings
+            - Metadata: tags, sort_order, availability settings
+        current_user: Authenticated user from JWT token
+        db: Database session
+        
+    Returns:
+        dict: Contains the created item ID and success message
+        
+    Raises:
+        HTTPException: 400 if menu item limit reached, 404 if category not found
+    """
     tenant = get_tenant_from_user(current_user, db)
+    
+    # Process incoming data for menu item creation
     
     # Check limits
     current_count = db.query(func.count(MenuItem.id)).filter(
@@ -793,12 +854,17 @@ async def create_menu_item(
         upsell_badge_text=item_data.get("upsell_badge_text"),
         upsell_badge_color=item_data.get("upsell_badge_color"),
         upsell_animation=item_data.get("upsell_animation"),
-        upsell_icon=item_data.get("upsell_icon")
+        upsell_icon=item_data.get("upsell_icon"),
+        # Multi-item fields
+        is_multi_item=item_data.get("is_multi_item", False),
+        display_as_grid=item_data.get("display_as_grid", True)
     )
     
     db.add(db_item)
     db.commit()
     db.refresh(db_item)
+    
+    # Item created successfully
     
     # Add allergens if provided
     if item_data.get("allergen_ids"):
@@ -813,6 +879,25 @@ async def create_menu_item(
         
         db.commit()
     
+    # Handle multi-item sub-items
+    if db_item.is_multi_item and item_data.get("sub_item_ids"):
+        for index, sub_item_id in enumerate(item_data["sub_item_ids"]):
+            sub_item = db.query(MenuItem).filter(
+                MenuItem.id == sub_item_id,
+                MenuItem.tenant_id == tenant.id,
+                MenuItem.is_multi_item == False,
+                MenuItem.parent_item_id == None
+            ).first()
+            
+            if sub_item:
+                sub_item.parent_item_id = db_item.id
+                sub_item.sub_item_order = index + 1
+        
+        db.commit()
+        # Calculate price range for multi-item
+        db_item.calculate_price_range()
+        db.commit()
+    
     # Invalidate cache for this tenant
     invalidate_public_menu_cache(tenant.subdomain)
     
@@ -825,12 +910,31 @@ async def update_menu_item(
     current_user: dict = Depends(get_current_user_dict),
     db: Session = Depends(get_db)
 ):
-    """Update a menu item with all enhanced fields"""
+    """
+    Update a menu item with all enhanced fields.
+    
+    This endpoint handles updating both regular items and multi-items.
+    It automatically handles type conversion for all field types:
+    - Integer fields (calories, preparation_time, etc.)
+    - Decimal fields (price, nutritional values)
+    - Date fields (promotion dates)
+    - JSON fields (tags, pairs_well_with)
+    - Relationship fields (allergens, sub-items)
+    
+    Args:
+        item_id: The ID of the menu item to update
+        item_data: Dictionary containing fields to update
+        current_user: Authenticated user from JWT token
+        db: Database session
+        
+    Returns:
+        dict: Success message
+        
+    Raises:
+        HTTPException: 404 if item not found, 400 if invalid field values
+    """
     try:
-        # Log incoming data for debugging
-        print(f"[UPDATE MENU ITEM] ID: {item_id}")
-        print(f"[UPDATE MENU ITEM] User: {current_user.get('email', 'Unknown')}")
-        print(f"[UPDATE MENU ITEM] Data: {item_data}")
+        # Process update request
         
         tenant = get_tenant_from_user(current_user, db)
         
@@ -844,14 +948,28 @@ async def update_menu_item(
         
         # Update all fields
         for field, value in item_data.items():
-            # Skip allergen_ids and allergens as they're handled separately
-            if field in ["allergen_ids", "allergens"]:
+            # Skip allergen_ids, allergens, and sub_item_ids as they're handled separately
+            if field in ["allergen_ids", "allergens", "sub_item_ids", "sub_items"]:
                 continue
             
             try:
-                if field in ["price", "price_without_vat", "promotion_price", "total_fat", 
+                # Handle integer fields
+                if field in ["category_id", "calories", "preparation_time", "walk_minutes", "run_minutes",
+                             "min_order_quantity", "max_daily_orders", "reward_points", "spicy_level",
+                             "cholesterol", "sodium", "vitamin_a", "vitamin_c", "vitamin_d", 
+                             "calcium", "iron", "caffeine_mg", "sort_order", "parent_item_id", 
+                             "sub_item_order"]:
+                    if value is not None and value != '':
+                        try:
+                            value = int(value)
+                        except (ValueError, TypeError):
+                            value = None
+                    else:
+                        value = None
+                elif field in ["price", "price_without_vat", "promotion_price", "total_fat", 
                              "saturated_fat", "trans_fat", "total_carbs", "dietary_fiber", 
-                             "sugars", "protein", "reorder_rate", "customer_rating", "best_seller_rank"]:
+                             "sugars", "protein", "reorder_rate", "customer_rating", "best_seller_rank",
+                             "price_min", "price_max"]:
                     if value is not None and value != '':
                         try:
                             value = Decimal(str(value))
@@ -882,7 +1000,7 @@ async def update_menu_item(
                 if hasattr(item, field) and field not in ["id", "tenant_id", "created_at", "allergens"]:
                     setattr(item, field, value)
             except Exception as e:
-                print(f"[UPDATE MENU ITEM] Error setting field '{field}' with value '{value}': {str(e)}")
+                # Error setting field - will be handled by exception below
                 raise HTTPException(status_code=400, detail=f"Invalid value for field '{field}': {str(e)}")
         
         item.updated_at = datetime.utcnow()
@@ -905,6 +1023,39 @@ async def update_menu_item(
             except Exception as e:
                 print(f"[UPDATE MENU ITEM] Error updating allergens: {str(e)}")
                 raise HTTPException(status_code=400, detail=f"Error updating allergens: {str(e)}")
+        
+        # Handle multi-item sub-items updates
+        if item.is_multi_item and "sub_item_ids" in item_data:
+            try:
+                print(f"[UPDATE MENU ITEM] Processing sub-items: {item_data['sub_item_ids']}")
+                
+                # First, clear parent_item_id from all current sub-items
+                cleared = db.query(MenuItem).filter(
+                    MenuItem.parent_item_id == item.id
+                ).update({"parent_item_id": None, "sub_item_order": 0})
+                print(f"[UPDATE MENU ITEM] Cleared {cleared} existing sub-items")
+                
+                # Then assign new sub-items
+                for index, sub_item_id in enumerate(item_data["sub_item_ids"]):
+                    sub_item = db.query(MenuItem).filter(
+                        MenuItem.id == sub_item_id,
+                        MenuItem.tenant_id == tenant.id,
+                        MenuItem.is_multi_item == False
+                    ).first()
+                    
+                    if sub_item:
+                        sub_item.parent_item_id = item.id
+                        sub_item.sub_item_order = index + 1
+                        print(f"[UPDATE MENU ITEM] Assigned sub-item {sub_item_id} to parent {item.id}")
+                    else:
+                        print(f"[UPDATE MENU ITEM] Sub-item {sub_item_id} not found or invalid")
+                
+                # Calculate price range
+                db.commit()
+                item.calculate_price_range()
+            except Exception as e:
+                print(f"[UPDATE MENU ITEM] Error updating sub-items: {str(e)}")
+                raise HTTPException(status_code=400, detail=f"Error updating sub-items: {str(e)}")
         
         try:
             db.commit()

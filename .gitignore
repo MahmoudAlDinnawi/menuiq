@@ -55,5 +55,52 @@ node_modules/
 .pytest_cache/
 htmlcov/
 .env.postgres
-.env.production.postgresbackend/venv/
+.env.production.postgres
+
+# Backend specific
 backend/venv/
+backend/__pycache__/
+backend/*.log
+backend/alembic/__pycache__/
+backend/alembic/versions/__pycache__/
+
+# Frontend specific
+frontend/.eslintcache
+frontend/node_modules/.cache/
+
+# Production files to exclude
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~.nib
+.~lock.*
+
+# Database migrations archive
+backend/migrations/archive/
+
+# Test files (already removed but good to ignore)
+test_*.py
+*.test.js
+*.spec.js
+
+# Development scripts (already removed but good to ignore)
+create_sample_*.py
+create_luxury_*.py
+local_setup.sh
+reset_database.sh
+setup_*.sh

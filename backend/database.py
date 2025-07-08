@@ -20,7 +20,9 @@ load_dotenv()
 # PostgreSQL connection URL
 # Format: postgresql://username:password@host:port/database
 # In production, this should be set via environment variable
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:password@localhost/menuiq_dev")
+SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL")
+if not SQLALCHEMY_DATABASE_URL:
+    raise ValueError("DATABASE_URL environment variable is required. Please set it in your .env file.")
 
 # Create database engine with connection pool settings
 engine = create_engine(

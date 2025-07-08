@@ -223,13 +223,13 @@ class AnalyticsTracker {
         
         // Track significant scroll milestones
         if (maxScroll >= 25 && maxScroll < 50) {
-          console.log('User scrolled 25%');
+          // User scrolled 25%
         } else if (maxScroll >= 50 && maxScroll < 75) {
-          console.log('User scrolled 50%');
+          // User scrolled 50%
         } else if (maxScroll >= 75 && maxScroll < 100) {
-          console.log('User scrolled 75%');
+          // User scrolled 75%
         } else if (maxScroll >= 100) {
-          console.log('User scrolled to bottom');
+          // User scrolled to bottom
         }
       }
     };

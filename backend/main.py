@@ -48,6 +48,8 @@ from tenant_auth_routes import router as tenant_auth_router    # Tenant authenti
 from tenant_routes import router as tenant_router              # Tenant operations
 from public_menu_routes import router as public_menu_router    # Public menu viewing
 from analytics_routes import router as analytics_router        # Analytics tracking
+from flowiq_routes import router as flowiq_router              # FlowIQ management
+from public_flowiq_routes import router as public_flowiq_router # Public FlowIQ endpoints
 
 # Create all database tables if they don't exist
 Base.metadata.create_all(bind=engine)
@@ -95,6 +97,8 @@ app.include_router(tenant_auth_router)   # /api/auth/* endpoints
 app.include_router(tenant_router)        # /api/tenant/* endpoints
 app.include_router(public_menu_router)   # /api/public/* endpoints
 app.include_router(analytics_router)     # /api/analytics/* endpoints
+app.include_router(flowiq_router, prefix="/api/tenant/flowiq", tags=["flowiq"])  # /api/tenant/flowiq/* endpoints
+app.include_router(public_flowiq_router, prefix="/api", tags=["public-flowiq"])  # /api/public/* FlowIQ endpoints
 
 # Root endpoint - provides API information
 @app.get("/")
