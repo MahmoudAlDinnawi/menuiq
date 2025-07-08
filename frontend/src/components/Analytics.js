@@ -204,19 +204,19 @@ const Analytics = () => {
 
   const getDeviceChartData = () => {
     if (!overview) {
-      // No overview data yet
+      console.log('No overview data yet');
       return null;
     }
     
     const deviceData = overview.device_breakdown || {};
-    // Process device data from overview
+    console.log('Device data from overview:', deviceData);
     
     const hasData = (deviceData.mobile || 0) + (deviceData.desktop || 0) + (deviceData.tablet || 0) > 0;
-    // Calculate total device count
+    console.log('Total device count:', (deviceData.mobile || 0) + (deviceData.desktop || 0) + (deviceData.tablet || 0));
     
     // If no data at all, show a message
     if (!hasData) {
-      // No device data to display
+      console.log('No device data to display');
       return null;
     }
     
@@ -237,7 +237,7 @@ const Analytics = () => {
       }]
     };
     
-    // Chart data prepared
+    console.log('Chart data prepared:', chartData);
     return chartData;
   };
 

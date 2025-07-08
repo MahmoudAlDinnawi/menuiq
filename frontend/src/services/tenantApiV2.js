@@ -73,6 +73,9 @@ const tenantAPI = {
   updateMenuItem: (id, data) => api.put(`/api/tenant/menu-items/${id}`, data),
   deleteMenuItem: (id) => api.delete(`/api/tenant/menu-items/${id}`),
   
+  // Multi-item specific
+  updateMenuItemSortOrder: (items) => api.post('/api/tenant/menu-items/update-sort-order', items),
+  
   // Settings
   getSettings: () => api.get('/api/tenant/settings'),
   updateSettings: (data) => api.put('/api/tenant/settings', data),

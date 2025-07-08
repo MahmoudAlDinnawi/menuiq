@@ -17,12 +17,10 @@ import { Helmet } from 'react-helmet-async';
 import LuxuryCategoryFilter from '../components/LuxuryCategoryFilter';
 import AmazingMobileCard from '../components/AmazingMobileCard';
 import AmazingDesktopCard from '../components/AmazingDesktopCard';
+import MultiItemCard from '../components/MultiItemCard';
 import publicMenuAPI from '../services/publicMenuApi';
 import DOMPurify from 'dompurify';  // For sanitizing HTML content
 import analyticsTracker from '../services/analyticsTracker';  // Analytics tracking
-import FlowIQPopup from '../components/FlowIQPopup';
-import '../styles/flowiq-animations.css';
-import { getSubdomain } from '../utils/subdomain';
 
 const RestaurantMenu = () => {
   const [menuItems, setMenuItems] = useState([]);
@@ -30,11 +28,9 @@ const RestaurantMenu = () => {
   const [activeCategory, setActiveCategory] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [language, setLanguage] = useState('ar'); // Default to Arabic since flow starts with language selection
+  const [language, setLanguage] = useState('en');
   const [settings, setSettings] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [flowCompleted, setFlowCompleted] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
 
   useEffect(() => {
     // Initialize analytics session
@@ -76,7 +72,9 @@ const RestaurantMenu = () => {
       setCategories(categoriesResponse);
       setSettings(settingsResponse);
       
-      // Process settings response
+      // Debug log
+      console.log('Settings received:', settingsResponse);
+      console.log('showAllCategory value:', settingsResponse?.showAllCategory);
       
       // If "All" category is disabled and current category is "all", 
       // switch to first available category
@@ -132,26 +130,8 @@ const RestaurantMenu = () => {
     );
   }
 
-  // Hide content until flow is completed or dismissed
-  if (!flowCompleted) {
-    return (
-      <FlowIQPopup 
-        subdomain={getSubdomain()} 
-        language={language}
-        onComplete={() => {
-          setFlowCompleted(true);
-          // Add smooth transition to menu
-          setTimeout(() => setShowMenu(true), 300);
-        }}
-        onLanguageChange={(lang) => setLanguage(lang)}
-      />
-    );
-  }
-
   return (
-    <div className={`min-h-screen bg-gray-50 flex flex-col transition-opacity duration-500 ${
-      showMenu ? 'opacity-100' : 'opacity-0'
-    }`} dir={language === 'ar' ? 'rtl' : 'ltr'}>
+    <div className="min-h-screen bg-gray-50 flex flex-col" dir={language === 'ar' ? 'rtl' : 'ltr'}>
       {/* SEO Meta Tags */}
       <Helmet>
         <title>
@@ -336,28 +316,52 @@ const RestaurantMenu = () => {
           // Mobile Layout
           <div className="space-y-3">
             {filteredItems.map((item) => (
-              <AmazingMobileCard 
-                key={item.id}
-                item={item}
-                language={language}
-                formatCategory={formatCategory}
-                categories={categories}
-                settings={settings}
-              />
+              item.is_multi_item ? (
+                <MultiItemCard 
+                  key={item.id}
+                  item={item}
+                  language={language}
+                  formatCategory={formatCategory}
+                  categories={categories}
+                  settings={settings}
+                  isMobile={true}
+                />
+              ) : (
+                <AmazingMobileCard 
+                  key={item.id}
+                  item={item}
+                  language={language}
+                  formatCategory={formatCategory}
+                  categories={categories}
+                  settings={settings}
+                />
+              )
             ))}
           </div>
         ) : (
           // Desktop Layout
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredItems.map((item) => (
-              <AmazingDesktopCard 
-                key={item.id}
-                item={item}
-                language={language}
-                formatCategory={formatCategory}
-                categories={categories}
-                settings={settings}
-              />
+              item.is_multi_item ? (
+                <MultiItemCard 
+                  key={item.id}
+                  item={item}
+                  language={language}
+                  formatCategory={formatCategory}
+                  categories={categories}
+                  settings={settings}
+                  isMobile={false}
+                />
+              ) : (
+                <AmazingDesktopCard 
+                  key={item.id}
+                  item={item}
+                  language={language}
+                  formatCategory={formatCategory}
+                  categories={categories}
+                  settings={settings}
+                />
+              )
             ))}
           </div>
         )}
