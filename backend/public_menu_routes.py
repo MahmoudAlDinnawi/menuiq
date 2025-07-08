@@ -2,7 +2,7 @@
 Public menu routes that return data in the exact format expected by the frontend
 """
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from typing import List, Optional
 from database import get_db
@@ -28,11 +28,14 @@ def get_tenant_by_subdomain(db: Session, subdomain: str) -> Tenant:
 @router.get("/{subdomain}/menu-items")
 async def get_public_menu_items(
     subdomain: str,
+    skip: int = 0,
+    limit: int = 50,
+    fields: Optional[str] = None,  # e.g., "id,name,price,image,category"
     db: Session = Depends(get_db)
 ):
     """Get all menu items for public display in frontend format"""
     # Check cache first
-    cache_key = f"public_menu:subdomain:{subdomain}"
+    cache_key = f"public_menu:subdomain:{subdomain}:skip:{skip}:limit:{limit}:fields:{fields or 'all'}"
     cached_data = cache.get(cache_key)
     if cached_data is not None:
         return cached_data
@@ -46,12 +49,38 @@ async def get_public_menu_items(
     
     currency = settings.currency if settings else "SAR"
     
+    # Parse requested fields
+    requested_fields = set(fields.split(',')) if fields else None
+    
+    # Define field groups for common use cases
+    basic_fields = {'id', 'name', 'nameAr', 'price', 'image', 'category', 'categoryId'}
+    nutritional_fields = {
+        'calories', 'totalFat', 'saturatedFat', 'transFat', 'cholesterol', 
+        'sodium', 'totalCarbs', 'dietaryFiber', 'sugars', 'protein',
+        'vitaminA', 'vitaminC', 'vitaminD', 'calcium', 'iron', 'caffeineMg'
+    }
+    dietary_fields = {
+        'halal', 'vegetarian', 'vegan', 'glutenFree', 'dairyFree', 
+        'nutFree', 'spicyLevel', 'highSodium', 'containsCaffeine'
+    }
+    
+    # Get total count for pagination
+    total_count = db.query(func.count(MenuItem.id)).filter(
+        MenuItem.tenant_id == tenant.id,
+        MenuItem.is_available == True,
+        MenuItem.parent_item_id == None
+    ).scalar()
+    
     # Get all active menu items (exclude sub-items from main list)
     items = db.query(MenuItem).filter(
         MenuItem.tenant_id == tenant.id,
         MenuItem.is_available == True,
         MenuItem.parent_item_id == None  # Only get top-level items
-    ).order_by(MenuItem.sort_order, MenuItem.id).all()
+    ).options(
+        joinedload(MenuItem.sub_items),
+        joinedload(MenuItem.allergens),
+        joinedload(MenuItem.category)
+    ).order_by(MenuItem.sort_order, MenuItem.id).offset(skip).limit(limit).all()
     
     # Convert to frontend format
     result = []
@@ -70,68 +99,90 @@ async def get_public_menu_items(
             "icon_url": allergen.icon_url
         } for allergen in item.allergens]
         
-        # Format item for frontend
-        item_data = {
-            "id": item.id,
-            "name": item.name,
-            "nameAr": item.name_ar,
-            "description": item.description,
-            "descriptionAr": item.description_ar,
-            "category": category_value,
-            "categoryId": item.category_id,
-            "image": item.image,
-            "price": f"{item.price:.2f} {currency}" if item.price else None,
-            "priceWithoutVat": f"{item.price_without_vat:.2f} {currency}" if item.price_without_vat else None,
-            "promotionPrice": f"{item.promotion_price:.2f} {currency}" if item.promotion_price else None,
-            "signatureDish": item.signature_dish,
-            "instagramWorthy": item.instagram_worthy,
-            "isFeatured": item.is_featured,
-            "calories": item.calories,
-            "preparationTime": item.preparation_time,
-            "servingSize": item.serving_size,
-            "halal": item.halal,
-            "vegetarian": item.vegetarian,
-            "vegan": item.vegan,
-            "glutenFree": item.gluten_free,
-            "dairyFree": item.dairy_free,
-            "nutFree": item.nut_free,
-            "spicyLevel": item.spicy_level,
-            "highSodium": item.high_sodium,
-            "containsCaffeine": item.contains_caffeine,
-            "walkMinutes": item.walk_minutes,
-            "runMinutes": item.run_minutes,
-            "allergens": allergen_data,
-            # Nutrition info
-            "totalFat": float(item.total_fat) if item.total_fat else None,
-            "saturatedFat": float(item.saturated_fat) if item.saturated_fat else None,
-            "transFat": float(item.trans_fat) if item.trans_fat else None,
-            "cholesterol": item.cholesterol,
-            "sodium": item.sodium,
-            "totalCarbs": float(item.total_carbs) if item.total_carbs else None,
-            "dietaryFiber": float(item.dietary_fiber) if item.dietary_fiber else None,
-            "sugars": float(item.sugars) if item.sugars else None,
-            "protein": float(item.protein) if item.protein else None,
-            "vitaminA": item.vitamin_a,
-            "vitaminC": item.vitamin_c,
-            "vitaminD": item.vitamin_d,
-            "calcium": item.calcium,
-            "iron": item.iron,
-            "caffeineMg": item.caffeine_mg,
-            # Upsell fields
-            "is_upsell": item.is_upsell,
-            "upsell_style": item.upsell_style,
-            "upsell_border_color": item.upsell_border_color,
-            "upsell_background_color": item.upsell_background_color,
-            "upsell_badge_text": item.upsell_badge_text,
-            "upsell_badge_color": item.upsell_badge_color,
-            "upsell_animation": item.upsell_animation,
-            "upsell_icon": item.upsell_icon,
-            # Multi-item fields
-            "is_multi_item": item.is_multi_item,
-            "price_min": f"{item.price_min:.2f} {currency}" if item.price_min else None,
-            "price_max": f"{item.price_max:.2f} {currency}" if item.price_max else None,
-            "display_as_grid": item.display_as_grid,
-            "sub_items": [
+        # Format item for frontend - build dynamically based on requested fields
+        item_data = {"id": item.id}  # Always include ID
+        
+        # Helper function to add field if requested
+        def add_field(field_name, value):
+            if requested_fields is None or field_name in requested_fields:
+                item_data[field_name] = value
+        
+        # Basic fields
+        add_field("name", item.name)
+        add_field("nameAr", item.name_ar)
+        add_field("description", item.description)
+        add_field("descriptionAr", item.description_ar)
+        add_field("category", category_value)
+        add_field("categoryId", item.category_id)
+        add_field("image", item.image)
+        add_field("price", f"{item.price:.2f} {currency}" if item.price else None)
+        add_field("priceWithoutVat", f"{item.price_without_vat:.2f} {currency}" if item.price_without_vat else None)
+        add_field("promotionPrice", f"{item.promotion_price:.2f} {currency}" if item.promotion_price else None)
+        
+        # Feature flags
+        add_field("signatureDish", item.signature_dish)
+        add_field("instagramWorthy", item.instagram_worthy)
+        add_field("isFeatured", item.is_featured)
+        
+        # Basic nutrition
+        add_field("calories", item.calories)
+        add_field("preparationTime", item.preparation_time)
+        add_field("servingSize", item.serving_size)
+        
+        # Dietary restrictions
+        add_field("halal", item.halal)
+        add_field("vegetarian", item.vegetarian)
+        add_field("vegan", item.vegan)
+        add_field("glutenFree", item.gluten_free)
+        add_field("dairyFree", item.dairy_free)
+        add_field("nutFree", item.nut_free)
+        add_field("spicyLevel", item.spicy_level)
+        add_field("highSodium", item.high_sodium)
+        add_field("containsCaffeine", item.contains_caffeine)
+        
+        # Exercise info
+        add_field("walkMinutes", item.walk_minutes)
+        add_field("runMinutes", item.run_minutes)
+        
+        # Allergens
+        add_field("allergens", allergen_data)
+        
+        # Detailed nutrition info
+        add_field("totalFat", float(item.total_fat) if item.total_fat else None)
+        add_field("saturatedFat", float(item.saturated_fat) if item.saturated_fat else None)
+        add_field("transFat", float(item.trans_fat) if item.trans_fat else None)
+        add_field("cholesterol", item.cholesterol)
+        add_field("sodium", item.sodium)
+        add_field("totalCarbs", float(item.total_carbs) if item.total_carbs else None)
+        add_field("dietaryFiber", float(item.dietary_fiber) if item.dietary_fiber else None)
+        add_field("sugars", float(item.sugars) if item.sugars else None)
+        add_field("protein", float(item.protein) if item.protein else None)
+        add_field("vitaminA", item.vitamin_a)
+        add_field("vitaminC", item.vitamin_c)
+        add_field("vitaminD", item.vitamin_d)
+        add_field("calcium", item.calcium)
+        add_field("iron", item.iron)
+        add_field("caffeineMg", item.caffeine_mg)
+        
+        # Upsell fields
+        add_field("is_upsell", item.is_upsell)
+        add_field("upsell_style", item.upsell_style)
+        add_field("upsell_border_color", item.upsell_border_color)
+        add_field("upsell_background_color", item.upsell_background_color)
+        add_field("upsell_badge_text", item.upsell_badge_text)
+        add_field("upsell_badge_color", item.upsell_badge_color)
+        add_field("upsell_animation", item.upsell_animation)
+        add_field("upsell_icon", item.upsell_icon)
+        
+        # Multi-item fields
+        add_field("is_multi_item", item.is_multi_item)
+        add_field("price_min", f"{item.price_min:.2f} {currency}" if item.price_min else None)
+        add_field("price_max", f"{item.price_max:.2f} {currency}" if item.price_max else None)
+        add_field("display_as_grid", item.display_as_grid)
+        
+        # Sub-items (only if requested)
+        if (requested_fields is None or "sub_items" in requested_fields) and item.is_multi_item:
+            item_data["sub_items"] = [
                 {
                     "id": sub.id,
                     "name": sub.name,
@@ -148,15 +199,24 @@ async def get_public_menu_items(
                     "spicyLevel": sub.spicy_level,
                     "sub_item_order": sub.sub_item_order
                 } for sub in sorted(item.sub_items, key=lambda x: x.sub_item_order)
-            ] if item.is_multi_item else []
-        }
+            ]
+        elif item.is_multi_item:
+            item_data["sub_items"] = []
         
         result.append(item_data)
     
-    # Cache the result
-    cache.set(cache_key, result, CACHE_TTL["public_menu"])
+    # Prepare response with pagination info
+    response = {
+        "items": result,
+        "total": total_count,
+        "skip": skip,
+        "limit": limit
+    }
     
-    return result
+    # Cache the result
+    cache.set(cache_key, response, CACHE_TTL["public_menu"])
+    
+    return response
 
 @router.get("/{subdomain}/categories")
 async def get_public_categories(

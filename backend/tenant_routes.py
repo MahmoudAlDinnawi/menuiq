@@ -1,7 +1,7 @@
 """
 Enhanced tenant routes with support for all rich menu fields
 """
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, BackgroundTasks
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, or_
 from typing import List, Optional
@@ -12,6 +12,10 @@ from datetime import datetime
 from pathlib import Path
 from decimal import Decimal, InvalidOperation
 import decimal
+import aiofiles
+from image_optimizer import ImageOptimizer
+from cache_warmer import CacheWarmer
+import asyncio
 
 from database import get_db
 from models import (
@@ -24,9 +28,9 @@ from simple_cache import cache, invalidate_public_menu_cache
 
 router = APIRouter(prefix="/api/tenant", tags=["tenant"])
 
-# Ensure uploads directory exists
-UPLOAD_DIR = Path("uploads/logos")
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+# Ensure logos directory exists
+LOGOS_DIR = Path("uploads/logos")
+LOGOS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Helper function
 def get_tenant_from_user(user_dict: dict, db: Session) -> Tenant:
@@ -421,8 +425,8 @@ async def update_settings(
     db.commit()
     db.refresh(settings)
     
-    # Invalidate cache for this tenant
-    invalidate_public_menu_cache(tenant.subdomain)
+    # Invalidate and warm cache for this tenant
+    invalidate_public_menu_cache(tenant.subdomain, db=db, warm_cache=True)
     
     return {"message": "Settings updated successfully", "updated_fields": updated_fields}
 
@@ -898,8 +902,8 @@ async def create_menu_item(
         db_item.calculate_price_range()
         db.commit()
     
-    # Invalidate cache for this tenant
-    invalidate_public_menu_cache(tenant.subdomain)
+    # Invalidate and warm cache for this tenant
+    invalidate_public_menu_cache(tenant.subdomain, db=db, warm_cache=True)
     
     return {"id": db_item.id, "message": "Menu item created successfully"}
 
@@ -1078,6 +1082,65 @@ async def update_menu_item(
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
+@router.delete("/menu-items/{item_id}")
+async def delete_menu_item(
+    item_id: int,
+    current_user: dict = Depends(get_current_user_dict),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a menu item.
+    
+    This endpoint handles deletion of both regular items and multi-items.
+    When deleting a multi-item, all sub-items are automatically unlinked.
+    
+    Args:
+        item_id: The ID of the menu item to delete
+        current_user: Authenticated user from JWT token
+        db: Database session
+        
+    Returns:
+        dict: Success message
+        
+    Raises:
+        HTTPException: 404 if item not found, 400 if item has dependencies
+    """
+    tenant = get_tenant_from_user(current_user, db)
+    
+    item = db.query(MenuItem).filter(
+        MenuItem.id == item_id,
+        MenuItem.tenant_id == tenant.id
+    ).first()
+    
+    if not item:
+        raise HTTPException(status_code=404, detail="Menu item not found")
+    
+    # If this is a multi-item, unlink all sub-items first
+    if item.is_multi_item:
+        db.query(MenuItem).filter(
+            MenuItem.parent_item_id == item.id
+        ).update({"parent_item_id": None, "sub_item_order": 0})
+    
+    # If this item is a sub-item of another item, unlink it first
+    if item.parent_item_id:
+        parent_item = db.query(MenuItem).filter(
+            MenuItem.id == item.parent_item_id
+        ).first()
+        if parent_item:
+            # Recalculate price range for parent after removing this sub-item
+            item.parent_item_id = None
+            db.commit()
+            parent_item.calculate_price_range()
+    
+    # Delete the item
+    db.delete(item)
+    db.commit()
+    
+    # Invalidate and warm cache for this tenant
+    invalidate_public_menu_cache(tenant.subdomain, db=db, warm_cache=True)
+    
+    return {"message": "Menu item deleted successfully"}
+
 # Additional endpoints for images, reviews, etc.
 @router.post("/menu-items/{item_id}/images")
 async def add_menu_item_image(
@@ -1194,12 +1257,14 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 
 @router.post("/upload-image")
 async def upload_image(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     type: str = "item",
+    optimize: bool = True,
     current_user: dict = Depends(get_current_user_dict),
     db: Session = Depends(get_db)
 ):
-    """Upload an image for menu items or categories"""
+    """Upload and optimize an image for menu items or categories"""
     tenant = get_tenant_from_user(current_user, db)
     
     # Validate file type
@@ -1210,26 +1275,102 @@ async def upload_image(
             detail=f"Invalid file type. Allowed types: {', '.join(allowed_types)}"
         )
     
-    # Create tenant directory
-    tenant_dir = UPLOAD_DIR / f"tenant_{tenant.id}"
-    tenant_dir.mkdir(exist_ok=True)
+    # Validate file size (10MB max before optimization)
+    max_size = 10 * 1024 * 1024  # 10MB
+    contents = await file.read()
+    if len(contents) > max_size:
+        raise HTTPException(
+            status_code=400,
+            detail="File too large. Maximum size is 10MB."
+        )
     
-    # Generate unique filename
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    file_extension = file.filename.split('.')[-1]
-    filename = f"{type}_{timestamp}.{file_extension}"
-    file_path = tenant_dir / filename
-    
-    # Save file
-    with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-    
-    # Return URL
-    return {
-        "filename": filename,
-        "url": f"/uploads/tenant_{tenant.id}/{filename}",
-        "type": type
-    }
+    try:
+        # Create tenant directory
+        tenant_dir = UPLOAD_DIR / f"tenant_{tenant.id}"
+        tenant_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Determine image type and format
+        image_type = "logo" if type == "logo" else "menu_item"
+        output_format = "PNG" if file.content_type == "image/png" else "JPEG"
+        
+        # Optimize image if requested
+        if optimize:
+            optimized_bytes, metadata = await ImageOptimizer.optimize_image(
+                contents,
+                image_type=image_type,
+                quality="high" if type == "logo" else "medium",
+                format=output_format
+            )
+            
+            # Check for duplicate images using hash
+            existing_file = None
+            for existing in tenant_dir.glob(f"{type}_*"):
+                if existing.stem.endswith(f"_{metadata['file_hash'][:8]}"):
+                    existing_file = existing
+                    break
+            
+            if existing_file:
+                # Return existing file if duplicate
+                return {
+                    "filename": existing_file.name,
+                    "url": f"/uploads/tenant_{tenant.id}/{existing_file.name}",
+                    "type": type,
+                    "metadata": metadata,
+                    "duplicate": True
+                }
+            
+            # Generate filename with hash for deduplication
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            file_extension = "jpg" if output_format == "JPEG" else "png"
+            filename = f"{type}_{timestamp}_{metadata['file_hash'][:8]}.{file_extension}"
+            file_path = tenant_dir / filename
+            
+            # Save optimized file asynchronously
+            async with aiofiles.open(file_path, "wb") as f:
+                await f.write(optimized_bytes)
+            
+            # Create thumbnail in background for menu items
+            if type == "item":
+                thumb_filename = f"{type}_{timestamp}_{metadata['file_hash'][:8]}_thumb.jpg"
+                thumb_path = tenant_dir / thumb_filename
+                
+                async def create_and_save_thumbnail():
+                    thumb_bytes = await ImageOptimizer.create_thumbnail(optimized_bytes)
+                    async with aiofiles.open(thumb_path, "wb") as f:
+                        await f.write(thumb_bytes)
+                
+                background_tasks.add_task(create_and_save_thumbnail)
+                metadata["thumbnail_url"] = f"/uploads/tenant_{tenant.id}/{thumb_filename}"
+        else:
+            # Save original file without optimization
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            file_extension = file.filename.split('.')[-1]
+            filename = f"{type}_{timestamp}.{file_extension}"
+            file_path = tenant_dir / filename
+            
+            async with aiofiles.open(file_path, "wb") as f:
+                await f.write(contents)
+            
+            metadata = {
+                "original_size": len(contents),
+                "optimized_size": len(contents),
+                "compression_ratio": 1.0
+            }
+        
+        # Return URL and metadata
+        return {
+            "filename": filename,
+            "url": f"/uploads/tenant_{tenant.id}/{filename}",
+            "type": type,
+            "metadata": metadata,
+            "duplicate": False
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to upload file: {str(e)}"
+        )
 
 # Tenant Info Endpoints
 @router.get("/info")
@@ -1272,20 +1413,16 @@ async def upload_tenant_logo(
             detail="Invalid file type. Only JPEG, PNG, GIF, SVG, and WebP are allowed."
         )
     
+    # Read file contents
+    contents = await file.read()
+    
     # Validate file size (5MB max)
     max_size = 5 * 1024 * 1024  # 5MB
-    file_size = 0
-    contents = await file.read()
-    file_size = len(contents)
-    
-    if file_size > max_size:
+    if len(contents) > max_size:
         raise HTTPException(
             status_code=400,
             detail="File too large. Maximum size is 5MB."
         )
-    
-    # Reset file position
-    await file.seek(0)
     
     # Create logos directory
     logo_dir = Path("uploads/logos")
@@ -1297,15 +1434,24 @@ async def upload_tenant_logo(
         if old_logo_path.exists():
             old_logo_path.unlink()
     
-    # Generate unique filename
+    # Optimize logo image
+    output_format = "PNG" if file.content_type in ["image/png", "image/svg+xml"] else "JPEG"
+    optimized_bytes, metadata = await ImageOptimizer.optimize_image(
+        contents,
+        image_type="logo",
+        quality="high",
+        format=output_format
+    )
+    
+    # Generate unique filename with hash
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    file_extension = file.filename.split('.')[-1].lower()
-    filename = f"tenant_{tenant.id}_logo_{timestamp}.{file_extension}"
+    file_extension = "png" if output_format == "PNG" else "jpg"
+    filename = f"tenant_{tenant.id}_logo_{timestamp}_{metadata['file_hash'][:8]}.{file_extension}"
     file_path = logo_dir / filename
     
-    # Save file
-    with open(file_path, "wb") as buffer:
-        buffer.write(contents)
+    # Save optimized file asynchronously
+    async with aiofiles.open(file_path, "wb") as buffer:
+        await buffer.write(optimized_bytes)
     
     # Update tenant logo URL
     logo_url = f"/uploads/logos/{filename}"

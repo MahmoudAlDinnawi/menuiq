@@ -110,7 +110,7 @@ def cached(prefix: str, ttl: Optional[int] = None):
     return decorator
 
 # Helper functions
-def invalidate_tenant_cache(tenant_id: int):
+def invalidate_tenant_cache(tenant_id: int, db=None, warm_cache: bool = True):
     """Invalidate all cache entries for a tenant"""
     patterns = [
         f"public_menu:tenant_id:{tenant_id}",
@@ -121,7 +121,25 @@ def invalidate_tenant_cache(tenant_id: int):
     
     for pattern in patterns:
         cache.delete_pattern(pattern)
+    
+    # Warm cache if requested and db session provided
+    if warm_cache and db:
+        from cache_warmer import CacheWarmer
+        from models import Tenant
+        tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
+        if tenant:
+            CacheWarmer.invalidate_and_warm_async(db, tenant_id, tenant.subdomain)
 
-def invalidate_public_menu_cache(subdomain: str):
+def invalidate_public_menu_cache(subdomain: str, db=None, warm_cache: bool = True):
     """Invalidate public menu cache for a subdomain"""
     cache.delete_pattern(f"public_menu:subdomain:{subdomain}")
+    cache.delete_pattern(f"categories:subdomain:{subdomain}")
+    cache.delete_pattern(f"settings:subdomain:{subdomain}")
+    
+    # Warm cache if requested and db session provided
+    if warm_cache and db:
+        from cache_warmer import CacheWarmer
+        from models import Tenant
+        tenant = db.query(Tenant).filter(Tenant.subdomain == subdomain).first()
+        if tenant:
+            CacheWarmer.invalidate_and_warm_async(db, tenant.id, subdomain)
