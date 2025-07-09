@@ -364,7 +364,11 @@ async def get_public_settings(
             "metaDescriptionAr": None,
             "metaKeywordsEn": None,
             "metaKeywordsAr": None,
-            "ogImageUrl": None
+            "ogImageUrl": None,
+            # Multi-item badge defaults
+            "multiItemBadgeTextEn": "Multi",
+            "multiItemBadgeTextAr": "متعدد",
+            "multiItemBadgeColor": "#9333EA"
         }
         cache.set(cache_key, result, CACHE_TTL["settings"])
         return result
@@ -408,7 +412,10 @@ async def get_public_settings(
         "metaDescriptionAr": settings.meta_description_ar,
         "metaKeywordsEn": settings.meta_keywords_en,
         "metaKeywordsAr": settings.meta_keywords_ar,
-        "ogImageUrl": settings.og_image_url
+        "ogImageUrl": settings.og_image_url,
+        "multiItemBadgeTextEn": settings.multi_item_badge_text_en,
+        "multiItemBadgeTextAr": settings.multi_item_badge_text_ar,
+        "multiItemBadgeColor": settings.multi_item_badge_color
     }
     
     cache.set(cache_key, result, CACHE_TTL["settings"])

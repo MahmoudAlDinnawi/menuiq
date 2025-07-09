@@ -110,6 +110,12 @@ const MultiItemModal = ({ item, language, onClose, settings, formatCategory }) =
                   {subItem.preparationTime} {language === 'ar' ? 'د' : 'min'}
                 </span>
               )}
+              {subItem.walkMinutes && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-purple-50 text-purple-700 rounded-full text-xs font-medium">
+                  <span className="text-xs">🚶</span>
+                  {subItem.walkMinutes} {language === 'ar' ? 'د مشي' : 'min walk'}
+                </span>
+              )}
               {subItem.vegetarian && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium">
                   <span className="text-xs">🌱</span>

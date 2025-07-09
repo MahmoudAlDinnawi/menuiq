@@ -435,6 +435,11 @@ class Settings(Base):
     footer_tagline_en = Column(Text, default="Authentic French dining experience in the heart of the Kingdom")
     footer_tagline_ar = Column(Text, default="تجربة طعام فرنسية أصيلة في قلب المملكة")
     
+    # Multi-item badge customization
+    multi_item_badge_text_en = Column(String(50), default="Multi")
+    multi_item_badge_text_ar = Column(String(50), default="متعدد")
+    multi_item_badge_color = Column(String(7), default="#9333EA")
+    
     # SEO/Meta tags
     meta_title_en = Column(String(255))
     meta_title_ar = Column(String(255))

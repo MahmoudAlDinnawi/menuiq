@@ -70,7 +70,7 @@ const SettingsPanel = ({ onUpdate }) => {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="border-b border-gray-200">
           <nav className="flex -mb-px">
-            {['general', 'logo', 'seo', 'display', 'features', 'social', 'upsell'].map((tab) => (
+            {['general', 'logo', 'seo', 'display', 'features', 'social', 'upsell', 'multi-item'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -721,6 +721,104 @@ const SettingsPanel = ({ onUpdate }) => {
                     </div>
                   </>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Multi-item Settings */}
+          {activeTab === 'multi-item' && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Multi-item Badge Settings</h3>
+                <p className="text-sm text-gray-600 mb-6">Customize the badge text that appears on multi-item cards. This badge indicates items with multiple options.</p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Badge Text (English)
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.multi_item_badge_text_en || 'Multi'}
+                      onChange={(e) => handleChange('multi_item_badge_text_en', e.target.value)}
+                      placeholder="Multi"
+                      maxLength={50}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      This text appears on multi-item cards in English. Example: "Multi", "Options", "Choose"
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Badge Text (Arabic)
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.multi_item_badge_text_ar || 'متعدد'}
+                      onChange={(e) => handleChange('multi_item_badge_text_ar', e.target.value)}
+                      placeholder="متعدد"
+                      maxLength={50}
+                      dir="rtl"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      هذا النص يظهر على بطاقات العناصر المتعددة بالعربية. مثال: "متعدد", "خيارات", "اختر"
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Badge Color
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={settings.multi_item_badge_color || '#9333EA'}
+                      onChange={(e) => handleChange('multi_item_badge_color', e.target.value)}
+                      className="h-10 w-20 rounded cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={settings.multi_item_badge_color || '#9333EA'}
+                      onChange={(e) => handleChange('multi_item_badge_color', e.target.value)}
+                      placeholder="#9333EA"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Choose the background color for the multi-item badge
+                  </p>
+                </div>
+
+                {/* Preview */}
+                <div className="mt-8">
+                  <h4 className="text-sm font-medium text-gray-900 mb-3">Preview</h4>
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex gap-4">
+                      <div className="flex-1">
+                        <p className="text-xs text-gray-600 mb-2">English</p>
+                        <div 
+                          className="inline-flex items-center px-3 py-1 text-white text-sm font-semibold rounded-full"
+                          style={{ backgroundColor: settings.multi_item_badge_color || '#9333EA' }}
+                        >
+                          {settings.multi_item_badge_text_en || 'Multi'}
+                        </div>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs text-gray-600 mb-2">Arabic</p>
+                        <div 
+                          className="inline-flex items-center px-3 py-1 text-white text-sm font-semibold rounded-full" 
+                          dir="rtl"
+                          style={{ backgroundColor: settings.multi_item_badge_color || '#9333EA' }}
+                        >
+                          {settings.multi_item_badge_text_ar || 'متعدد'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}

@@ -409,6 +409,10 @@ async def get_settings(
         "show_price_without_vat": settings.show_price_without_vat,
         "show_all_category": settings.show_all_category,
         "show_include_vat": settings.show_include_vat,
+        # Multi-item badge customization
+        "multi_item_badge_text_en": settings.multi_item_badge_text_en,
+        "multi_item_badge_text_ar": settings.multi_item_badge_text_ar,
+        "multi_item_badge_color": settings.multi_item_badge_color,
         # Upsell settings
         "upsell_enabled": settings.upsell_enabled,
         "upsell_default_style": settings.upsell_default_style,

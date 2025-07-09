@@ -142,10 +142,22 @@ const MultiItemCard = ({ item, language, formatCategory, categories, settings, i
                 )}
 
                 {item.is_multi_item && (
-                  <span className="px-2 sm:px-3 py-0.5 sm:py-1 bg-purple-500 text-white rounded-full text-[10px] sm:text-xs font-medium shadow-sm flex items-center gap-0.5 sm:gap-1">
-                    <span className="text-xs sm:text-sm">📋</span>
-                    <span className="hidden xs:inline">{language === 'ar' ? 'متعدد' : 'Multiple Options'}</span>
-                    <span className="xs:hidden">{language === 'ar' ? 'متعدد' : 'Multi'}</span>
+                  <span 
+                    className="px-2 sm:px-3 py-0.5 sm:py-1 text-white rounded-full text-[10px] sm:text-xs font-medium shadow-sm"
+                    style={{ backgroundColor: settings?.multiItemBadgeColor || '#9333EA' }}
+                  >
+                    <span className="hidden xs:inline">
+                      {language === 'ar' 
+                        ? (settings?.multiItemBadgeTextAr || 'متعدد')
+                        : (settings?.multiItemBadgeTextEn || 'Multi') + ' Options'
+                      }
+                    </span>
+                    <span className="xs:hidden">
+                      {language === 'ar' 
+                        ? (settings?.multiItemBadgeTextAr || 'متعدد')
+                        : (settings?.multiItemBadgeTextEn || 'Multi')
+                      }
+                    </span>
                   </span>
                 )}
 
