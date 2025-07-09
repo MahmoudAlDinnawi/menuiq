@@ -55,7 +55,7 @@ const MultiItemModal = ({ item, language, onClose, settings, formatCategory }) =
                 >
                   {formatPrice(subItem.price)}
                   {settings?.showIncludeVat && (
-                    <div className="text-[9px] sm:text-[10px] font-normal opacity-75 mt-0.5">
+                    <div className={`text-[9px] sm:text-[10px] font-normal opacity-75 mt-0.5 ${language === 'ar' ? 'text-right' : 'text-left'}`}>
                       {language === 'ar' ? 'شامل الضريبة' : 'Inc. VAT'}
                     </div>
                   )}
@@ -89,7 +89,7 @@ const MultiItemModal = ({ item, language, onClose, settings, formatCategory }) =
                   {formatPrice(subItem.price)}
                 </span>
                 {settings?.showIncludeVat && (
-                  <span className="text-xs sm:text-sm text-gray-500 ml-2">
+                  <span className={`text-xs sm:text-sm text-gray-500 ${language === 'ar' ? 'mr-2' : 'ml-2'}`}>
                     ({language === 'ar' ? 'شامل الضريبة' : 'Inc. VAT'})
                   </span>
                 )}
@@ -248,19 +248,42 @@ const MultiItemModal = ({ item, language, onClose, settings, formatCategory }) =
               {/* Price range badge on image */}
               <div className="inline-flex items-center gap-2 mt-2">
                 <span className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-white text-xs font-medium">
-                  {language === 'ar' ? 'السعر' : 'Price'}: {
-                    item.price_min && item.price_max ? (
-                      item.price_min === item.price_max 
-                        ? formatPrice(item.price_min)
-                        : `${formatPrice(item.price_min)} - ${formatPrice(item.price_max)}`
-                    ) : (
-                      formatPrice(item.price)
-                    )
-                  }
-                  {settings?.showIncludeVat && (
-                    <span className="text-[10px] ml-1 opacity-90">
-                      ({language === 'ar' ? 'شامل الضريبة' : 'Inc. VAT'})
-                    </span>
+                  {language === 'ar' ? (
+                    <>
+                      {settings?.showIncludeVat && (
+                        <span className="text-[10px] opacity-90 ml-1">
+                          (شامل الضريبة)
+                        </span>
+                      )}
+                      <span style={{ direction: 'ltr', display: 'inline-block' }}>
+                        {item.price_min && item.price_max ? (
+                          item.price_min === item.price_max 
+                            ? formatPrice(item.price_min)
+                            : `${formatPrice(item.price_min)} - ${formatPrice(item.price_max)}`
+                        ) : (
+                          formatPrice(item.price)
+                        )}
+                      </span>
+                      <span className="mr-1">:السعر</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Price:</span>
+                      <span className="ml-1">
+                        {item.price_min && item.price_max ? (
+                          item.price_min === item.price_max 
+                            ? formatPrice(item.price_min)
+                            : `${formatPrice(item.price_min)} - ${formatPrice(item.price_max)}`
+                        ) : (
+                          formatPrice(item.price)
+                        )}
+                      </span>
+                      {settings?.showIncludeVat && (
+                        <span className="text-[10px] opacity-90 ml-1">
+                          (Inc. VAT)
+                        </span>
+                      )}
+                    </>
                   )}
                 </span>
                 {item.sub_items && (

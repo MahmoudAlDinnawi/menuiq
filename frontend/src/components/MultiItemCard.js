@@ -176,7 +176,7 @@ const MultiItemCard = ({ item, language, formatCategory, categories, settings, i
               >
                 {formatPriceRange()}
                 {settings?.showIncludeVat && (
-                  <div className="text-[9px] sm:text-[10px] font-normal opacity-75 mt-0.5">
+                  <div className={`text-[9px] sm:text-[10px] font-normal opacity-75 mt-0.5 ${language === 'ar' ? 'text-right' : 'text-left'}`}>
                     {language === 'ar' ? 'شامل الضريبة' : 'Include VAT'}
                   </div>
                 )}
