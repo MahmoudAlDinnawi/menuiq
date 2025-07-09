@@ -18,6 +18,7 @@ import LuxuryCategoryFilter from '../components/LuxuryCategoryFilter';
 import AmazingMobileCard from '../components/AmazingMobileCard';
 import AmazingDesktopCard from '../components/AmazingDesktopCard';
 import MultiItemCard from '../components/MultiItemCard';
+import LuxuryLanguageSelector from '../components/LuxuryLanguageSelector';
 import publicMenuAPI from '../services/publicMenuApi';
 import DOMPurify from 'dompurify';  // For sanitizing HTML content
 import analyticsTracker from '../services/analyticsTracker';  // Analytics tracking
@@ -33,21 +34,45 @@ const RestaurantMenu = () => {
   const [language, setLanguage] = useState('en');
   const [settings, setSettings] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [showLanguageSelector, setShowLanguageSelector] = useState(false);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   
   // For local development - check if we need to set subdomain
   const currentSubdomain = getSubdomain();
   const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
   useEffect(() => {
-    // Initialize analytics session
-    const initAnalytics = async () => {
-      await analyticsTracker.initSession(language);
-      // Track initial page view
-      analyticsTracker.trackPageView('menu');
+    const initializeApp = async () => {
+      try {
+        // First, fetch settings to get restaurant info
+        const settingsResponse = await publicMenuAPI.getSettings();
+        setSettings(settingsResponse || {});
+        
+        // Check if language was previously selected
+        const savedLanguage = localStorage.getItem('menuLanguage');
+        const hasVisited = localStorage.getItem('hasVisitedMenu');
+        
+        if (savedLanguage) {
+          setLanguage(savedLanguage);
+        }
+        
+        // Show language selector on first visit or if no language saved
+        if (!hasVisited || !savedLanguage) {
+          setShowLanguageSelector(true);
+          setLoading(false); // Stop showing loading screen
+          setInitialLoadComplete(true);
+        } else {
+          // Initialize menu if language already selected
+          await initializeMenu();
+        }
+      } catch (err) {
+        console.error('Error during initialization:', err);
+        setError('Failed to load restaurant information');
+        setLoading(false);
+      }
     };
     
-    initAnalytics();
-    fetchData();
+    initializeApp();
     
     const checkMobile = () => {
       setIsMobile(window.innerWidth <= 768);
@@ -56,15 +81,41 @@ const RestaurantMenu = () => {
     checkMobile();
     window.addEventListener('resize', checkMobile);
     
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const initializeMenu = async () => {
+    // Initialize analytics session
+    await analyticsTracker.initSession(language);
+    // Track initial page view
+    analyticsTracker.trackPageView('menu');
+    
+    await fetchData();
+    setInitialLoadComplete(true);
+    
     // Setup scroll tracking
     const unsubscribeScroll = analyticsTracker.trackScrollDepth();
     
     return () => {
-      window.removeEventListener('resize', checkMobile);
       if (unsubscribeScroll) unsubscribeScroll();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  };
+
+  const handleLanguageSelect = async (selectedLanguage) => {
+    setLanguage(selectedLanguage);
+    localStorage.setItem('menuLanguage', selectedLanguage);
+    localStorage.setItem('hasVisitedMenu', 'true');
+    setShowLanguageSelector(false);
+    setLoading(true); // Show loading while fetching menu data
+    
+    // Initialize menu after language selection
+    setTimeout(async () => {
+      await initializeMenu();
+    }, 500);
+  };
 
   // Remove this effect as we handle initial category in fetchData now
 
@@ -162,7 +213,7 @@ const RestaurantMenu = () => {
   };
 
 
-  if (loading) {
+  if (loading && !showLanguageSelector) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -192,7 +243,15 @@ const RestaurantMenu = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+    <>
+      {/* Luxury Language Selector */}
+      <LuxuryLanguageSelector
+        settings={settings}
+        onLanguageSelect={handleLanguageSelect}
+        isOpen={showLanguageSelector}
+      />
+      
+      <div className="min-h-screen bg-gray-50 flex flex-col" dir={language === 'ar' ? 'rtl' : 'ltr'}>
       {/* Debug Panel for Local Development */}
       {isLocalDev && (
         <div className="bg-yellow-100 border-b border-yellow-300 p-2 text-sm">
@@ -517,6 +576,7 @@ const RestaurantMenu = () => {
         </div>
       </footer>
     </div>
+    </>
   );
 };
 

@@ -173,10 +173,11 @@ const MultiItemCard = ({ item, language, formatCategory, categories, settings, i
               <div 
                 className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg font-bold text-sm sm:text-base md:text-lg"
                 style={{ color: primaryColor }}
+                dir={language === 'ar' ? 'rtl' : 'ltr'}
               >
-                {formatPriceRange()}
+                <span dir="ltr">{formatPriceRange()}</span>
                 {settings?.showIncludeVat && (
-                  <div className={`text-[9px] sm:text-[10px] font-normal opacity-75 mt-0.5 ${language === 'ar' ? 'text-right' : 'text-left'}`}>
+                  <div className="text-[9px] sm:text-[10px] font-normal opacity-75 mt-0.5">
                     {language === 'ar' ? 'شامل الضريبة' : 'Include VAT'}
                   </div>
                 )}
