@@ -34,133 +34,153 @@ const MultiItemModal = ({ item, language, onClose, settings, formatCategory }) =
         `}
         onClick={(e) => handleSubItemClick(e, subItem)}
       >
-        {/* Mobile optimized layout */}
-        <div className={`${subItem.image ? 'flex flex-row' : ''}`}>
-          {/* Image section - compact for mobile */}
+        {/* Responsive layout */}
+        <div className={`${subItem.image ? 'flex flex-col sm:flex-row' : 'p-4 sm:p-5'}`}>
+          {/* Image section */}
           {subItem.image && (
-            <div className="relative w-28 sm:w-36 h-28 sm:h-36 bg-gradient-to-br from-gray-100 to-gray-200 flex-shrink-0">
+            <div className="relative w-full sm:w-48 md:w-56 h-44 sm:h-48 md:h-52 bg-gradient-to-br from-gray-100 to-gray-200 flex-shrink-0">
               <LazyImage 
                 src={`${process.env.REACT_APP_API_URL || 'http://localhost:8000'}${subItem.image}`}
                 alt={subItem.name}
                 className="w-full h-full object-cover"
                 placeholder="/images/placeholder.svg"
               />
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent to-black/20" />
+              <div className="absolute inset-0 bg-gradient-to-t sm:bg-gradient-to-r from-transparent via-transparent to-black/40" />
               
-              {/* Price badge on image */}
-              <div className="absolute bottom-2 right-2">
+              {/* Price badge - positioned to avoid overlap */}
+              <div className="absolute top-3 right-3 sm:top-4 sm:right-4">
                 <div 
-                  className="px-2 py-1 bg-white/95 backdrop-blur-sm rounded-lg shadow-md font-bold text-sm"
+                  className="px-3 py-1.5 sm:px-4 sm:py-2 bg-white/95 backdrop-blur-sm rounded-xl shadow-xl font-bold text-lg sm:text-xl"
                   style={{ color: primaryColor }}
                 >
                   {formatPrice(subItem.price)}
+                  {settings?.showIncludeVat && (
+                    <div className="text-[9px] sm:text-[10px] font-normal opacity-75 mt-0.5">
+                      {language === 'ar' ? 'شامل الضريبة' : 'Inc. VAT'}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           )}
 
-          {/* Content section - optimized for mobile */}
-          <div className={`flex-1 p-3 sm:p-4 ${isImageless ? 'bg-gradient-to-br from-gray-50 to-white' : ''}`}>
-            {/* Title and description */}
-            <div className="mb-2">
-              <h3 className="font-bold text-sm sm:text-base text-gray-800 mb-1 line-clamp-1">
+          {/* Content section - enhanced for better mobile/desktop experience */}
+          <div className={`flex-1 p-4 sm:p-5 md:p-6 flex flex-col min-h-[180px] ${isImageless ? 'bg-gradient-to-br from-gray-50 to-white relative' : ''}`}>
+            {/* Title and description with better spacing */}
+            <div className="mb-4">
+              <h3 className="font-bold text-lg sm:text-xl text-gray-900 mb-2 line-clamp-2 leading-tight">
                 {language === 'ar' && (subItem.nameAr || subItem.name_ar) ? (subItem.nameAr || subItem.name_ar) : subItem.name}
               </h3>
               
               {(subItem.description || subItem.description_en) && (
-                <p className="text-xs sm:text-sm text-gray-600 line-clamp-2">
+                <p className="text-sm sm:text-base text-gray-600 line-clamp-2 leading-relaxed">
                   {language === 'ar' && (subItem.descriptionAr || subItem.description_ar) ? (subItem.descriptionAr || subItem.description_ar) : (subItem.description || subItem.description_en)}
                 </p>
               )}
             </div>
+            
+            {/* Price for imageless items - prominent display */}
+            {isImageless && (
+              <div className="mb-3">
+                <span 
+                  className="text-2xl sm:text-3xl font-bold"
+                  style={{ color: primaryColor }}
+                >
+                  {formatPrice(subItem.price)}
+                </span>
+                {settings?.showIncludeVat && (
+                  <span className="text-xs sm:text-sm text-gray-500 ml-2">
+                    ({language === 'ar' ? 'شامل الضريبة' : 'Inc. VAT'})
+                  </span>
+                )}
+              </div>
+            )}
 
-            {/* Quick info badges */}
-            <div className="flex flex-wrap gap-2 mb-2">
+            {/* Quick info badges - improved sizing and spacing */}
+            <div className="flex flex-wrap gap-2 mb-4">
               {subItem.calories && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-50 text-orange-700 rounded-full text-xs">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-orange-50 text-orange-700 rounded-full text-xs font-medium">
                   <span className="text-xs">🔥</span>
                   {subItem.calories} {language === 'ar' ? 'سعرة' : 'cal'}
                 </span>
               )}
               {subItem.preparationTime && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
                   <span className="text-xs">⏱️</span>
                   {subItem.preparationTime} {language === 'ar' ? 'د' : 'min'}
                 </span>
               )}
               {subItem.vegetarian && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-50 text-green-700 rounded-full text-xs">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium">
                   <span className="text-xs">🌱</span>
                   {language === 'ar' ? 'نباتي' : 'Veg'}
                 </span>
               )}
             </div>
 
-            {/* Nutrition macros - compact view */}
+            {/* Nutrition macros - better display */}
             {(subItem.protein || subItem.totalCarbs || subItem.totalFat) && (
-              <div className="flex items-center gap-3 text-[10px] sm:text-xs text-gray-600 mb-2">
+              <div className="flex items-center gap-3 sm:gap-4 mb-4 py-2.5 px-3 bg-gray-50 rounded-lg">
                 {subItem.protein && (
-                  <div className="text-center">
-                    <div className="font-semibold">{subItem.protein}g</div>
-                    <div className="text-[9px] text-gray-500">{language === 'ar' ? 'بروتين' : 'Protein'}</div>
+                  <div className="text-center flex-1">
+                    <div className="font-bold text-sm text-gray-900">{subItem.protein}g</div>
+                    <div className="text-[10px] text-gray-500 mt-0.5">{language === 'ar' ? 'بروتين' : 'Protein'}</div>
                   </div>
                 )}
                 {subItem.totalCarbs && (
-                  <div className="text-center">
-                    <div className="font-semibold">{subItem.totalCarbs}g</div>
-                    <div className="text-[9px] text-gray-500">{language === 'ar' ? 'كربوهيدرات' : 'Carbs'}</div>
+                  <div className="text-center flex-1 border-x border-gray-200">
+                    <div className="font-bold text-sm text-gray-900">{subItem.totalCarbs}g</div>
+                    <div className="text-[10px] text-gray-500 mt-0.5">{language === 'ar' ? 'كربوهيدرات' : 'Carbs'}</div>
                   </div>
                 )}
                 {subItem.totalFat && (
-                  <div className="text-center">
-                    <div className="font-semibold">{subItem.totalFat}g</div>
-                    <div className="text-[9px] text-gray-500">{language === 'ar' ? 'دهون' : 'Fat'}</div>
+                  <div className="text-center flex-1">
+                    <div className="font-bold text-sm text-gray-900">{subItem.totalFat}g</div>
+                    <div className="text-[10px] text-gray-500 mt-0.5">{language === 'ar' ? 'دهون' : 'Fat'}</div>
                   </div>
                 )}
               </div>
             )}
 
             {/* Bottom section with allergens and CTA */}
-            <div className="flex items-center justify-between mt-auto pt-2">
+            <div className="flex items-center justify-between mt-auto pt-3 border-t border-gray-100">
               {/* Allergens */}
               {subItem.allergens && subItem.allergens.length > 0 ? (
-                <div className="flex gap-0.5">
-                  {subItem.allergens.slice(0, 3).map((allergen, idx) => (
-                    <AllergenSVGIcon 
-                      key={idx}
-                      allergenName={typeof allergen === 'object' ? allergen.name : allergen}
-                      className="w-4 h-4"
-                      title={typeof allergen === 'object' ? (language === 'ar' ? allergen.display_name_ar : allergen.display_name) : allergen}
-                    />
-                  ))}
+                <div className="flex items-center gap-1.5">
+                  <div className="flex gap-1">
+                    {subItem.allergens.slice(0, 3).map((allergen, idx) => (
+                      <div key={idx} className="p-1 bg-amber-50 rounded-full">
+                        <AllergenSVGIcon 
+                          iconPath={typeof allergen === 'object' ? allergen.icon_url : `/src/assets/allergy_icons/${allergen}.svg`}
+                          size="w-3.5 h-3.5"
+                          className=""
+                          primaryColor="#d97706"
+                        />
+                      </div>
+                    ))}
+                  </div>
                   {subItem.allergens.length > 3 && (
-                    <span className="text-[10px] text-gray-500 self-center">+{subItem.allergens.length - 3}</span>
+                    <span className="text-[11px] text-gray-500 font-medium">+{subItem.allergens.length - 3}</span>
                   )}
                 </div>
               ) : (
                 <div /> // Empty div for spacing
               )}
 
-              {/* View details text - always visible on mobile */}
-              <span className="text-xs font-medium flex items-center gap-1" style={{ color: primaryColor }}>
-                {language === 'ar' ? 'التفاصيل' : 'Details'}
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              {/* View details text with better styling */}
+              <span 
+                className="text-xs sm:text-sm font-semibold flex items-center gap-1.5 px-3 py-1.5 bg-opacity-10 rounded-full transition-all hover:bg-opacity-20"
+                style={{ 
+                  color: primaryColor,
+                  backgroundColor: `${primaryColor}15`
+                }}
+              >
+                {language === 'ar' ? 'عرض التفاصيل' : 'View Details'}
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
                 </svg>
               </span>
             </div>
-
-            {/* If no image, show price prominently */}
-            {isImageless && (
-              <div className="absolute top-3 right-3">
-                <div 
-                  className="px-3 py-1.5 bg-white rounded-lg shadow-md font-bold text-base"
-                  style={{ color: primaryColor }}
-                >
-                  {formatPrice(subItem.price)}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -237,6 +257,11 @@ const MultiItemModal = ({ item, language, onClose, settings, formatCategory }) =
                       formatPrice(item.price)
                     )
                   }
+                  {settings?.showIncludeVat && (
+                    <span className="text-[10px] ml-1 opacity-90">
+                      ({language === 'ar' ? 'شامل الضريبة' : 'Inc. VAT'})
+                    </span>
+                  )}
                 </span>
                 {item.sub_items && (
                   <span className="px-3 py-1 bg-white/20 backdrop-blur-sm rounded-full text-white text-xs font-medium">
@@ -260,9 +285,10 @@ const MultiItemModal = ({ item, language, onClose, settings, formatCategory }) =
                     {item.allergens.map((allergen, idx) => (
                       <AllergenSVGIcon 
                         key={idx}
-                        allergenName={typeof allergen === 'object' ? allergen.name : allergen}
-                        className="w-4 h-4"
-                        title={typeof allergen === 'object' ? (language === 'ar' ? allergen.display_name_ar : allergen.display_name) : allergen}
+                        iconPath={typeof allergen === 'object' ? allergen.iconUrl : `/src/assets/allergy_icons/${allergen}.svg`}
+                        size="w-4 h-4"
+                        className=""
+                        primaryColor="#d97706"
                       />
                     ))}
                   </div>

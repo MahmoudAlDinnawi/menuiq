@@ -309,6 +309,37 @@ async def delete_category(
     
     return {"message": "Category deleted successfully"}
 
+@router.post("/categories/update-sort-order")
+async def update_categories_sort_order(
+    data: dict,
+    current_user: dict = Depends(get_current_user_dict),
+    db: Session = Depends(get_db)
+):
+    """Update sort order for multiple categories"""
+    tenant = get_tenant_from_user(current_user, db)
+    
+    categories = data.get("categories", [])
+    
+    try:
+        for cat_data in categories:
+            category = db.query(Category).filter(
+                Category.id == cat_data["id"],
+                Category.tenant_id == tenant.id
+            ).first()
+            
+            if category:
+                category.sort_order = cat_data["sort_order"]
+        
+        db.commit()
+        
+        # Invalidate cache
+        invalidate_public_menu_cache(tenant.subdomain)
+        
+        return {"message": "Category sort order updated successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+
 # Settings endpoints
 @router.get("/settings")
 async def get_settings(

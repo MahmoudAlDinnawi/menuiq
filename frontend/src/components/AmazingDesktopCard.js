@@ -350,7 +350,7 @@ const AmazingDesktopCard = ({ item, language, formatCategory, categories, settin
                         style={{ zIndex: allergenInfo.length - index }}
                         title={allergen.displayName}
                       >
-                        {allergen.iconUrl ? (
+                        {allergen.iconUrl && allergen.iconUrl.endsWith ? (
                           allergen.iconUrl.endsWith('.svg') ? (
                             <AllergenSVGIcon 
                               iconPath={allergen.iconUrl}

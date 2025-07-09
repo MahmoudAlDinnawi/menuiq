@@ -13,6 +13,11 @@ import mustardIcon from '../assets/allergy_icons/mustard.svg';
 import nutsIcon from '../assets/allergy_icons/nuts.svg';
 
 const AllergenSVGIcon = ({ iconPath, size = 'w-8 h-8', primaryColor = '#00594f', className = '' }) => {
+  // Handle undefined iconPath
+  if (!iconPath) {
+    return <span className={`${size} flex items-center justify-center text-2xl`}>⚠️</span>;
+  }
+  
   // Extract filename from path
   const filename = iconPath.split('/').pop()?.toLowerCase() || '';
   

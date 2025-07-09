@@ -175,6 +175,11 @@ const MultiItemCard = ({ item, language, formatCategory, categories, settings, i
                 style={{ color: primaryColor }}
               >
                 {formatPriceRange()}
+                {settings?.showIncludeVat && (
+                  <div className="text-[9px] sm:text-[10px] font-normal opacity-75 mt-0.5">
+                    {language === 'ar' ? 'شامل الضريبة' : 'Include VAT'}
+                  </div>
+                )}
               </div>
             </div>
           </div>

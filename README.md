@@ -17,7 +17,7 @@ MenuIQ is a comprehensive SaaS platform for restaurants to create, manage, and d
 - **Analytics Ready**: Track menu views and user interactions
 
 ## Technology Stack
-
+  ./deploy_and_fix_uploads.sh
 ### Backend
 - **Framework**: FastAPI (Python)
 - **Database**: PostgreSQL

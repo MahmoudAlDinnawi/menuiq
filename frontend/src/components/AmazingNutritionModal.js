@@ -385,7 +385,7 @@ const AmazingNutritionModal = ({ item, isOpen, onClose, language, formatCategory
                           className="bg-white rounded-xl p-3 md:p-4 text-center hover:scale-105 transition-transform cursor-pointer shadow-sm"
                         >
                           <div className="w-14 h-14 md:w-16 md:h-16 mx-auto mb-2 bg-gradient-to-br from-amber-100 to-orange-100 rounded-full flex items-center justify-center">
-                            {allergen.iconUrl ? (
+                            {allergen.iconUrl && allergen.iconUrl.endsWith ? (
                               allergen.iconUrl.endsWith('.svg') ? (
                                 <AllergenSVGIcon 
                                   iconPath={allergen.iconUrl}
