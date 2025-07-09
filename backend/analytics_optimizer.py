@@ -233,14 +233,14 @@ class AnalyticsOptimizer:
         
         # Use aggregated data from analytics_daily
         popular_items = db.query(
-            AnalyticsItemClick.menu_item_id,
+            AnalyticsItemClick.item_id,
             func.count(AnalyticsItemClick.id).label("click_count")
         ).filter(
             AnalyticsItemClick.tenant_id == tenant_id,
             cast(AnalyticsItemClick.timestamp, Date) >= start_date,
             cast(AnalyticsItemClick.timestamp, Date) <= end_date
         ).group_by(
-            AnalyticsItemClick.menu_item_id
+            AnalyticsItemClick.item_id
         ).order_by(
             func.count(AnalyticsItemClick.id).desc()
         ).limit(limit).all()

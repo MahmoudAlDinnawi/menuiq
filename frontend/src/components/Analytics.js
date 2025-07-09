@@ -70,15 +70,26 @@ const Analytics = () => {
   const [topItems, setTopItems] = useState([]);
   const [categoryPerformance, setCategoryPerformance] = useState([]);
   const [deviceDetails, setDeviceDetails] = useState([]);
+  const [lastRefresh, setLastRefresh] = useState(new Date());
 
   useEffect(() => {
     fetchAnalytics();
+    
+    // Auto-refresh every 30 seconds for real-time updates
+    const refreshInterval = setInterval(() => {
+      fetchAnalytics(true); // true = silent refresh (no loading state)
+      setLastRefresh(new Date());
+    }, 30000); // 30 seconds
+    
+    return () => clearInterval(refreshInterval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateRange, startDate, endDate]);
 
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = async (silentRefresh = false) => {
     try {
-      setLoading(true);
+      if (!silentRefresh) {
+        setLoading(true);
+      }
       
       // Calculate date range
       let calculatedStartDate, calculatedEndDate;
@@ -152,7 +163,9 @@ const Analytics = () => {
     } catch (error) {
       console.error('Failed to fetch analytics:', error);
     } finally {
-      setLoading(false);
+      if (!silentRefresh) {
+        setLoading(false);
+      }
     }
   };
 
@@ -254,8 +267,23 @@ const Analytics = () => {
       <div className="space-y-6 pb-8">
         {/* Header with Date Range Selector */}
         <div className="flex flex-col sm:flex-row gap-4 sm:justify-between sm:items-center">
-          <h1 className="text-2xl font-bold text-gray-900">Analytics Dashboard</h1>
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Analytics Dashboard</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Auto-refreshes every 30 seconds • Last updated: {lastRefresh.toLocaleTimeString()}
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+            <button
+              onClick={() => fetchAnalytics()}
+              className="px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+              title="Refresh now"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Refresh
+            </button>
             <select
               value={customDateRange ? 'custom' : dateRange}
               onChange={(e) => {
@@ -431,7 +459,7 @@ const Analytics = () => {
                 </div>
                 {/* Custom Legend with Details */}
                 <div className="mt-4 space-y-2">
-                  {deviceDetails.map((device, index) => (
+                  {deviceDetails.map((device) => (
                     <div key={device.type} className="flex items-center justify-between p-2 rounded-lg hover:bg-gray-50">
                       <div className="flex items-center gap-3">
                         <span className="text-xl">{device.icon}</span>
@@ -624,7 +652,7 @@ const DeviceDetailsTable = ({ dateRange }) => {
         </thead>
         <tbody>
           {devices.map((device, index) => (
-            <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
+            <tr key={`${device.brand}-${device.full_name}-${device.type}-${index}`} className="border-b border-gray-100 hover:bg-gray-50">
               <td className="py-3 px-4">
                 <span className="font-medium text-gray-900">{device.full_name}</span>
               </td>

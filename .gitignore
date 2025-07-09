@@ -67,6 +67,15 @@ backend/alembic/versions/__pycache__/
 # Frontend specific
 frontend/.eslintcache
 frontend/node_modules/.cache/
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# React/Build cache
+frontend/.cache/
+frontend/.parcel-cache/
+frontend/.next/
+frontend/out/
 
 # Production files to exclude
 *.pyc
@@ -104,3 +113,71 @@ create_luxury_*.py
 local_setup.sh
 reset_database.sh
 setup_*.sh
+
+# Server-specific configuration
+nginx.conf
+apache.conf
+supervisor.conf
+*.service
+
+# Analytics cache (if implemented later)
+backend/analytics_cache/
+backend/.analytics_cache/
+
+# Session files
+backend/sessions/
+*.session
+
+# Backup files
+*.backup
+*.dump
+backup/
+backups/
+
+# Local development specific
+.env.development
+.env.test
+backend/.env.development
+backend/.env.test
+frontend/.env.development.local
+frontend/.env.test.local
+
+# Production-specific (should not be in git)
+.env.production
+backend/.env.production
+frontend/.env.production.local
+
+# SSL certificates (never commit these!)
+*.pem
+*.key
+*.crt
+*.csr
+ssl/
+certs/
+
+# Docker volumes (if using Docker)
+postgres-data/
+redis-data/
+
+# macOS specific
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Windows specific
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.lnk

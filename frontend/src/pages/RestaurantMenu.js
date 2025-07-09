@@ -21,16 +21,22 @@ import MultiItemCard from '../components/MultiItemCard';
 import publicMenuAPI from '../services/publicMenuApi';
 import DOMPurify from 'dompurify';  // For sanitizing HTML content
 import analyticsTracker from '../services/analyticsTracker';  // Analytics tracking
+import { getSubdomain, setDevSubdomain } from '../utils/subdomain';
 
 const RestaurantMenu = () => {
+  // Initialize with empty arrays to prevent undefined errors
   const [menuItems, setMenuItems] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [activeCategory, setActiveCategory] = useState('all');
+  const [activeCategory, setActiveCategory] = useState(null); // Start with null to set first category
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [language, setLanguage] = useState('en');
   const [settings, setSettings] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
+  
+  // For local development - check if we need to set subdomain
+  const currentSubdomain = getSubdomain();
+  const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
   useEffect(() => {
     // Initialize analytics session
@@ -60,46 +66,101 @@ const RestaurantMenu = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Remove this effect as we handle initial category in fetchData now
+
   const fetchData = async () => {
     try {
       setLoading(true);
+      console.log('[RestaurantMenu] Starting data fetch...');
+      console.log('[RestaurantMenu] Current subdomain:', getSubdomain());
+      console.log('[RestaurantMenu] API URL:', process.env.REACT_APP_API_URL || 'http://localhost:8000');
+      
       const [itemsResponse, categoriesResponse, settingsResponse] = await Promise.all([
         publicMenuAPI.getMenuItems(),
         publicMenuAPI.getCategories(),
         publicMenuAPI.getSettings()
       ]);
-      setMenuItems(itemsResponse);
-      setCategories(categoriesResponse);
-      setSettings(settingsResponse);
+      
+      // Ensure menuItems is always an array
+      const items = Array.isArray(itemsResponse) ? itemsResponse : [];
+      const categoriesList = Array.isArray(categoriesResponse) ? categoriesResponse : [];
+      
+      console.log('Raw API responses:', {
+        items: itemsResponse,
+        categories: categoriesResponse,
+        settings: settingsResponse,
+        showAllCategory: settingsResponse?.showAllCategory,
+        currentActiveCategory: activeCategory
+      });
+      
+      // Extra safety: ensure we're setting arrays
+      setMenuItems(Array.isArray(items) ? items : []);
+      setCategories(Array.isArray(categoriesList) ? categoriesList : []);
+      setSettings(settingsResponse || {});
       
       // Debug log
+      console.log('Items received:', itemsResponse);
       console.log('Settings received:', settingsResponse);
       console.log('showAllCategory value:', settingsResponse?.showAllCategory);
       
-      // If "All" category is disabled and current category is "all", 
-      // switch to first available category
-      if (settingsResponse?.showAllCategory === false && activeCategory === 'all') {
-        if (categoriesResponse.length > 0) {
-          setActiveCategory(categoriesResponse[0].value);
+      // Set initial category based on settings
+      if (activeCategory === null) {
+        if (settingsResponse?.showAllCategory === false || settingsResponse?.showAllCategory === undefined) {
+          // If showAllCategory is false or undefined, select first category
+          if (categoriesList.length > 0) {
+            console.log('Setting first category:', categoriesList[0].value);
+            setActiveCategory(categoriesList[0].value);
+          }
+        } else {
+          // If showAllCategory is true, select "all"
+          console.log('Setting category to all');
+          setActiveCategory('all');
         }
       }
     } catch (err) {
       setError('Failed to load menu. Please try again later.');
       console.error('Error fetching data:', err);
+      // Set empty arrays on error to prevent map errors
+      setMenuItems([]);
+      setCategories([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredItems = activeCategory === 'all' 
-    ? menuItems 
-    : menuItems.filter(item => item.category === activeCategory);
+  // Ensure menuItems is always an array before filtering
+  const safeMenuItems = Array.isArray(menuItems) ? menuItems : [];
+  const safeCategories = Array.isArray(categories) ? categories : [];
+  
+  // Double-check array before filter operation
+  let filteredItems = [];
+  try {
+    if (!activeCategory || activeCategory === 'all') {
+      filteredItems = safeMenuItems;
+    } else if (Array.isArray(safeMenuItems)) {
+      filteredItems = safeMenuItems.filter(item => item && item.category === activeCategory);
+    }
+  } catch (error) {
+    console.error('Error filtering items:', error);
+    filteredItems = [];
+  }
+  
+  // Ensure displayItems is always an array
+  const displayItems = Array.isArray(filteredItems) ? filteredItems : [];
+  
+  // Debug logging
+  console.log('menuItems:', menuItems);
+  console.log('safeMenuItems:', safeMenuItems);
+  console.log('filteredItems:', filteredItems);
+  console.log('displayItems:', displayItems);
+  console.log('activeCategory:', activeCategory);
 
   const formatCategory = (category) => {
-    const categoryData = categories.find(cat => cat.value === category);
+    const categoryData = safeCategories.find(cat => cat.value === category);
     if (!categoryData) return category;
     return language === 'ar' && categoryData.labelAr ? categoryData.labelAr : categoryData.label;
   };
+
 
   if (loading) {
     return (
@@ -132,6 +193,29 @@ const RestaurantMenu = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col" dir={language === 'ar' ? 'rtl' : 'ltr'}>
+      {/* Debug Panel for Local Development */}
+      {isLocalDev && (
+        <div className="bg-yellow-100 border-b border-yellow-300 p-2 text-sm">
+          <div className="container mx-auto flex items-center justify-between">
+            <span>
+              🛠️ Local Dev Mode | Subdomain: <strong>{currentSubdomain}</strong> | 
+              API: <strong>{process.env.REACT_APP_API_URL || 'http://localhost:8000'}</strong>
+            </span>
+            <button
+              onClick={() => {
+                const newSubdomain = prompt('Enter subdomain (e.g., entrecote):', currentSubdomain);
+                if (newSubdomain) {
+                  setDevSubdomain(newSubdomain);
+                  window.location.reload();
+                }
+              }}
+              className="bg-yellow-600 text-white px-3 py-1 rounded text-xs"
+            >
+              Change Subdomain
+            </button>
+          </div>
+        </div>
+      )}
       {/* SEO Meta Tags */}
       <Helmet>
         <title>
@@ -297,12 +381,12 @@ const RestaurantMenu = () => {
       {/* Category Filter - sticky under navbar */}
       <div className="sticky top-16 sm:top-20 z-30">
         <LuxuryCategoryFilter 
-          categories={categories}
+          categories={safeCategories}
           activeCategory={activeCategory}
           onCategoryChange={(category) => {
             setActiveCategory(category);
             // Track category view
-            const categoryId = categories.find(c => c.value === category)?.id;
+            const categoryId = safeCategories.find(c => c.value === category)?.id;
             analyticsTracker.trackPageView('category', categoryId);
           }}
           language={language}
@@ -312,17 +396,23 @@ const RestaurantMenu = () => {
       
       {/* Main Content - flex-grow to push footer down */}
       <main className="container mx-auto px-3 sm:px-4 py-6 sm:py-8 flex-grow">
-        {isMobile ? (
+        {displayItems.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg">
+              {language === 'ar' ? 'لا توجد عناصر في هذه الفئة' : 'No items in this category'}
+            </p>
+          </div>
+        ) : isMobile ? (
           // Mobile Layout
           <div className="space-y-3">
-            {filteredItems.map((item) => (
+            {Array.isArray(displayItems) && displayItems.map((item) => (
               item.is_multi_item ? (
                 <MultiItemCard 
                   key={item.id}
                   item={item}
                   language={language}
                   formatCategory={formatCategory}
-                  categories={categories}
+                  categories={safeCategories}
                   settings={settings}
                   isMobile={true}
                 />
@@ -332,7 +422,7 @@ const RestaurantMenu = () => {
                   item={item}
                   language={language}
                   formatCategory={formatCategory}
-                  categories={categories}
+                  categories={safeCategories}
                   settings={settings}
                 />
               )
@@ -341,14 +431,14 @@ const RestaurantMenu = () => {
         ) : (
           // Desktop Layout
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredItems.map((item) => (
+            {Array.isArray(displayItems) && displayItems.map((item) => (
               item.is_multi_item ? (
                 <MultiItemCard 
                   key={item.id}
                   item={item}
                   language={language}
                   formatCategory={formatCategory}
-                  categories={categories}
+                  categories={safeCategories}
                   settings={settings}
                   isMobile={false}
                 />
@@ -358,7 +448,7 @@ const RestaurantMenu = () => {
                   item={item}
                   language={language}
                   formatCategory={formatCategory}
-                  categories={categories}
+                  categories={safeCategories}
                   settings={settings}
                 />
               )
@@ -366,7 +456,7 @@ const RestaurantMenu = () => {
           </div>
         )}
         
-        {filteredItems.length === 0 && (
+        {displayItems.length === 0 && (
           <div className="text-center py-8 sm:py-12">
             <p className="text-gray-500 text-base sm:text-lg">
               {language === 'ar' ? 'لا توجد عناصر في هذه الفئة.' : 'No items found in this category.'}

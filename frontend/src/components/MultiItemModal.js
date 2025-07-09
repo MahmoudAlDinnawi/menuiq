@@ -23,7 +23,7 @@ const MultiItemModal = ({ item, language, onClose, settings }) => {
     return (
       <div
         key={subItem.id}
-        className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer transform hover:-translate-y-1 flex flex-col"
+        className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer transform hover:-translate-y-1 flex flex-col group"
         onClick={(e) => handleSubItemClick(e, subItem)}
       >
         {/* Sub-item image - only show if image exists */}
@@ -35,6 +35,7 @@ const MultiItemModal = ({ item, language, onClose, settings }) => {
               className="w-full h-full object-cover"
               placeholder="/images/placeholder.svg"
             />
+            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300" />
           </div>
         )}
 
@@ -58,27 +59,59 @@ const MultiItemModal = ({ item, language, onClose, settings }) => {
                 {formatPrice(subItem.price)}
               </span>
               
-              {subItem.calories && (
-                <span className="flex items-center gap-1 text-sm text-gray-500">
-                  <span>🔥</span>
-                  {subItem.calories} {language === 'ar' ? 'سعرة' : 'cal'}
-                </span>
-              )}
+              <div className="flex items-center gap-3 text-sm text-gray-500">
+                {subItem.calories && (
+                  <span className="flex items-center gap-1">
+                    <span>🔥</span>
+                    {subItem.calories}
+                  </span>
+                )}
+                {subItem.preparation_time && (
+                  <span className="flex items-center gap-1">
+                    <span>⏱️</span>
+                    {subItem.preparation_time}{language === 'ar' ? 'د' : 'm'}
+                  </span>
+                )}
+              </div>
             </div>
+
+            {/* Quick nutrition info */}
+            {(subItem.protein || subItem.carbs || subItem.fat) && (
+              <div className="flex flex-wrap gap-2 sm:gap-3 text-[10px] sm:text-xs text-gray-600 mb-2">
+                {subItem.protein && (
+                  <span><span className="font-medium">{language === 'ar' ? 'بروتين' : 'P'}</span>: {subItem.protein}g</span>
+                )}
+                {subItem.carbs && (
+                  <span><span className="font-medium">{language === 'ar' ? 'كربوهيدرات' : 'C'}</span>: {subItem.carbs}g</span>
+                )}
+                {subItem.fat && (
+                  <span><span className="font-medium">{language === 'ar' ? 'دهون' : 'F'}</span>: {subItem.fat}g</span>
+                )}
+              </div>
+            )}
 
             {/* Allergens */}
             {subItem.allergens && subItem.allergens.length > 0 && (
-              <div className="flex gap-1 pt-2 border-t border-gray-100">
-                {subItem.allergens.slice(0, 4).map((allergen, idx) => (
-                  <AllergenSVGIcon 
-                    key={idx}
-                    allergenName={typeof allergen === 'object' ? allergen.name : allergen}
-                    className="w-4 h-4"
-                  />
-                ))}
-                {subItem.allergens.length > 4 && (
-                  <span className="text-xs text-gray-500 ml-1">+{subItem.allergens.length - 4}</span>
-                )}
+              <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                <div className="flex gap-1">
+                  {subItem.allergens.slice(0, 4).map((allergen, idx) => (
+                    <AllergenSVGIcon 
+                      key={idx}
+                      allergenName={typeof allergen === 'object' ? allergen.name : allergen}
+                      className="w-4 h-4"
+                      title={typeof allergen === 'object' ? (language === 'ar' ? allergen.display_name_ar : allergen.display_name) : allergen}
+                    />
+                  ))}
+                  {subItem.allergens.length > 4 && (
+                    <span className="text-xs text-gray-500 ml-1">+{subItem.allergens.length - 4}</span>
+                  )}
+                </div>
+                <span className="text-xs text-blue-600 hover:text-blue-700 cursor-pointer flex items-center gap-1">
+                  {language === 'ar' ? 'عرض التفاصيل' : 'View Details'}
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </span>
               </div>
             )}
           </div>
@@ -137,20 +170,48 @@ const MultiItemModal = ({ item, language, onClose, settings }) => {
 
           {/* Content */}
           <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-12rem)] sm:max-h-[calc(90vh-16rem)]">
-            {/* Price range info */}
-            <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600 mb-1">
-                {language === 'ar' ? 'نطاق السعر' : 'Price Range'}
-              </p>
-              <p className="text-xl sm:text-2xl font-bold" style={{ color: primaryColor }}>
-                {item.price_min && item.price_max ? (
-                  item.price_min === item.price_max 
-                    ? formatPrice(item.price_min)
-                    : `${formatPrice(item.price_min)} - ${formatPrice(item.price_max)}`
-                ) : (
-                  formatPrice(item.price)
-                )}
-              </p>
+            {/* Main item info */}
+            <div className="mb-4 sm:mb-6 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              {/* Price range info */}
+              <div className="p-3 sm:p-4 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-600 mb-1">
+                  {language === 'ar' ? 'نطاق السعر' : 'Price Range'}
+                </p>
+                <p className="text-xl sm:text-2xl font-bold" style={{ color: primaryColor }}>
+                  {item.price_min && item.price_max ? (
+                    item.price_min === item.price_max 
+                      ? formatPrice(item.price_min)
+                      : `${formatPrice(item.price_min)} - ${formatPrice(item.price_max)}`
+                  ) : (
+                    formatPrice(item.price)
+                  )}
+                </p>
+              </div>
+              
+              {/* Main item allergens if any */}
+              {item.allergens && item.allergens.length > 0 && (
+                <div className="p-3 sm:p-4 bg-yellow-50 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-2">
+                    {language === 'ar' ? 'مسببات الحساسية' : 'Contains'}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {item.allergens.map((allergen, idx) => (
+                      <div key={idx} className="flex items-center gap-1">
+                        <AllergenSVGIcon 
+                          allergenName={typeof allergen === 'object' ? allergen.name : allergen}
+                          className="w-5 h-5"
+                        />
+                        <span className="text-xs text-gray-700">
+                          {typeof allergen === 'object' 
+                            ? (language === 'ar' ? allergen.display_name_ar || allergen.display_name : allergen.display_name)
+                            : allergen
+                          }
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Section title */}
@@ -159,7 +220,7 @@ const MultiItemModal = ({ item, language, onClose, settings }) => {
             </h3>
 
             {/* Sub-items grid */}
-            <div className={`grid gap-3 sm:gap-4 ${item.display_as_grid && item.sub_items?.length > 2 ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
+            <div className={`grid gap-3 sm:gap-4 ${item.display_as_grid && item.sub_items?.length > 2 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
               {item.sub_items && item.sub_items.length > 0 ? (
                 item.sub_items
                   .sort((a, b) => (a.sub_item_order || 0) - (b.sub_item_order || 0))

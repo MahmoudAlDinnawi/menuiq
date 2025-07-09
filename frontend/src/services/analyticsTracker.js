@@ -11,6 +11,7 @@
  */
 
 import axios from 'axios';
+import { getSubdomain } from '../utils/subdomain';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
@@ -19,36 +20,23 @@ class AnalyticsTracker {
     this.sessionId = null;
     this.pageStartTime = null;
     this.currentPage = null;
-    this.subdomain = this.getSubdomain();
-  }
-
-  /**
-   * Get subdomain from current URL
-   */
-  getSubdomain() {
-    const hostname = window.location.hostname;
-    const parts = hostname.split('.');
-    
-    // For localhost, use a default subdomain
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return 'demo'; // Default for development - matches the demo tenant in database
-    }
-    
-    // For production, extract subdomain
-    if (parts.length >= 3 && hostname.includes('menuiq.io')) {
-      return parts[0];
-    }
-    
-    return null;
+    this.subdomain = null; // Will be set dynamically
   }
 
   /**
    * Initialize analytics session
    */
   async initSession(language = 'en') {
-    if (!this.subdomain) return;
+    // Get subdomain dynamically
+    this.subdomain = getSubdomain();
+    
+    if (!this.subdomain) {
+      console.warn('[Analytics] No subdomain found, skipping session init');
+      return;
+    }
     
     try {
+      console.log(`[Analytics] Initializing session for subdomain: ${this.subdomain}, language: ${language}`);
       const response = await axios.post(`${API_URL}/api/analytics/track/session`, null, {
         params: {
           subdomain: this.subdomain,
@@ -57,6 +45,7 @@ class AnalyticsTracker {
       });
       
       this.sessionId = response.data.session_id;
+      console.log(`[Analytics] Session initialized with ID: ${this.sessionId}`);
       
       // Store session ID in sessionStorage for page reloads
       sessionStorage.setItem('analytics_session_id', this.sessionId);
@@ -67,6 +56,7 @@ class AnalyticsTracker {
       return this.sessionId;
     } catch (error) {
       console.error('Failed to initialize analytics session:', error);
+      console.error('Error details:', error.response?.data);
     }
   }
 

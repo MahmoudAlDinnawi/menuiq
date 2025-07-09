@@ -48,6 +48,38 @@
   @apply bg-primary rounded-md;
 }
 
+/* Mobile-specific improvements */
+@media (max-width: 640px) {
+  /* Improve tap targets for mobile */
+  button, a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Smooth scrolling for mobile */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Responsive utilities */
+@layer utilities {
+  /* Extra small breakpoint for very small phones */
+  @media (min-width: 360px) {
+    .xs\:inline {
+      display: inline;
+    }
+    .xs\:hidden {
+      display: none;
+    }
+  }
+}
+
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-primary-dark;
 }

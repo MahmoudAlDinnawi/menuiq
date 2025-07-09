@@ -91,7 +91,7 @@ const MultiItemCard = ({ item, language, formatCategory, categories, settings, i
           }}
         >
           {/* Image Section */}
-          <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200">
+          <div className="relative h-40 sm:h-48 md:h-52 bg-gradient-to-br from-gray-100 to-gray-200">
             {item.image && !imageError ? (
               <>
                 <LazyImage 
@@ -116,12 +116,12 @@ const MultiItemCard = ({ item, language, formatCategory, categories, settings, i
                   }} />
                 </div>
                 
-                <div className="text-center px-6 z-10">
-                  <h3 className="text-2xl font-bold text-white mb-2 drop-shadow-lg">
+                <div className="text-center px-4 sm:px-6 z-10">
+                  <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-white mb-2 drop-shadow-lg line-clamp-2">
                     {language === 'ar' && item.nameAr ? item.nameAr : item.name}
                   </h3>
                   {item.category && (
-                    <span className="text-white/80 text-sm font-medium">
+                    <span className="text-white/80 text-xs sm:text-sm font-medium">
                       {formatCategory(item.category)}
                     </span>
                   )}
@@ -130,11 +130,11 @@ const MultiItemCard = ({ item, language, formatCategory, categories, settings, i
             )}
 
             {/* Badges */}
-            <div className="absolute top-3 left-3 right-3">
-              <div className="flex flex-wrap gap-2">
+            <div className="absolute top-2 sm:top-3 left-2 sm:left-3 right-2 sm:right-3">
+              <div className="flex flex-wrap gap-1 sm:gap-2">
                 {(item.image && !imageError) && (
                   <span 
-                    className="px-3 py-1 bg-white/90 backdrop-blur-sm rounded-full text-xs font-medium shadow-sm"
+                    className="px-2 sm:px-3 py-0.5 sm:py-1 bg-white/90 backdrop-blur-sm rounded-full text-[10px] sm:text-xs font-medium shadow-sm"
                     style={{ color: primaryColor }}
                   >
                     {formatCategory(item.category)}
@@ -142,9 +142,10 @@ const MultiItemCard = ({ item, language, formatCategory, categories, settings, i
                 )}
 
                 {item.is_multi_item && (
-                  <span className="px-3 py-1 bg-purple-500 text-white rounded-full text-xs font-medium shadow-sm flex items-center gap-1">
-                    <span className="text-sm">📋</span>
-                    {language === 'ar' ? 'متعدد' : 'Multiple Options'}
+                  <span className="px-2 sm:px-3 py-0.5 sm:py-1 bg-purple-500 text-white rounded-full text-[10px] sm:text-xs font-medium shadow-sm flex items-center gap-0.5 sm:gap-1">
+                    <span className="text-xs sm:text-sm">📋</span>
+                    <span className="hidden xs:inline">{language === 'ar' ? 'متعدد' : 'Multiple Options'}</span>
+                    <span className="xs:hidden">{language === 'ar' ? 'متعدد' : 'Multi'}</span>
                   </span>
                 )}
 
@@ -168,9 +169,9 @@ const MultiItemCard = ({ item, language, formatCategory, categories, settings, i
             </div>
 
             {/* Price on image */}
-            <div className="absolute bottom-3 right-3">
+            <div className="absolute bottom-2 sm:bottom-3 right-2 sm:right-3">
               <div 
-                className="px-4 py-2 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg font-bold text-lg"
+                className="px-3 sm:px-4 py-1.5 sm:py-2 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg font-bold text-sm sm:text-base md:text-lg"
                 style={{ color: primaryColor }}
               >
                 {formatPriceRange()}
@@ -179,47 +180,51 @@ const MultiItemCard = ({ item, language, formatCategory, categories, settings, i
           </div>
 
           {/* Content Section */}
-          <div className="p-5">
-            <h3 className="text-xl font-bold text-gray-800 mb-2 line-clamp-1">
+          <div className="p-3 sm:p-4 md:p-5">
+            <h3 className="text-base sm:text-lg md:text-xl font-bold text-gray-800 mb-1 sm:mb-2 line-clamp-1">
               {language === 'ar' && item.nameAr ? item.nameAr : item.name}
             </h3>
             
             {item.description && (
-              <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+              <p className="text-gray-600 text-xs sm:text-sm mb-2 sm:mb-3 line-clamp-2">
                 {language === 'ar' && item.descriptionAr ? item.descriptionAr : item.description}
               </p>
             )}
 
-            {/* Quick Info for main item */}
-            {!item.is_multi_item && (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4 text-sm text-gray-500">
-                  {item.calories && (
-                    <span className="flex items-center gap-1">
-                      <span>🔥</span>
-                      {item.calories} {language === 'ar' ? 'سعرة' : 'cal'}
-                    </span>
-                  )}
-                  {item.preparationTime && (
-                    <span className="flex items-center gap-1">
-                      <span>⏱️</span>
-                      {item.preparationTime} {language === 'ar' ? 'د' : 'min'}
+            {/* Quick Info - show for both single and multi items */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 sm:gap-3 md:gap-4 text-[11px] sm:text-xs md:text-sm text-gray-500">
+                {item.calories && (
+                  <span className="flex items-center gap-0.5 sm:gap-1">
+                    <span className="text-xs sm:text-sm">🔥</span>
+                    {item.calories} <span className="hidden sm:inline">{language === 'ar' ? 'سعرة' : 'cal'}</span>
+                  </span>
+                )}
+                {item.preparationTime && (
+                  <span className="flex items-center gap-0.5 sm:gap-1">
+                    <span className="text-xs sm:text-sm">⏱️</span>
+                    {item.preparationTime} <span className="hidden sm:inline">{language === 'ar' ? 'د' : 'min'}</span>
+                  </span>
+                )}
+              </div>
+              {getAllergenInfo(item) && (
+                <div className="flex gap-0.5 sm:gap-1">
+                  {getAllergenInfo(item).slice(0, isMobile ? 3 : 4).map((allergen, idx) => (
+                    <AllergenSVGIcon 
+                      key={idx}
+                      allergenName={allergen.name}
+                      className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6"
+                      title={allergen.displayName}
+                    />
+                  ))}
+                  {getAllergenInfo(item).length > (isMobile ? 3 : 4) && (
+                    <span className="text-[10px] sm:text-xs text-gray-500 self-center">
+                      +{getAllergenInfo(item).length - (isMobile ? 3 : 4)}
                     </span>
                   )}
                 </div>
-                {getAllergenInfo(item) && (
-                  <div className="flex gap-1">
-                    {getAllergenInfo(item).map((allergen, idx) => (
-                      <AllergenSVGIcon 
-                        key={idx}
-                        allergenName={allergen.name}
-                        className="w-6 h-6"
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Multi-item indicator */}
             {item.is_multi_item && (
