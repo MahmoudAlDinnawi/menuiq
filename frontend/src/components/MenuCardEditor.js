@@ -9,6 +9,8 @@ const MenuCardEditor = ({ item, itemType, categories, onSave, onClose, settings 
   const [allergenIcons, setAllergenIcons] = useState([]);
   const [availableItems, setAvailableItems] = useState([]);
   const [selectedSubItems, setSelectedSubItems] = useState([]);
+  const [selectedSubItemsOrder, setSelectedSubItemsOrder] = useState([]);
+  const [draggedItem, setDraggedItem] = useState(null);
   const [formData, setFormData] = useState({
     // Basic Info
     name: '',
@@ -177,7 +179,13 @@ const MenuCardEditor = ({ item, itemType, categories, onSave, onClose, settings 
       }
       // Set selected sub-items if this is a multi-item
       if (item.is_multi_item && item.sub_items) {
-        setSelectedSubItems(item.sub_items.map(subItem => subItem.id));
+        // Sort sub-items by their order
+        const sortedSubItems = [...item.sub_items].sort((a, b) => 
+          (a.sub_item_order || 0) - (b.sub_item_order || 0)
+        );
+        const subItemIds = sortedSubItems.map(subItem => subItem.id);
+        setSelectedSubItems(subItemIds);
+        setSelectedSubItemsOrder(subItemIds);
       }
     }
   }, [item, settings, itemType]);
@@ -328,7 +336,7 @@ const MenuCardEditor = ({ item, itemType, categories, onSave, onClose, settings 
         // Multi-item fields
         is_multi_item: formData.is_multi_item,
         display_as_grid: formData.display_as_grid,
-        sub_item_ids: formData.is_multi_item ? selectedSubItems : []
+        sub_item_ids: formData.is_multi_item ? selectedSubItemsOrder : []
       };
 
       await onSave(submitData);
@@ -342,6 +350,41 @@ const MenuCardEditor = ({ item, itemType, categories, onSave, onClose, settings 
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleDragStart = (e, itemId) => {
+    setDraggedItem(itemId);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e, targetItemId) => {
+    e.preventDefault();
+    if (!draggedItem || draggedItem === targetItemId) return;
+
+    const draggedIndex = selectedSubItemsOrder.indexOf(draggedItem);
+    const targetIndex = selectedSubItemsOrder.indexOf(targetItemId);
+
+    if (draggedIndex === -1 || targetIndex === -1) return;
+
+    const newOrder = [...selectedSubItemsOrder];
+    newOrder.splice(draggedIndex, 1);
+    newOrder.splice(targetIndex, 0, draggedItem);
+
+    setSelectedSubItemsOrder(newOrder);
+    setDraggedItem(null);
+  };
+
+  const handleSubItemToggle = (itemId, checked) => {
+    if (checked) {
+      setSelectedSubItems([...selectedSubItems, itemId]);
+      setSelectedSubItemsOrder([...selectedSubItemsOrder, itemId]);
+    } else {
+      setSelectedSubItems(selectedSubItems.filter(id => id !== itemId));
+      setSelectedSubItemsOrder(selectedSubItemsOrder.filter(id => id !== itemId));
+    }
   };
 
   const tabs = formData.is_multi_item ? [
@@ -363,10 +406,10 @@ const MenuCardEditor = ({ item, itemType, categories, onSave, onClose, settings 
   ];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full my-4 flex flex-col" style={{ maxHeight: '95vh' }}>
         {/* Header */}
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-6">
+        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-6 rounded-t-2xl flex-shrink-0">
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold">
               {item ? 'Edit Menu Item' : 'Create Menu Item'}
@@ -382,22 +425,22 @@ const MenuCardEditor = ({ item, itemType, categories, onSave, onClose, settings 
           </div>
           
           {/* Tabs */}
-          <div className="flex gap-3 mt-6 overflow-x-auto pb-2">
+          <div className="flex gap-2 sm:gap-3 mt-4 sm:mt-6 overflow-x-auto pb-2 scrollbar-hide">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`group relative px-4 py-2 rounded-lg transition-all whitespace-nowrap ${
+                className={`group relative px-3 sm:px-4 py-2 rounded-lg transition-all whitespace-nowrap flex items-center gap-2 ${
                   activeTab === tab.id 
                     ? 'bg-white text-indigo-600 shadow-lg' 
                     : 'text-white/80 hover:bg-white/20'
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">{tab.icon}</span>
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <span className="text-base sm:text-lg">{tab.icon}</span>
                   <div className="text-left">
-                    <span className="font-medium block">{tab.label}</span>
-                    <span className={`text-xs ${activeTab === tab.id ? 'text-indigo-500' : 'text-white/60'}`}>
+                    <span className="font-medium block text-sm sm:text-base">{tab.label}</span>
+                    <span className={`text-xs hidden sm:block ${activeTab === tab.id ? 'text-indigo-500' : 'text-white/60'}`}>
                       {tab.description}
                     </span>
                   </div>
@@ -407,8 +450,12 @@ const MenuCardEditor = ({ item, itemType, categories, onSave, onClose, settings 
           </div>
         </div>
 
-        {/* Content */}
-        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto max-h-[calc(90vh-200px)]">
+        {/* Content - Scrollable */}
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 relative" style={{ maxHeight: 'calc(90vh - 280px)' }}>
+          {/* Scroll indicator */}
+          <div className="sticky top-0 z-10 pointer-events-none">
+            <div className="absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-white to-transparent"></div>
+          </div>
           {/* Basic Info Tab */}
           {activeTab === 'basic' && (
             <div className="space-y-6">
@@ -562,7 +609,7 @@ const MenuCardEditor = ({ item, itemType, categories, onSave, onClose, settings 
           {activeTab === 'items' && formData.is_multi_item && (
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Select Items to Include</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Select and Order Items</h3>
                 
                 {/* Display options */}
                 <div className="mb-6">
@@ -577,28 +624,70 @@ const MenuCardEditor = ({ item, itemType, categories, onSave, onClose, settings 
                   </label>
                 </div>
 
-                {/* Selected items summary */}
-                {selectedSubItems.length > 0 && (
-                  <div className="mb-4 p-4 bg-indigo-50 rounded-lg">
-                    <p className="text-sm text-indigo-800">
-                      <span className="font-medium">{selectedSubItems.length} items selected</span>
-                      {selectedSubItems.length > 0 && availableItems.length > 0 && (
-                        <span className="ml-2">
-                          • Price range: {
-                            (() => {
-                              const selectedPrices = availableItems
-                                .filter(item => selectedSubItems.includes(item.id))
-                                .map(item => parseFloat(item.price))
-                                .filter(price => !isNaN(price));
-                              if (selectedPrices.length === 0) return 'N/A';
-                              const min = Math.min(...selectedPrices);
-                              const max = Math.max(...selectedPrices);
-                              return min === max ? `${min} SAR` : `${min} - ${max} SAR`;
-                            })()
-                          }
-                        </span>
-                      )}
-                    </p>
+                {/* Selected items with drag-and-drop sorting */}
+                {selectedSubItemsOrder.length > 0 && (
+                  <div className="mb-6">
+                    <h4 className="text-sm font-medium text-gray-700 mb-3">Selected Items (drag to reorder)</h4>
+                    <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                      {selectedSubItemsOrder.map((itemId, index) => {
+                        const item = availableItems.find(i => i.id === itemId);
+                        if (!item) return null;
+                        return (
+                          <div
+                            key={itemId}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, itemId)}
+                            onDragOver={handleDragOver}
+                            onDrop={(e) => handleDrop(e, itemId)}
+                            className={`bg-white rounded-lg p-3 cursor-move shadow-sm hover:shadow-md transition-shadow ${
+                              draggedItem === itemId ? 'opacity-50' : ''
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+                                </svg>
+                                <span className="text-sm font-medium text-gray-500">{index + 1}.</span>
+                                <div>
+                                  <h5 className="font-medium text-gray-900">{item.name}</h5>
+                                  <p className="text-sm text-gray-500">{item.price} SAR</p>
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handleSubItemToggle(itemId, false)}
+                                className="text-red-500 hover:text-red-700 p-1"
+                              >
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-3 p-3 bg-indigo-50 rounded-lg">
+                      <p className="text-sm text-indigo-800">
+                        <span className="font-medium">{selectedSubItems.length} items selected</span>
+                        {selectedSubItems.length > 0 && availableItems.length > 0 && (
+                          <span className="ml-2">
+                            • Price range: {
+                              (() => {
+                                const selectedPrices = availableItems
+                                  .filter(item => selectedSubItems.includes(item.id))
+                                  .map(item => parseFloat(item.price))
+                                  .filter(price => !isNaN(price));
+                                if (selectedPrices.length === 0) return 'N/A';
+                                const min = Math.min(...selectedPrices);
+                                const max = Math.max(...selectedPrices);
+                                return min === max ? `${min} SAR` : `${min} - ${max} SAR`;
+                              })()
+                            }
+                          </span>
+                        )}
+                      </p>
+                    </div>
                   </div>
                 )}
 
@@ -619,13 +708,7 @@ const MenuCardEditor = ({ item, itemType, categories, onSave, onClose, settings 
                           <input
                             type="checkbox"
                             checked={selectedSubItems.includes(item.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedSubItems([...selectedSubItems, item.id]);
-                              } else {
-                                setSelectedSubItems(selectedSubItems.filter(id => id !== item.id));
-                              }
-                            }}
+                            onChange={(e) => handleSubItemToggle(item.id, e.target.checked)}
                             className="mt-1 w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
                           />
                           <div className="flex-1">
@@ -1767,19 +1850,19 @@ const MenuCardEditor = ({ item, itemType, categories, onSave, onClose, settings 
           )}
         </form>
 
-        {/* Footer */}
-        <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3 border-t">
+        {/* Footer - Always visible */}
+        <div className="bg-gray-50 px-4 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row justify-end gap-3 border-t rounded-b-2xl flex-shrink-0 shadow-lg">
           <button
             type="button"
             onClick={onClose}
-            className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
+            className="w-full sm:w-auto px-4 sm:px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors font-medium"
           >
             Cancel
           </button>
           <button
             onClick={handleSubmit}
             disabled={loading}
-            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            className="w-full sm:w-auto px-4 sm:px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 font-medium shadow-sm"
           >
             {loading && (
               <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">

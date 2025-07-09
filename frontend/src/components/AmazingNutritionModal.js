@@ -442,14 +442,14 @@ const AmazingNutritionModal = ({ item, isOpen, onClose, language, formatCategory
                           <span className="text-sm">
                             <strong>{formatLabel('Total Fat', 'إجمالي الدهون')}</strong> {item.totalFat}{formatLabel('g', 'جم')}
                           </span>
-                          <span className="text-sm font-bold">{Math.round((item.totalFat / 65) * 100)}%</span>
+                          <span className="text-sm font-bold">{item.totalFat !== null && item.totalFat !== undefined ? Math.round((item.totalFat / 65) * 100) : 0}%</span>
                         </div>
                       )}
                       
                       {item.saturatedFat !== null && (
                         <div className="flex justify-between border-b border-gray-300 pb-1 ml-4">
                           <span className="text-sm">{formatLabel('Saturated Fat', 'الدهون المشبعة')} {item.saturatedFat}{formatLabel('g', 'جم')}</span>
-                          <span className="text-sm font-bold">{Math.round((item.saturatedFat / 20) * 100)}%</span>
+                          <span className="text-sm font-bold">{item.saturatedFat !== null && item.saturatedFat !== undefined ? Math.round((item.saturatedFat / 20) * 100) : 0}%</span>
                         </div>
                       )}
                       
@@ -464,7 +464,7 @@ const AmazingNutritionModal = ({ item, isOpen, onClose, language, formatCategory
                           <span className="text-sm">
                             <strong>{formatLabel('Cholesterol', 'الكولسترول')}</strong> {item.cholesterol}{formatLabel('mg', 'ملجم')}
                           </span>
-                          <span className="text-sm font-bold">{Math.round((item.cholesterol / 300) * 100)}%</span>
+                          <span className="text-sm font-bold">{item.cholesterol !== null && item.cholesterol !== undefined ? Math.round((item.cholesterol / 300) * 100) : 0}%</span>
                         </div>
                       )}
                       
@@ -473,7 +473,7 @@ const AmazingNutritionModal = ({ item, isOpen, onClose, language, formatCategory
                           <span className="text-sm">
                             <strong>{formatLabel('Sodium', 'الصوديوم')}</strong> {item.sodium}{formatLabel('mg', 'ملجم')}
                           </span>
-                          <span className="text-sm font-bold">{Math.round((item.sodium / 2300) * 100)}%</span>
+                          <span className="text-sm font-bold">{item.sodium !== null && item.sodium !== undefined ? Math.round((item.sodium / 2300) * 100) : 0}%</span>
                         </div>
                       )}
                       
@@ -482,14 +482,14 @@ const AmazingNutritionModal = ({ item, isOpen, onClose, language, formatCategory
                           <span className="text-sm">
                             <strong>{formatLabel('Total Carbohydrate', 'إجمالي الكربوهيدرات')}</strong> {item.totalCarbs}{formatLabel('g', 'جم')}
                           </span>
-                          <span className="text-sm font-bold">{Math.round((item.totalCarbs / 300) * 100)}%</span>
+                          <span className="text-sm font-bold">{item.totalCarbs !== null && item.totalCarbs !== undefined ? Math.round((item.totalCarbs / 300) * 100) : 0}%</span>
                         </div>
                       )}
                       
                       {item.dietaryFiber !== null && (
                         <div className="flex justify-between border-b border-gray-300 pb-1 ml-4">
                           <span className="text-sm">{formatLabel('Dietary Fiber', 'الألياف الغذائية')} {item.dietaryFiber}{formatLabel('g', 'جم')}</span>
-                          <span className="text-sm font-bold">{Math.round((item.dietaryFiber / 25) * 100)}%</span>
+                          <span className="text-sm font-bold">{item.dietaryFiber !== null && item.dietaryFiber !== undefined ? Math.round((item.dietaryFiber / 25) * 100) : 0}%</span>
                         </div>
                       )}
                       

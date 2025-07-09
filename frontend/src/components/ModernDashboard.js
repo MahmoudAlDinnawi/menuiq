@@ -25,6 +25,10 @@ const ModernDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [viewMode, setViewMode] = useState('grid'); // grid, list, preview
+  const [showDashboardLogoModal, setShowDashboardLogoModal] = useState(false);
+  const [dashboardLogoPreview, setDashboardLogoPreview] = useState(null);
+  const [draggedItem, setDraggedItem] = useState(null);
+  const [sortMode, setSortMode] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -96,6 +100,57 @@ const ModernDashboard = () => {
     }
   };
 
+  const handleUpdateDashboardLogo = () => {
+    setShowDashboardLogoModal(true);
+    setDashboardLogoPreview(stats?.tenant?.dashboard_logo_url || null);
+  };
+
+  const handleDashboardLogoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setDashboardLogoPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveDashboardLogo = async () => {
+    try {
+      const fileInput = document.getElementById('dashboard-logo-input');
+      const file = fileInput?.files[0];
+      
+      if (!file) {
+        alert('Please select a logo file to upload');
+        return;
+      }
+      
+      // Upload the file first
+      const formData = new FormData();
+      formData.append('file', file);
+      const uploadRes = await tenantAPI.post('/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      // Get the URL from the upload response
+      const logoUrl = uploadRes.data.url;
+      
+      // Update tenant with new dashboard logo URL (not base64)
+      await tenantAPI.put('/current', {
+        dashboard_logo_url: logoUrl
+      });
+      
+      // Refresh dashboard data
+      await fetchDashboardData();
+      setShowDashboardLogoModal(false);
+      setDashboardLogoPreview(null);
+    } catch (error) {
+      console.error('Failed to update dashboard logo:', error);
+      alert('Failed to update dashboard logo: ' + (error.response?.data?.detail || error.message));
+    }
+  };
+
   const filteredItems = menuItems.filter(item => {
     const matchesSearch = !searchTerm || 
       item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -104,18 +159,96 @@ const ModernDashboard = () => {
     return matchesSearch && matchesCategory;
   });
 
+  // Group items by category for sorting
+  const itemsByCategory = filteredItems.reduce((acc, item) => {
+    const categoryId = item.category_id || 'uncategorized';
+    if (!acc[categoryId]) {
+      acc[categoryId] = [];
+    }
+    acc[categoryId].push(item);
+    return acc;
+  }, {});
+
+  // Sort items within each category by sort_order
+  Object.keys(itemsByCategory).forEach(categoryId => {
+    itemsByCategory[categoryId].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+  });
+
+  const handleDragStart = (e, item) => {
+    setDraggedItem(item);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = async (e, targetItem) => {
+    e.preventDefault();
+    if (!draggedItem || draggedItem.id === targetItem.id) return;
+
+    // Only allow reordering within the same category
+    if (draggedItem.category_id !== targetItem.category_id) {
+      alert('Items can only be reordered within the same category');
+      return;
+    }
+
+    const categoryId = draggedItem.category_id || 'uncategorized';
+    const categoryItems = [...itemsByCategory[categoryId]];
+    
+    const draggedIndex = categoryItems.findIndex(item => item.id === draggedItem.id);
+    const targetIndex = categoryItems.findIndex(item => item.id === targetItem.id);
+    
+    // Remove dragged item and insert at new position
+    categoryItems.splice(draggedIndex, 1);
+    categoryItems.splice(targetIndex, 0, draggedItem);
+    
+    // Update sort_order for all items in the category
+    const updates = categoryItems.map((item, index) => ({
+      id: item.id,
+      sort_order: index
+    }));
+    
+    try {
+      await tenantAPI.updateMenuItemSortOrder(updates);
+      // Update local state
+      const updatedItems = menuItems.map(item => {
+        const update = updates.find(u => u.id === item.id);
+        if (update) {
+          return { ...item, sort_order: update.sort_order };
+        }
+        return item;
+      });
+      setMenuItems(updatedItems);
+    } catch (error) {
+      console.error('Failed to update sort order:', error);
+      alert('Failed to update sort order');
+    }
+    
+    setDraggedItem(null);
+  };
+
   const renderSidebar = () => (
     <aside className="w-64 bg-white h-screen shadow-lg fixed left-0 top-0">
       <div className="p-6">
         <div className="flex items-center mb-8">
           <img 
-            src={stats?.tenant?.logo_url || '/logo.png'} 
+            src={
+              stats?.tenant?.dashboard_logo_url 
+                ? `${process.env.REACT_APP_API_URL || 'http://localhost:8000'}${stats.tenant.dashboard_logo_url}`
+                : stats?.tenant?.logo_url 
+                  ? `${process.env.REACT_APP_API_URL || 'http://localhost:8000'}${stats.tenant.logo_url}`
+                  : '/default-logo.png'
+            } 
             alt={stats?.tenant?.name} 
-            className="h-12 w-12 rounded-lg object-cover mr-3"
+            className="h-12 w-12 rounded-lg object-cover mr-3 cursor-pointer hover:opacity-80 transition-opacity"
             onError={(e) => {
               e.target.onerror = null;
               e.target.src = '/default-logo.png';
             }}
+            onClick={() => handleUpdateDashboardLogo()}
+            title="Click to update dashboard logo"
           />
           <div>
             <h1 className="text-xl font-bold text-gray-900">{stats?.tenant?.name || 'MenuIQ'}</h1>
@@ -383,6 +516,17 @@ const ModernDashboard = () => {
           <div className="flex gap-2">
             <button
               type="button"
+              onClick={() => setSortMode(!sortMode)}
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 ${sortMode ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+              </svg>
+              {sortMode ? 'Done Sorting' : 'Sort Items'}
+            </button>
+            <div className="border-l mx-2"></div>
+            <button
+              type="button"
               onClick={() => setViewMode('grid')}
               className={`p-2 rounded-lg ${viewMode === 'grid' ? 'bg-indigo-100 text-indigo-600' : 'text-gray-500 hover:bg-gray-100'}`}
             >
@@ -415,73 +559,121 @@ const ModernDashboard = () => {
 
       {/* Items Display */}
       {viewMode === 'grid' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredItems.map((item) => (
-            <div key={item.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-shadow">
-              {item.image_url && (
-                <img 
-                  src={item.image_url} 
-                  alt={item.name}
-                  className="w-full h-48 object-cover"
-                />
-              )}
-              <div className="p-4">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                    {item.name}
-                    {item.is_multi_item && (
-                      <span className="px-2 py-1 text-xs font-medium rounded-full bg-purple-500 text-white">
-                        Multi
-                      </span>
-                    )}
-                  </h3>
-                  {item.badge_text && (
-                    <span 
-                      className="px-2 py-1 text-xs font-medium rounded-full"
-                      style={{
-                        backgroundColor: item.badge_color || '#EF4444',
-                        color: 'white'
-                      }}
+        <div className="space-y-8">
+          {sortMode && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
+              <p className="font-medium">Sort Mode Active</p>
+              <p>Drag and drop items to reorder them within their categories. Click "Done Sorting" when finished.</p>
+            </div>
+          )}
+          
+          {Object.entries(itemsByCategory).map(([categoryId, categoryItems]) => {
+            const category = categoryId === 'uncategorized' 
+              ? { name: 'Uncategorized', id: 'uncategorized' }
+              : categories.find(c => c.id === parseInt(categoryId));
+            
+            if (!category || categoryItems.length === 0) return null;
+            
+            return (
+              <div key={categoryId} className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  {category.name}
+                  <span className="text-sm font-normal text-gray-500">({categoryItems.length} items)</span>
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {categoryItems.map((item) => (
+                    <div 
+                      key={item.id} 
+                      className={`bg-white rounded-xl shadow-sm border overflow-hidden transition-all ${
+                        sortMode 
+                          ? 'cursor-move border-gray-300 hover:border-indigo-400 hover:shadow-md' 
+                          : 'border-gray-100 hover:shadow-lg'
+                      } ${draggedItem?.id === item.id ? 'opacity-50' : ''}`}
+                      draggable={sortMode}
+                      onDragStart={(e) => sortMode && handleDragStart(e, item)}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => sortMode && handleDrop(e, item)}
                     >
-                      {item.badge_text}
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm text-gray-600 mb-3 line-clamp-2">{item.description}</p>
-                <div className="flex justify-between items-center">
-                  <span className="text-lg font-bold text-indigo-600">
-                    {item.is_multi_item ? (
-                      item.price_min && item.price_max ? (
-                        item.price_min === item.price_max 
-                          ? `${item.price_min} ${settings?.currency || 'SAR'}`
-                          : `${item.price_min} - ${item.price_max} ${settings?.currency || 'SAR'}`
-                      ) : 'Price varies'
-                    ) : (
-                      item.price ? `${item.price} ${settings?.currency || 'SAR'}` : 'No price'
-                    )}
-                  </span>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleEditItem(item)}
-                      className="p-2 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                    >
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => handleDeleteItem(item.id)}
-                      className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
+                      {sortMode && (
+                        <div className="bg-gray-50 px-4 py-2 border-b flex items-center justify-between">
+                          <span className="text-sm text-gray-600">Position: {(item.sort_order || 0) + 1}</span>
+                          <svg className="w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />
+                          </svg>
+                        </div>
+                      )}
+                      
+                      {item.image_url && (
+                        <img 
+                          src={item.image_url} 
+                          alt={item.name}
+                          className="w-full h-48 object-cover"
+                        />
+                      )}
+                      <div className="p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                            {item.name}
+                            {item.is_multi_item && (
+                              <span className="px-2 py-1 text-xs font-medium rounded-full bg-purple-500 text-white">
+                                Multi
+                              </span>
+                            )}
+                          </h3>
+                          {item.badge_text && (
+                            <span 
+                              className="px-2 py-1 text-xs font-medium rounded-full"
+                              style={{
+                                backgroundColor: item.badge_color || '#EF4444',
+                                color: 'white'
+                              }}
+                            >
+                              {item.badge_text}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600 mb-3 line-clamp-2">{item.description}</p>
+                        <div className="flex justify-between items-center">
+                          <span className="text-lg font-bold text-indigo-600">
+                            {item.is_multi_item ? (
+                              item.price_min && item.price_max ? (
+                                item.price_min === item.price_max 
+                                  ? `${item.price_min} ${settings?.currency || 'SAR'}`
+                                  : `${item.price_min} - ${item.price_max} ${settings?.currency || 'SAR'}`
+                              ) : 'Price varies'
+                            ) : (
+                              item.price ? `${item.price} ${settings?.currency || 'SAR'}` : 'No price'
+                            )}
+                          </span>
+                          {!sortMode && (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleEditItem(item)}
+                                className="p-2 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              >
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => handleDeleteItem(item.id)}
+                                className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              >
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -561,10 +753,29 @@ const ModernDashboard = () => {
       )}
 
       {viewMode === 'preview' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredItems.map((item) => (
-            <MenuCardPreview key={item.id} item={item} categories={categories} />
-          ))}
+        <div className="space-y-8">
+          {Object.entries(itemsByCategory).map(([categoryId, categoryItems]) => {
+            const category = categoryId === 'uncategorized' 
+              ? { name: 'Uncategorized', id: 'uncategorized' }
+              : categories.find(c => c.id === parseInt(categoryId));
+            
+            if (!category || categoryItems.length === 0) return null;
+            
+            return (
+              <div key={categoryId} className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  {category.name}
+                  <span className="text-sm font-normal text-gray-500">({categoryItems.length} items)</span>
+                </h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {categoryItems.map((item) => (
+                    <MenuCardPreview key={item.id} item={item} categories={categories} />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -619,6 +830,106 @@ const ModernDashboard = () => {
             setNewItemType(null);
           }}
         />
+      )}
+
+      {/* Dashboard Logo Update Modal */}
+      {showDashboardLogoModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Update Dashboard Logo</h2>
+                <button
+                  onClick={() => {
+                    setShowDashboardLogoModal(false);
+                    setDashboardLogoPreview(null);
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Current Logo Preview */}
+                <div className="text-center">
+                  <p className="text-sm text-gray-600 mb-4">
+                    This logo appears in the dashboard header. It can be different from your main restaurant logo.
+                  </p>
+                  
+                  {dashboardLogoPreview ? (
+                    <div className="inline-block relative">
+                      <img 
+                        src={dashboardLogoPreview} 
+                        alt="Dashboard Logo Preview" 
+                        className="h-24 w-24 rounded-lg object-cover shadow-lg"
+                      />
+                      <button
+                        onClick={() => setDashboardLogoPreview(null)}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="h-24 w-24 mx-auto rounded-lg bg-gray-100 flex items-center justify-center">
+                      <svg className="w-12 h-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+
+                {/* Upload Section */}
+                <div>
+                  <label className="block w-full">
+                    <input
+                      id="dashboard-logo-input"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleDashboardLogoChange}
+                      className="hidden"
+                    />
+                    <div className="cursor-pointer border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-indigo-500 transition-colors">
+                      <svg className="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      </svg>
+                      <p className="text-sm text-gray-600">
+                        Click to upload a new dashboard logo
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        PNG, JPG up to 5MB. Square images work best.
+                      </p>
+                    </div>
+                  </label>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    onClick={() => {
+                      setShowDashboardLogoModal(false);
+                      setDashboardLogoPreview(null);
+                    }}
+                    className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveDashboardLogo}
+                    className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                  >
+                    Save Logo
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -125,7 +125,8 @@ async def get_dashboard_stats(
             "subdomain": tenant.subdomain,
             "plan": tenant.plan,
             "status": tenant.status,
-            "logo_url": tenant.logo_url
+            "logo_url": tenant.logo_url,
+            "dashboard_logo_url": tenant.dashboard_logo_url
         },
         "stats": {
             "total_categories": total_categories,
@@ -1396,6 +1397,124 @@ async def get_tenant_info(
         "subscription_plan": tenant.plan
     }
 
+@router.post("/upload")
+async def upload_file(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user_dict),
+    db: Session = Depends(get_db)
+):
+    """General file upload endpoint"""
+    tenant = get_tenant_from_user(current_user, db)
+    
+    # Validate file type
+    allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/svg+xml', 'image/webp']
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file type. Only JPEG, PNG, GIF, SVG, and WebP are allowed."
+        )
+    
+    # Read file contents
+    contents = await file.read()
+    
+    # Validate file size (5MB max)
+    max_size = 5 * 1024 * 1024  # 5MB
+    if len(contents) > max_size:
+        raise HTTPException(
+            status_code=400,
+            detail="File too large. Maximum size is 5MB."
+        )
+    
+    # Create uploads directory
+    upload_dir = Path("uploads/general")
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Delete old file if exists
+    for old_file in upload_dir.glob(f"tenant_{tenant.id}_*"):
+        old_file.unlink()
+    
+    # Handle SVG files separately (no optimization needed)
+    if file.content_type == 'image/svg+xml':
+        # Generate filename for SVG
+        filename = f"tenant_{tenant.id}_{datetime.utcnow().timestamp()}.svg"
+        file_path = upload_dir / filename
+        
+        # Save SVG file directly
+        async with aiofiles.open(file_path, "wb") as buffer:
+            await buffer.write(contents)
+    else:
+        # Optimize other image formats
+        # Determine format from content type
+        format_map = {
+            'image/jpeg': 'JPEG',
+            'image/png': 'PNG',
+            'image/gif': 'GIF',
+            'image/webp': 'WEBP'
+        }
+        image_format = format_map.get(file.content_type, 'JPEG')
+        
+        # Use static method directly
+        optimized_bytes, metadata = await ImageOptimizer.optimize_image(
+            image_bytes=contents,
+            image_type="logo",  # Uses 500x500 max dimensions
+            quality="high",     # 85% quality
+            format=image_format
+        )
+        
+        # Generate filename with correct extension
+        extension_map = {
+            'JPEG': 'jpg',
+            'PNG': 'png',
+            'GIF': 'gif',
+            'WEBP': 'webp'
+        }
+        file_extension = extension_map.get(image_format, 'jpg')
+        filename = f"tenant_{tenant.id}_{datetime.utcnow().timestamp()}.{file_extension}"
+        file_path = upload_dir / filename
+        
+        # Save optimized file asynchronously
+        async with aiofiles.open(file_path, "wb") as buffer:
+            await buffer.write(optimized_bytes)
+    
+    # Return the URL
+    return {
+        "url": f"/uploads/general/{filename}",
+        "message": "File uploaded successfully"
+    }
+
+@router.post("/menu-items/update-sort-order")
+async def update_menu_items_sort_order(
+    items: List[dict],
+    current_user: dict = Depends(get_current_user_dict),
+    db: Session = Depends(get_db)
+):
+    """Update sort order for multiple menu items"""
+    tenant = get_tenant_from_user(current_user, db)
+    
+    try:
+        # Update each item's sort_order
+        for item_data in items:
+            item = db.query(MenuItem).filter(
+                MenuItem.id == item_data["id"],
+                MenuItem.tenant_id == tenant.id
+            ).first()
+            
+            if item:
+                item.sort_order = item_data["sort_order"]
+        
+        db.commit()
+        
+        # Invalidate and warm cache for this tenant
+        invalidate_public_menu_cache(tenant.subdomain, db=db, warm_cache=True)
+        
+        return {"message": "Sort order updated successfully"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to update sort order: {str(e)}"
+        )
+
 @router.post("/upload-logo")
 async def upload_tenant_logo(
     file: UploadFile = File(...),
@@ -1461,6 +1580,40 @@ async def upload_tenant_logo(
     return {
         "logo_url": logo_url,
         "message": "Logo uploaded successfully"
+    }
+
+@router.put("/current")
+async def update_current_tenant(
+    tenant_data: dict,
+    current_user: dict = Depends(get_current_user_dict),
+    db: Session = Depends(get_db)
+):
+    """Update current tenant information"""
+    tenant = get_tenant_from_user(current_user, db)
+    
+    # Update allowed fields
+    allowed_fields = [
+        'name', 'contact_email', 'contact_phone', 'address',
+        'logo_url', 'dashboard_logo_url'
+    ]
+    
+    for field in allowed_fields:
+        if field in tenant_data:
+            setattr(tenant, field, tenant_data[field])
+    
+    db.commit()
+    db.refresh(tenant)
+    
+    return {
+        "id": tenant.id,
+        "name": tenant.name,
+        "subdomain": tenant.subdomain,
+        "domain": tenant.domain,
+        "logo_url": tenant.logo_url,
+        "dashboard_logo_url": tenant.dashboard_logo_url,
+        "contact_email": tenant.contact_email,
+        "contact_phone": tenant.contact_phone,
+        "address": tenant.address
     }
 
 @router.delete("/logo")

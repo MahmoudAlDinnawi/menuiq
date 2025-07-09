@@ -218,6 +218,7 @@ class TenantUpdate(BaseModel):
     contact_phone: Optional[str] = None
     address: Optional[str] = None
     logo_url: Optional[str] = None
+    dashboard_logo_url: Optional[str] = None
     plan: Optional[str] = None
     status: Optional[str] = None
     max_menu_items: Optional[int] = None
@@ -229,6 +230,7 @@ class TenantResponse(BaseModel):
     subdomain: str
     domain: Optional[str]
     logo_url: Optional[str]
+    dashboard_logo_url: Optional[str]
     contact_email: Optional[str]
     contact_phone: Optional[str]
     address: Optional[str]

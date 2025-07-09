@@ -139,6 +139,7 @@ async def get_public_menu_items(
         add_field("spicyLevel", item.spicy_level)
         add_field("highSodium", item.high_sodium)
         add_field("containsCaffeine", item.contains_caffeine)
+        add_field("organic", item.organic_certified)
         
         # Exercise info
         add_field("walkMinutes", item.walk_minutes)
@@ -182,24 +183,87 @@ async def get_public_menu_items(
         
         # Sub-items (only if requested)
         if (requested_fields is None or "sub_items" in requested_fields) and item.is_multi_item:
-            item_data["sub_items"] = [
-                {
+            sub_items = []
+            for sub in sorted(item.sub_items, key=lambda x: x.sub_item_order):
+                # Get allergens for sub-item
+                sub_allergen_data = [{
+                    "id": allergen.id,
+                    "name": allergen.name,
+                    "display_name": allergen.display_name,
+                    "display_name_ar": allergen.display_name_ar,
+                    "icon_url": allergen.icon_url
+                } for allergen in sub.allergens]
+                
+                # Sub-item inherits parent category if it doesn't have one
+                sub_category = category_value  # Use parent's category
+                
+                sub_item_data = {
                     "id": sub.id,
                     "name": sub.name,
                     "nameAr": sub.name_ar,
                     "description": sub.description,
                     "descriptionAr": sub.description_ar,
+                    "category": sub_category,  # Inherit parent category
+                    "categoryId": item.category_id,  # Inherit parent category ID
                     "price": f"{sub.price:.2f} {currency}" if sub.price else None,
+                    "priceWithoutVat": f"{sub.price_without_vat:.2f} {currency}" if sub.price_without_vat else None,
+                    "promotionPrice": f"{sub.promotion_price:.2f} {currency}" if sub.promotion_price else None,
                     "image": sub.image,
+                    
+                    # All nutrition fields
                     "calories": sub.calories,
+                    "preparationTime": sub.preparation_time,
+                    "servingSize": sub.serving_size,
+                    "totalFat": float(sub.total_fat) if sub.total_fat else None,
+                    "saturatedFat": float(sub.saturated_fat) if sub.saturated_fat else None,
+                    "transFat": float(sub.trans_fat) if sub.trans_fat else None,
+                    "cholesterol": sub.cholesterol,
+                    "sodium": sub.sodium,
+                    "totalCarbs": float(sub.total_carbs) if sub.total_carbs else None,
+                    "dietaryFiber": float(sub.dietary_fiber) if sub.dietary_fiber else None,
+                    "sugars": float(sub.sugars) if sub.sugars else None,
+                    "protein": float(sub.protein) if sub.protein else None,
+                    "vitaminA": sub.vitamin_a,
+                    "vitaminC": sub.vitamin_c,
+                    "vitaminD": sub.vitamin_d,
+                    "calcium": sub.calcium,
+                    "iron": sub.iron,
+                    "caffeineMg": sub.caffeine_mg,
+                    
+                    # Exercise info
+                    "walkMinutes": sub.walk_minutes,
+                    "runMinutes": sub.run_minutes,
+                    
+                    # Dietary flags
                     "halal": sub.halal,
                     "vegetarian": sub.vegetarian,
                     "vegan": sub.vegan,
                     "glutenFree": sub.gluten_free,
+                    "dairyFree": sub.dairy_free,
+                    "nutFree": sub.nut_free,
                     "spicyLevel": sub.spicy_level,
+                    "highSodium": sub.high_sodium,
+                    "containsCaffeine": sub.contains_caffeine,
+                    "organic": sub.organic_certified,
+                    
+                    # Feature flags
+                    "signatureDish": sub.signature_dish,
+                    "limitedAvailability": sub.limited_availability,
+                    
+                    # Allergens with full details
+                    "allergens": sub_allergen_data,
+                    
+                    # Additional fields
+                    "ingredients": sub.ingredients,
+                    "chefNotes": sub.chef_notes,
+                    "pairingSuggestions": sub.pairing_suggestions,
+                    
+                    # Order
                     "sub_item_order": sub.sub_item_order
-                } for sub in sorted(item.sub_items, key=lambda x: x.sub_item_order)
-            ]
+                }
+                sub_items.append(sub_item_data)
+            
+            item_data["sub_items"] = sub_items
         elif item.is_multi_item:
             item_data["sub_items"] = []
         

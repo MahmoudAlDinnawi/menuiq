@@ -226,26 +226,47 @@ const MultiItemCard = ({ item, language, formatCategory, categories, settings, i
               )}
             </div>
 
-            {/* Multi-item indicator */}
+            {/* Multi-item indicator - Enhanced for mobile */}
             {item.is_multi_item && (
-              <div className="flex items-center justify-between mt-3">
-                <span className="text-xs sm:text-sm text-gray-600">
-                  {item.sub_items?.length || 0} {language === 'ar' ? 'خيارات' : 'options'}
-                </span>
-                <span 
-                  className="text-xs sm:text-sm font-medium flex items-center gap-1"
-                  style={{ color: primaryColor }}
-                >
-                  {language === 'ar' ? 'عرض الخيارات' : 'View Options'}
-                  <svg 
-                    className="w-3 h-3 sm:w-4 sm:h-4"
-                    fill="none" 
-                    stroke="currentColor" 
-                    viewBox="0 0 24 24"
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="flex -space-x-2">
+                      {item.sub_items?.slice(0, 3).map((_, idx) => (
+                        <div 
+                          key={idx}
+                          className="w-6 h-6 sm:w-7 sm:h-7 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-xs font-medium"
+                          style={{ backgroundColor: idx === 0 ? primaryColor : idx === 1 ? '#FFB800' : '#FF6B6B' }}
+                        >
+                          <span className="text-white">{idx + 1}</span>
+                        </div>
+                      ))}
+                      {item.sub_items?.length > 3 && (
+                        <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-gray-200 border-2 border-white shadow-sm flex items-center justify-center">
+                          <span className="text-xs text-gray-600">+{item.sub_items.length - 3}</span>
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-xs sm:text-sm text-gray-600 font-medium">
+                      {item.sub_items?.length || 0} {language === 'ar' ? 'خيارات' : 'options'}
+                    </span>
+                  </div>
+                  
+                  <button 
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-full transition-all duration-300 text-xs sm:text-sm font-medium text-white shadow-sm hover:shadow-md transform hover:scale-105"
+                    style={{ backgroundColor: primaryColor }}
                   >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </span>
+                    <span>{language === 'ar' ? 'اختر' : 'Choose'}</span>
+                    <svg 
+                      className="w-3 h-3 sm:w-4 sm:h-4"
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -258,6 +279,7 @@ const MultiItemCard = ({ item, language, formatCategory, categories, settings, i
         <MultiItemModal
           item={item}
           language={language}
+          formatCategory={formatCategory}
           onClose={() => setShowMultiItemModal(false)}
           settings={settings}
         />

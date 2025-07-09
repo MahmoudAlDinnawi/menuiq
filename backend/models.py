@@ -39,6 +39,7 @@ class Tenant(Base):
     subdomain = Column(String(100), unique=True, nullable=False, index=True)
     domain = Column(String(255))
     logo_url = Column(String(500))
+    dashboard_logo_url = Column(String(500))  # Separate logo for dashboard header
     contact_email = Column(String(255))
     contact_phone = Column(String(50))
     address = Column(Text)
