@@ -41,6 +41,12 @@ migrations = [
         "sql": [
             "ALTER TABLE settings ADD COLUMN IF NOT EXISTS show_include_vat BOOLEAN DEFAULT TRUE;"
         ]
+    },
+    {
+        "name": "Dashboard Logo URL field",
+        "sql": [
+            "ALTER TABLE tenants ADD COLUMN IF NOT EXISTS dashboard_logo_url VARCHAR(500);"
+        ]
     }
 ]
 
