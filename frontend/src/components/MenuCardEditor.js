@@ -1800,7 +1800,16 @@ const MenuCardEditor = ({ item, itemType, categories, onSave, onClose, settings 
                       <option value="pulse">Pulse</option>
                       <option value="glow">Glow</option>
                       <option value="shine">Shine</option>
-                      <option value="bounce">Bounce</option>
+                      <option value="luxury">✨ Luxury Shimmer</option>
+                      <option value="diamond">💎 Diamond Sparkle</option>
+                      <option value="royal">👑 Royal Gradient</option>
+                      <option value="float">🎈 Elegant Float</option>
+                      <option value="premium">🌟 Premium Border</option>
+                      <option value="spotlight">💡 Spotlight</option>
+                      <option value="ripple">💫 Elegant Ripple</option>
+                      <option value="aura">🌟 Golden Aura</option>
+                      <option value="crystal">💠 Crystal Gleam</option>
+                      <option value="magnetic">🧲 Magnetic Pull</option>
                     </select>
                   </div>
 
@@ -1844,10 +1853,16 @@ const MenuCardEditor = ({ item, itemType, categories, onSave, onClose, settings 
                     <div className="bg-gray-100 p-6 rounded-lg">
                       <div 
                         className={`bg-white rounded-xl p-4 shadow-lg max-w-xs mx-auto relative ${
-                          formData.upsell_animation === 'pulse' ? 'animate-pulse' : 
+                          formData.upsell_animation === 'pulse' ? 'upsell-pulse' : 
                           formData.upsell_animation === 'glow' ? 'upsell-glow' : 
                           formData.upsell_animation === 'shine' ? 'upsell-shine' : 
-                          formData.upsell_animation === 'bounce' ? 'animate-bounce' : ''
+                          formData.upsell_animation === 'luxury' ? 'upsell-luxury' :
+                          formData.upsell_animation === 'diamond' ? 'upsell-diamond' :
+                          formData.upsell_animation === 'royal' ? 'upsell-royal' :
+                          formData.upsell_animation === 'float' ? 'upsell-float' :
+                          formData.upsell_animation === 'premium' ? 'upsell-premium' :
+                          formData.upsell_animation === 'spotlight' ? 'upsell-spotlight' :
+                          formData.upsell_animation === 'ripple' ? 'upsell-ripple' : ''
                         }`}
                         style={{
                           borderWidth: '2px',

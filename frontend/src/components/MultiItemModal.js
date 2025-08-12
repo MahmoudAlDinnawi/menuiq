@@ -18,23 +18,15 @@ const MultiItemModal = ({ item, language, onClose, settings, formatCategory }) =
     return price || '0';
   };
 
-  // Prevent iOS bounce and pull-to-refresh
+  // Prevent iOS bounce and pull-to-refresh (removed to fix scrolling)
   useEffect(() => {
-    const preventPullToRefresh = (e) => {
-      if (e.touches && e.touches[0].clientY > 0) {
-        e.preventDefault();
-      }
-    };
-
-    // Only add listener on mobile
+    // Only prevent body scroll, not modal content scroll
     if (window.innerWidth <= 640) {
       document.body.style.overflow = 'hidden';
-      window.addEventListener('touchmove', preventPullToRefresh, { passive: false });
     }
 
     return () => {
       document.body.style.overflow = '';
-      window.removeEventListener('touchmove', preventPullToRefresh);
     };
   }, []);
 
@@ -55,15 +47,14 @@ const MultiItemModal = ({ item, language, onClose, settings, formatCategory }) =
   const handleTouchMove = (e) => {
     if (!touchStart) return;
     
-    // Prevent iOS bounce
-    e.preventDefault();
-    
     const currentTouch = e.targetTouches[0].clientY;
     setTouchEnd(currentTouch);
     const currentDrag = currentTouch - touchStart;
     
     // Only allow dragging down (positive values)
     if (currentDrag > 0 && currentDrag < 300) { // Limit max drag
+      // Only prevent default if we're actually dragging the modal
+      e.preventDefault();
       setIsDragging(true);
       setDragOffset(currentDrag);
       
@@ -132,10 +123,25 @@ const MultiItemModal = ({ item, language, onClose, settings, formatCategory }) =
           transform hover:-translate-y-1 overflow-hidden group relative
           ${isImageless ? 'border-2 border-gray-100' : ''}
           ${subItem.is_upsell ? 'ring-2' : ''}
+          ${subItem.is_upsell && subItem.upsell_animation === 'glow' ? 'upsell-glow' : ''}
+          ${subItem.is_upsell && subItem.upsell_animation === 'shine' ? 'upsell-shine' : ''}
+          ${subItem.is_upsell && subItem.upsell_animation === 'pulse' ? 'upsell-pulse' : ''}
+          ${subItem.is_upsell && subItem.upsell_animation === 'luxury' ? 'upsell-luxury' : ''}
+          ${subItem.is_upsell && subItem.upsell_animation === 'diamond' ? 'upsell-diamond' : ''}
+          ${subItem.is_upsell && subItem.upsell_animation === 'royal' ? 'upsell-royal' : ''}
+          ${subItem.is_upsell && subItem.upsell_animation === 'float' ? 'upsell-float' : ''}
+          ${subItem.is_upsell && subItem.upsell_animation === 'premium' ? 'upsell-premium' : ''}
+          ${subItem.is_upsell && subItem.upsell_animation === 'spotlight' ? 'upsell-spotlight' : ''}
+          ${subItem.is_upsell && subItem.upsell_animation === 'ripple' ? 'upsell-ripple' : ''}
+          ${subItem.is_upsell && subItem.upsell_animation === 'aura' ? 'upsell-aura' : ''}
+          ${subItem.is_upsell && subItem.upsell_animation === 'crystal' ? 'upsell-crystal' : ''}
+          ${subItem.is_upsell && subItem.upsell_animation === 'magnetic' ? 'upsell-magnetic' : ''}
         `}
         style={subItem.is_upsell ? {
           '--tw-ring-color': subItem.upsell_border_color || '#FFD700',
-          borderColor: subItem.upsell_border_color || '#FFD700'
+          '--ring-color': subItem.upsell_border_color || '#FFD700',
+          borderColor: subItem.upsell_border_color || '#FFD700',
+          backgroundColor: subItem.upsell_background_color || '#FFFFFF'
         } : {}}
         onClick={(e) => handleSubItemClick(e, subItem)}
       >
@@ -331,7 +337,7 @@ const MultiItemModal = ({ item, language, onClose, settings, formatCategory }) =
         {/* Modal container - slides up from bottom on mobile */}
         <div 
           ref={modalRef}
-          className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-4xl max-h-[90vh] sm:max-h-[85vh] overflow-hidden animate-slide-up sm:animate-fade-in"
+          className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-4xl max-h-[90vh] sm:max-h-[85vh] flex flex-col animate-slide-up sm:animate-fade-in"
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
@@ -345,7 +351,7 @@ const MultiItemModal = ({ item, language, onClose, settings, formatCategory }) =
           </div>
 
           {/* Header with image */}
-          <div className="relative h-40 sm:h-56 bg-gradient-to-br from-gray-100 to-gray-200">
+          <div className="relative h-32 sm:h-56 bg-gradient-to-br from-gray-100 to-gray-200 flex-shrink-0">
             {item.image ? (
               <>
                 <LazyImage 
@@ -420,7 +426,7 @@ const MultiItemModal = ({ item, language, onClose, settings, formatCategory }) =
           </div>
 
           {/* Content - scrollable area with better mobile height */}
-          <div className="overflow-y-auto" style={{ maxHeight: 'calc(90vh - 8rem)' }}>
+          <div className="flex-1 overflow-y-auto -webkit-overflow-scrolling-touch">
             {/* Quick info bar */}
             {item.allergens && item.allergens.length > 0 && (
               <div className="px-4 py-3 bg-amber-50 border-b border-amber-100">
@@ -444,7 +450,7 @@ const MultiItemModal = ({ item, language, onClose, settings, formatCategory }) =
             )}
 
             {/* Sub-items list */}
-            <div className="p-3 sm:p-6">
+            <div className="p-3 sm:p-6 pb-6">
               {/* Section title - smaller on mobile */}
               <div className="mb-4">
                 <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-1">
@@ -460,7 +466,7 @@ const MultiItemModal = ({ item, language, onClose, settings, formatCategory }) =
 
               {/* Mobile: Optimized Grid View */}
               <div className="block sm:hidden">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3 pb-4">
                   {item.sub_items && item.sub_items.length > 0 ? (
                     item.sub_items
                       .sort((a, b) => (a.sub_item_order || 0) - (b.sub_item_order || 0))
@@ -468,10 +474,38 @@ const MultiItemModal = ({ item, language, onClose, settings, formatCategory }) =
                         <div key={subItem.id} onClick={(e) => handleSubItemClick(e, subItem)}
                              className={`bg-white rounded-xl shadow-sm overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98] ${
                                subItem.is_upsell ? 'ring-2' : 'border border-gray-100'
+                             } ${
+                               subItem.is_upsell && subItem.upsell_animation === 'glow' ? 'upsell-glow' : ''
+                             } ${
+                               subItem.is_upsell && subItem.upsell_animation === 'shine' ? 'upsell-shine' : ''
+                             } ${
+                               subItem.is_upsell && subItem.upsell_animation === 'pulse' ? 'upsell-pulse' : ''
+                             } ${
+                               subItem.is_upsell && subItem.upsell_animation === 'luxury' ? 'upsell-luxury' : ''
+                             } ${
+                               subItem.is_upsell && subItem.upsell_animation === 'diamond' ? 'upsell-diamond' : ''
+                             } ${
+                               subItem.is_upsell && subItem.upsell_animation === 'royal' ? 'upsell-royal' : ''
+                             } ${
+                               subItem.is_upsell && subItem.upsell_animation === 'float' ? 'upsell-float' : ''
+                             } ${
+                               subItem.is_upsell && subItem.upsell_animation === 'premium' ? 'upsell-premium' : ''
+                             } ${
+                               subItem.is_upsell && subItem.upsell_animation === 'spotlight' ? 'upsell-spotlight' : ''
+                             } ${
+                               subItem.is_upsell && subItem.upsell_animation === 'ripple' ? 'upsell-ripple' : ''
+                             } ${
+                               subItem.is_upsell && subItem.upsell_animation === 'aura' ? 'upsell-aura' : ''
+                             } ${
+                               subItem.is_upsell && subItem.upsell_animation === 'crystal' ? 'upsell-crystal' : ''
+                             } ${
+                               subItem.is_upsell && subItem.upsell_animation === 'magnetic' ? 'upsell-magnetic' : ''
                              }`}
                              style={subItem.is_upsell ? {
                                borderColor: subItem.upsell_border_color || '#FFD700',
-                               '--tw-ring-color': subItem.upsell_border_color || '#FFD700'
+                               '--tw-ring-color': subItem.upsell_border_color || '#FFD700',
+                               '--ring-color': subItem.upsell_border_color || '#FFD700',
+                               backgroundColor: subItem.upsell_background_color || '#FFFFFF'
                              } : {}}>
                           {/* Image section */}
                           {subItem.image && (

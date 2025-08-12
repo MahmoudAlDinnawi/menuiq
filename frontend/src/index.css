@@ -48,6 +48,16 @@
   @apply bg-primary rounded-md;
 }
 
+/* Hide scrollbar for horizontal carousel */
+.overflow-x-auto::-webkit-scrollbar {
+  display: none;
+}
+
+.overflow-x-auto {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Mobile-specific improvements */
 @media (max-width: 640px) {
   /* Improve tap targets for mobile */
@@ -563,10 +573,10 @@ nav img {
 
 @keyframes upsellShine {
   0% {
-    background-position: -200% center;
+    left: -100%;
   }
   100% {
-    background-position: 200% center;
+    left: 200%;
   }
 }
 
@@ -575,19 +585,405 @@ nav img {
 }
 
 .upsell-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.upsell-shine::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
   background: linear-gradient(
     105deg,
     transparent 40%,
     rgba(255, 255, 255, 0.7) 50%,
     transparent 60%
   );
-  background-size: 200% 100%;
   animation: upsellShine 3s linear infinite;
+  pointer-events: none;
+  z-index: 1;
 }
 
 /* Upsell card ring effect */
 .ring-2 {
   box-shadow: 0 0 0 2px var(--ring-color);
+}
+
+/* Pulse animation for upsell items */
+@keyframes upsellPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+.upsell-pulse {
+  animation: upsellPulse 2s ease-in-out infinite;
+}
+
+/* Ensure content is above shine effect */
+.upsell-shine > * {
+  position: relative;
+  z-index: 2;
+}
+
+/* Premium Elegant Animations */
+
+/* 1. Luxury Shimmer - Subtle elegant shimmer */
+@keyframes luxuryShimmer {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.upsell-luxury {
+  position: relative;
+  background: linear-gradient(
+    45deg,
+    #f6f6f6 25%,
+    #ffffff 25%,
+    #ffffff 50%,
+    #f6f6f6 50%,
+    #f6f6f6 75%,
+    #ffffff 75%,
+    #ffffff
+  );
+  background-size: 20px 20px;
+  animation: luxuryShimmer 4s ease infinite;
+  box-shadow: 
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -1px rgba(0, 0, 0, 0.06),
+    inset 0 0 0 2px rgba(255, 215, 0, 0.3);
+}
+
+/* 2. Diamond Sparkle - Twinkling diamond effect */
+@keyframes diamondSparkle {
+  0%, 100% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.upsell-diamond {
+  position: relative;
+  overflow: hidden;
+}
+
+.upsell-diamond::before,
+.upsell-diamond::after {
+  content: '✦';
+  position: absolute;
+  color: rgba(255, 215, 0, 0.8);
+  font-size: 24px;
+  animation: diamondSparkle 3s ease-in-out infinite;
+}
+
+.upsell-diamond::before {
+  top: 10%;
+  right: 10%;
+  animation-delay: 0s;
+}
+
+.upsell-diamond::after {
+  bottom: 10%;
+  left: 10%;
+  animation-delay: 1.5s;
+}
+
+/* 3. Royal Gradient - Animated premium gradient */
+@keyframes royalGradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.upsell-royal {
+  background: linear-gradient(
+    270deg,
+    rgba(255, 215, 0, 0.1),
+    rgba(255, 255, 255, 0.2),
+    rgba(255, 215, 0, 0.1),
+    rgba(255, 255, 255, 0.2)
+  );
+  background-size: 400% 400%;
+  animation: royalGradient 8s ease infinite;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  position: relative;
+}
+
+.upsell-royal::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, #FFD700, #FFA500, #FFD700, #FFA500);
+  border-radius: inherit;
+  z-index: -1;
+  opacity: 0.7;
+  animation: royalGradient 8s ease infinite;
+}
+
+/* 4. Elegant Float - Subtle floating effect */
+@keyframes elegantFloat {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    box-shadow: 
+      0 10px 15px -3px rgba(0, 0, 0, 0.1),
+      0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
+  50% {
+    transform: translateY(-4px) scale(1.01);
+    box-shadow: 
+      0 20px 25px -5px rgba(0, 0, 0, 0.15),
+      0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+}
+
+.upsell-float {
+  animation: elegantFloat 4s ease-in-out infinite;
+  transition: all 0.3s ease;
+}
+
+.upsell-float:hover {
+  animation-play-state: paused;
+  transform: translateY(-6px) scale(1.02);
+}
+
+/* 5. Premium Border Animation */
+@keyframes premiumBorder {
+  0%, 100% {
+    clip-path: inset(0 0 98% 0);
+  }
+  25% {
+    clip-path: inset(0 98% 0 0);
+  }
+  50% {
+    clip-path: inset(98% 0 0 0);
+  }
+  75% {
+    clip-path: inset(0 0 0 98%);
+  }
+}
+
+.upsell-premium {
+  position: relative;
+  border: 2px solid transparent;
+  background: linear-gradient(white, white) padding-box,
+              linear-gradient(45deg, #FFD700, #FFA500) border-box;
+}
+
+.upsell-premium::before {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  right: -3px;
+  bottom: -3px;
+  background: linear-gradient(45deg, #FFD700, #FF6B6B, #4ECDC4, #FFD700);
+  border-radius: inherit;
+  animation: premiumBorder 3s linear infinite;
+  z-index: -1;
+}
+
+/* 6. Spotlight Effect - Elegant spotlight hover */
+.upsell-spotlight {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(145deg, #ffffff, #f9f9f9);
+  box-shadow: 
+    20px 20px 60px #d4d4d4,
+    -20px -20px 60px #ffffff;
+}
+
+.upsell-spotlight::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(
+    circle,
+    rgba(255, 215, 0, 0.3) 0%,
+    transparent 70%
+  );
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+}
+
+.upsell-spotlight:hover::before {
+  opacity: 1;
+}
+
+/* 7. Elegant Ripple Effect */
+@keyframes elegantRipple {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.upsell-ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.upsell-ripple::before,
+.upsell-ripple::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 215, 0, 0.5);
+  transform: translate(-50%, -50%);
+  animation: elegantRipple 4s ease-out infinite;
+}
+
+.upsell-ripple::after {
+  animation-delay: 2s;
+}
+
+/* 8. Golden Aura - Soft golden glow aura */
+@keyframes goldenAura {
+  0%, 100% {
+    box-shadow: 
+      0 0 20px rgba(255, 215, 0, 0.3),
+      0 0 40px rgba(255, 215, 0, 0.2),
+      0 0 60px rgba(255, 215, 0, 0.1);
+  }
+  50% {
+    box-shadow: 
+      0 0 30px rgba(255, 215, 0, 0.5),
+      0 0 50px rgba(255, 215, 0, 0.3),
+      0 0 70px rgba(255, 215, 0, 0.2);
+  }
+}
+
+.upsell-aura {
+  animation: goldenAura 3s ease-in-out infinite;
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  background: linear-gradient(135deg, #ffffff 0%, #fffef5 100%);
+}
+
+/* 9. Crystal Gleam - Crystal-like light refraction */
+@keyframes crystalGleam {
+  0% {
+    background-position: -200% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+.upsell-crystal {
+  position: relative;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 45%,
+    rgba(255, 255, 255, 0.3) 50%,
+    rgba(255, 255, 255, 0.1) 55%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: crystalGleam 4s linear infinite;
+  border: 1px solid rgba(192, 192, 192, 0.3);
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+}
+
+/* 10. Magnetic Pull - Subtle magnetic attraction effect */
+@keyframes magneticPull {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+  }
+  25% {
+    transform: scale(1.02) rotate(0.5deg);
+  }
+  50% {
+    transform: scale(1.01) rotate(-0.5deg);
+  }
+  75% {
+    transform: scale(1.02) rotate(0.5deg);
+  }
+}
+
+.upsell-magnetic {
+  animation: magneticPull 5s ease-in-out infinite;
+  background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  position: relative;
+}
+
+.upsell-magnetic::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(60deg, #f79533, #f37055, #ef4e7b, #a166ab, #5073b8, #1098ad, #07b39b, #6fba82);
+  border-radius: inherit;
+  z-index: -1;
+  opacity: 0.6;
+  background-size: 300% 300%;
+  animation: magneticPull 5s ease-in-out infinite;
+}
+
+/* Mobile optimizations for all animations */
+@media (max-width: 640px) {
+  .upsell-luxury,
+  .upsell-diamond,
+  .upsell-royal,
+  .upsell-float,
+  .upsell-premium,
+  .upsell-spotlight,
+  .upsell-ripple,
+  .upsell-aura,
+  .upsell-crystal,
+  .upsell-magnetic {
+    animation-duration: calc(var(--animation-duration, 4s) * 1.5);
+  }
+  
+  .upsell-float {
+    animation: elegantFloat 6s ease-in-out infinite;
+  }
+  
+  .upsell-diamond::before,
+  .upsell-diamond::after {
+    font-size: 18px;
+  }
 }
 
 /* Multi-item modal animations */
