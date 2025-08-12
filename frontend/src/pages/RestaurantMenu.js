@@ -19,6 +19,7 @@ import AmazingMobileCard from '../components/AmazingMobileCard';
 import AmazingDesktopCard from '../components/AmazingDesktopCard';
 import MultiItemCard from '../components/MultiItemCard';
 import LuxuryLanguageSelector from '../components/LuxuryLanguageSelector';
+import GoogleTagManager from '../components/GoogleTagManager';
 import publicMenuAPI from '../services/publicMenuApi';
 import DOMPurify from 'dompurify';  // For sanitizing HTML content
 import analyticsTracker from '../services/analyticsTracker';  // Analytics tracking
@@ -275,6 +276,9 @@ const RestaurantMenu = () => {
           </div>
         </div>
       )}
+      {/* Google Tag Manager */}
+      <GoogleTagManager gtmId={settings?.gtmContainerId} />
+      
       {/* SEO Meta Tags */}
       <Helmet>
         <title>

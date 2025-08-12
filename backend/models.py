@@ -449,6 +449,9 @@ class Settings(Base):
     meta_keywords_ar = Column(Text)
     og_image_url = Column(String(500))  # Open Graph image for social sharing
     
+    # Analytics Integration
+    gtm_container_id = Column(String(50))  # Google Tag Manager container ID (e.g., GTM-XXXXXXX)
+    
     # Metadata
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

@@ -368,7 +368,8 @@ async def get_public_settings(
             # Multi-item badge defaults
             "multiItemBadgeTextEn": "Multi",
             "multiItemBadgeTextAr": "متعدد",
-            "multiItemBadgeColor": "#9333EA"
+            "multiItemBadgeColor": "#9333EA",
+            "gtmContainerId": None
         }
         cache.set(cache_key, result, CACHE_TTL["settings"])
         return result
@@ -415,7 +416,8 @@ async def get_public_settings(
         "ogImageUrl": settings.og_image_url,
         "multiItemBadgeTextEn": settings.multi_item_badge_text_en,
         "multiItemBadgeTextAr": settings.multi_item_badge_text_ar,
-        "multiItemBadgeColor": settings.multi_item_badge_color
+        "multiItemBadgeColor": settings.multi_item_badge_color,
+        "gtmContainerId": settings.gtm_container_id
     }
     
     cache.set(cache_key, result, CACHE_TTL["settings"])
