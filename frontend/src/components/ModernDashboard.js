@@ -705,6 +705,11 @@ const ModernDashboard = () => {
                               Multi
                             </span>
                           )}
+                          {item.parent_item_id && (
+                            <span className="px-1.5 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
+                              Sub-item of: {item.parent_item_name || `#${item.parent_item_id}`}
+                            </span>
+                          )}
                         </div>
                         <div className="text-sm text-gray-500 truncate max-w-xs">{item.description}</div>
                       </div>

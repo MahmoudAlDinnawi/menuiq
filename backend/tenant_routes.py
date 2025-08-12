@@ -508,8 +508,8 @@ async def get_menu_items(
     tenant = get_tenant_from_user(current_user, db)
     
     query = db.query(MenuItem).filter(
-        MenuItem.tenant_id == tenant.id,
-        MenuItem.parent_item_id == None  # Exclude sub-items from main list
+        MenuItem.tenant_id == tenant.id
+        # Include ALL items for dashboard editing (including sub-items)
     ).options(
         joinedload(MenuItem.sub_items),
         joinedload(MenuItem.allergens),
@@ -570,6 +570,15 @@ async def get_menu_items(
     # Convert to dict with all enhanced fields
     result = []
     for item in items:
+        # Get parent item name if this is a sub-item
+        parent_item_name = None
+        if item.parent_item_id:
+            parent_item = db.query(MenuItem).filter(
+                MenuItem.id == item.parent_item_id
+            ).first()
+            if parent_item:
+                parent_item_name = parent_item.name
+        
         item_dict = {
             "id": item.id,
             "tenant_id": item.tenant_id,
@@ -683,6 +692,7 @@ async def get_menu_items(
             # Multi-item fields
             "is_multi_item": item.is_multi_item,
             "parent_item_id": item.parent_item_id,
+            "parent_item_name": parent_item_name,  # Name of parent multi-item if this is a sub-item
             "price_min": float(item.price_min) if item.price_min else None,
             "price_max": float(item.price_max) if item.price_max else None,
             "display_as_grid": item.display_as_grid,
@@ -696,7 +706,11 @@ async def get_menu_items(
                     "description_ar": sub.description_ar,
                     "price": float(sub.price) if sub.price else None,
                     "image_url": sub.image,
-                    "sub_item_order": sub.sub_item_order
+                    "sub_item_order": sub.sub_item_order,
+                    "is_upsell": sub.is_upsell,
+                    "upsell_badge_text": sub.upsell_badge_text,
+                    "upsell_badge_color": sub.upsell_badge_color,
+                    "upsell_icon": sub.upsell_icon
                 } for sub in item.sub_items
             ] if item.is_multi_item else [],
             # Metadata
@@ -1101,8 +1115,10 @@ async def update_menu_item(
             db.commit()
             print(f"[UPDATE MENU ITEM] Successfully updated item ID: {item_id}")
             
-            # Invalidate cache for this tenant
-            invalidate_public_menu_cache(tenant.subdomain)
+            # Invalidate cache for this tenant - with cache warming
+            print(f"[UPDATE MENU ITEM] Invalidating cache for subdomain: {tenant.subdomain}")
+            invalidate_public_menu_cache(tenant.subdomain, db=db, warm_cache=True)
+            print(f"[UPDATE MENU ITEM] Cache invalidated and warmed for subdomain: {tenant.subdomain}")
         except Exception as e:
             db.rollback()
             print(f"[UPDATE MENU ITEM] Database commit error: {str(e)}")

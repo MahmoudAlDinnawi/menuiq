@@ -387,7 +387,10 @@ const MenuCardEditor = ({ item, itemType, categories, onSave, onClose, settings 
     }
   };
 
-  const tabs = formData.is_multi_item ? [
+  // Don't show multi-item tab for sub-items
+  const isSubItem = item?.parent_item_id;
+  
+  const tabs = formData.is_multi_item && !isSubItem ? [
     // Multi-item tabs (limited set)
     { id: 'basic', label: 'Basic', icon: '📝', description: 'Name & category' },
     { id: 'items', label: 'Items', icon: '📋', description: 'Select items to include' },
@@ -411,9 +414,16 @@ const MenuCardEditor = ({ item, itemType, categories, onSave, onClose, settings 
         {/* Header */}
         <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-6 rounded-t-2xl flex-shrink-0">
           <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold">
-              {item ? 'Edit Menu Item' : 'Create Menu Item'}
-            </h2>
+            <div>
+              <h2 className="text-2xl font-bold">
+                {item ? 'Edit Menu Item' : 'Create Menu Item'}
+              </h2>
+              {isSubItem && (
+                <p className="text-sm text-white/80 mt-1">
+                  Sub-item of: {item.parent_item_name || `Multi-item #${item.parent_item_id}`}
+                </p>
+              )}
+            </div>
             <button
               onClick={onClose}
               className="p-2 hover:bg-white/20 rounded-lg transition-colors"
@@ -650,7 +660,14 @@ const MenuCardEditor = ({ item, itemType, categories, onSave, onClose, settings 
                                 </svg>
                                 <span className="text-sm font-medium text-gray-500">{index + 1}.</span>
                                 <div>
-                                  <h5 className="font-medium text-gray-900">{item.name}</h5>
+                                  <h5 className="font-medium text-gray-900">
+                                    {item.name}
+                                    {item.is_upsell && (
+                                      <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                                        ⭐ Upsell
+                                      </span>
+                                    )}
+                                  </h5>
                                   <p className="text-sm text-gray-500">{item.price} SAR</p>
                                 </div>
                               </div>
@@ -691,6 +708,19 @@ const MenuCardEditor = ({ item, itemType, categories, onSave, onClose, settings 
                   </div>
                 )}
 
+                {/* Info message about upsell items */}
+                <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="flex">
+                    <svg className="w-5 h-5 text-blue-600 mt-0.5 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div className="text-sm text-blue-800">
+                      <p className="font-medium mb-1">Tip: Making Sub-items Upsell Items</p>
+                      <p>To mark sub-items as upsell items, edit each item individually from the main menu list and enable the "Upsell Design" option in the Upsell tab. Items marked as upsell will show a ⭐ badge here and display with special styling in the multi-item modal.</p>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Available items list */}
                 <div className="border border-gray-200 rounded-lg max-h-96 overflow-y-auto">
                   {availableItems.length === 0 ? (
@@ -717,6 +747,11 @@ const MenuCardEditor = ({ item, itemType, categories, onSave, onClose, settings 
                                 <h4 className="font-medium text-gray-900">
                                   {item.name}
                                   {item.name_ar && <span className="text-gray-500 ml-2">({item.name_ar})</span>}
+                                  {item.is_upsell && (
+                                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                                      ⭐ Upsell
+                                    </span>
+                                  )}
                                 </h4>
                                 {item.description && (
                                   <p className="text-sm text-gray-600 mt-1 line-clamp-2">{item.description}</p>

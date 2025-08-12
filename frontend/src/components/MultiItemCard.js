@@ -49,6 +49,35 @@ const MultiItemCard = ({ item, language, formatCategory, categories, settings, i
     return allergens;
   };
 
+  // Get all unique allergens from sub-items for multi-item
+  const getAllSubItemAllergens = () => {
+    if (!item.is_multi_item || !item.sub_items || item.sub_items.length === 0) return null;
+    
+    const allAllergens = new Map();
+    
+    // Collect all unique allergens from sub-items
+    item.sub_items.forEach(subItem => {
+      if (subItem.allergens && subItem.allergens.length > 0) {
+        subItem.allergens.forEach(allergen => {
+          const key = typeof allergen === 'object' ? allergen.name : allergen;
+          if (!allAllergens.has(key)) {
+            if (typeof allergen === 'object') {
+              allAllergens.set(key, {
+                name: allergen.name || '',
+                displayName: language === 'ar' ? allergen.display_name_ar || allergen.display_name : allergen.display_name,
+                iconUrl: allergen.icon_url
+              });
+            } else {
+              allAllergens.set(key, { name: allergen, displayName: allergen, iconUrl: null });
+            }
+          }
+        });
+      }
+    });
+    
+    return allAllergens.size > 0 ? Array.from(allAllergens.values()) : null;
+  };
+
   // Get upsell icon emoji
   const getUpsellIcon = () => {
     const icons = {
@@ -209,79 +238,131 @@ const MultiItemCard = ({ item, language, formatCategory, categories, settings, i
               </p>
             )}
 
-            {/* Quick Info - show for both single and multi items */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 sm:gap-3 md:gap-4 text-[11px] sm:text-xs md:text-sm text-gray-500">
-                {item.calories && (
-                  <span className="flex items-center gap-0.5 sm:gap-1">
-                    <span className="text-xs sm:text-sm">🔥</span>
-                    {item.calories} <span className="hidden sm:inline">{language === 'ar' ? 'سعرة' : 'cal'}</span>
-                  </span>
-                )}
-                {item.preparationTime && (
-                  <span className="flex items-center gap-0.5 sm:gap-1">
-                    <span className="text-xs sm:text-sm">⏱️</span>
-                    {item.preparationTime} <span className="hidden sm:inline">{language === 'ar' ? 'د' : 'min'}</span>
-                  </span>
-                )}
-              </div>
-              {getAllergenInfo(item) && (
-                <div className="flex gap-0.5 sm:gap-1">
-                  {getAllergenInfo(item).slice(0, isMobile ? 3 : 4).map((allergen, idx) => (
-                    <AllergenSVGIcon 
-                      key={idx}
-                      allergenName={allergen.name}
-                      className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6"
-                      title={allergen.displayName}
-                    />
-                  ))}
-                  {getAllergenInfo(item).length > (isMobile ? 3 : 4) && (
-                    <span className="text-[10px] sm:text-xs text-gray-500 self-center">
-                      +{getAllergenInfo(item).length - (isMobile ? 3 : 4)}
+            {/* Quick Info - show for single items only */}
+            {!item.is_multi_item && (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 sm:gap-3 md:gap-4 text-[11px] sm:text-xs md:text-sm text-gray-500">
+                  {item.calories && (
+                    <span className="flex items-center gap-0.5 sm:gap-1">
+                      <span className="text-xs sm:text-sm">🔥</span>
+                      {item.calories} <span className="hidden sm:inline">{language === 'ar' ? 'سعرة' : 'cal'}</span>
+                    </span>
+                  )}
+                  {item.preparationTime && (
+                    <span className="flex items-center gap-0.5 sm:gap-1">
+                      <span className="text-xs sm:text-sm">⏱️</span>
+                      {item.preparationTime} <span className="hidden sm:inline">{language === 'ar' ? 'د' : 'min'}</span>
                     </span>
                   )}
                 </div>
-              )}
-            </div>
+                
+                {/* Show allergens for single items */}
+                {getAllergenInfo(item) && (
+                  <div className="flex gap-0.5 sm:gap-1">
+                    {getAllergenInfo(item).slice(0, isMobile ? 3 : 4).map((allergen, idx) => (
+                      <AllergenSVGIcon 
+                        key={idx}
+                        iconPath={allergen.iconUrl}
+                        allergenName={allergen.name}
+                        className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6"
+                        title={allergen.displayName}
+                        primaryColor="#d97706"
+                      />
+                    ))}
+                    {getAllergenInfo(item).length > (isMobile ? 3 : 4) && (
+                      <span className="text-[10px] sm:text-xs text-gray-500 self-center">
+                        +{getAllergenInfo(item).length - (isMobile ? 3 : 4)}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
-            {/* Multi-item indicator - Enhanced for mobile */}
+            {/* Multi-item indicator - Redesigned */}
             {item.is_multi_item && (
               <div className="mt-3 pt-3 border-t border-gray-100">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="flex -space-x-2">
-                      {item.sub_items?.slice(0, 3).map((_, idx) => (
-                        <div 
-                          key={idx}
-                          className="w-6 h-6 sm:w-7 sm:h-7 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-xs font-medium"
-                          style={{ backgroundColor: idx === 0 ? primaryColor : idx === 1 ? '#FFB800' : '#FF6B6B' }}
-                        >
-                          <span className="text-white">{idx + 1}</span>
-                        </div>
+                {/* Compact allergen info for multi-items */}
+                {getAllSubItemAllergens() && getAllSubItemAllergens().length > 0 && (
+                  <div className="mb-2 flex items-center gap-1.5 text-[10px] sm:text-xs text-amber-700">
+                    <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="font-medium">
+                      {language === 'ar' ? 'قد يحتوي على:' : 'May contain:'}
+                    </span>
+                    <div className="flex flex-wrap gap-1">
+                      {getAllSubItemAllergens().slice(0, isMobile ? 4 : 6).map((allergen, idx) => (
+                        <span key={idx} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-50 rounded text-amber-700 font-medium">
+                          {allergen.displayName}
+                        </span>
                       ))}
-                      {item.sub_items?.length > 3 && (
-                        <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-gray-200 border-2 border-white shadow-sm flex items-center justify-center">
-                          <span className="text-xs text-gray-600">+{item.sub_items.length - 3}</span>
+                      {getAllSubItemAllergens().length > (isMobile ? 4 : 6) && (
+                        <span className="text-amber-600 self-center">
+                          +{getAllSubItemAllergens().length - (isMobile ? 4 : 6)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Clean options display */}
+                <div className="flex items-center justify-between gap-3 p-2.5 sm:p-3 rounded-lg border border-gray-200 bg-gradient-to-r from-white to-gray-50 hover:shadow-sm transition-all duration-200">
+                  {/* Left side - Clean info */}
+                  <div className="flex items-center gap-3">
+                    {/* Elegant icon with gradient */}
+                    <div 
+                      className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center"
+                      style={{ 
+                        background: `linear-gradient(135deg, ${primaryColor}15 0%, ${primaryColor}30 100%)`
+                      }}
+                    >
+                      <div className="absolute inset-0 rounded-lg opacity-50" 
+                           style={{ 
+                             background: `radial-gradient(circle at top right, ${primaryColor}20, transparent)`
+                           }} 
+                      />
+                      <span className="relative text-base sm:text-lg font-bold" style={{ color: primaryColor }}>
+                        {item.sub_items?.length || 0}
+                      </span>
+                    </div>
+                    
+                    {/* Text with preview */}
+                    <div className="flex-1">
+                      <div className="text-xs sm:text-sm font-medium text-gray-900">
+                        {language === 'ar' ? 'خيارات متعددة' : 'Multiple Choices'}
+                      </div>
+                      {/* Simple text preview */}
+                      {item.sub_items && item.sub_items.length > 0 && (
+                        <div className="mt-0.5 text-[10px] sm:text-xs text-gray-500 line-clamp-1">
+                          {item.sub_items.slice(0, 3).map(sub => 
+                            language === 'ar' && (sub.nameAr || sub.name_ar) ? 
+                              (sub.nameAr || sub.name_ar) : sub.name
+                          ).join(' • ')}
+                          {item.sub_items.length > 3 && ' ...'}
                         </div>
                       )}
                     </div>
-                    <span className="text-xs sm:text-sm text-gray-600 font-medium">
-                      {item.sub_items?.length || 0} {language === 'ar' ? 'خيارات' : 'options'}
-                    </span>
                   </div>
                   
+                  {/* Right side - Elegant button */}
                   <button 
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-full transition-all duration-300 text-xs sm:text-sm font-medium text-white shadow-sm hover:shadow-md transform hover:scale-105"
-                    style={{ backgroundColor: primaryColor }}
+                    className="group flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg font-medium text-xs sm:text-sm text-white transition-all duration-200 hover:shadow-lg transform hover:scale-[1.02] active:scale-[0.98]"
+                    style={{ 
+                      backgroundColor: primaryColor,
+                      boxShadow: `0 2px 8px ${primaryColor}30`
+                    }}
                   >
-                    <span>{language === 'ar' ? 'اختر' : 'Choose'}</span>
+                    <span>{language === 'ar' ? 'عرض الخيارات' : 'View All'}</span>
                     <svg 
-                      className="w-3 h-3 sm:w-4 sm:h-4"
+                      className="w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform group-hover:translate-x-0.5"
                       fill="none" 
                       stroke="currentColor" 
                       viewBox="0 0 24 24"
                     >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                        d="M9 5l7 7-7 7" 
+                      />
                     </svg>
                   </button>
                 </div>

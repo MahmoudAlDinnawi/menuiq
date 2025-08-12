@@ -38,7 +38,10 @@ async def get_public_menu_items(
     cache_key = f"public_menu:subdomain:{subdomain}:skip:{skip}:limit:{limit}:fields:{fields or 'all'}"
     cached_data = cache.get(cache_key)
     if cached_data is not None:
+        print(f"[PUBLIC API] Returning cached data for key: {cache_key}")
         return cached_data
+    
+    print(f"[PUBLIC API] Cache miss for key: {cache_key}, fetching from database")
     
     tenant = get_tenant_by_subdomain(db, subdomain)
     
@@ -257,6 +260,16 @@ async def get_public_menu_items(
                     "ingredients": sub.ingredients,
                     "chefNotes": sub.chef_notes,
                     "pairingSuggestions": sub.pairing_suggestions,
+                    
+                    # Upsell fields for sub-items
+                    "is_upsell": sub.is_upsell,
+                    "upsell_style": sub.upsell_style,
+                    "upsell_border_color": sub.upsell_border_color,
+                    "upsell_background_color": sub.upsell_background_color,
+                    "upsell_badge_text": sub.upsell_badge_text,
+                    "upsell_badge_color": sub.upsell_badge_color,
+                    "upsell_animation": sub.upsell_animation,
+                    "upsell_icon": sub.upsell_icon,
                     
                     # Order
                     "sub_item_order": sub.sub_item_order
