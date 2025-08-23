@@ -19,6 +19,7 @@ import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import { lazyLoad } from './utils/lazyLoad';
 import performanceMonitor from './utils/performanceMonitor';
+import { applyHonorFixes, getHonorDeviceStyles } from './utils/honorDeviceFix';
 
 // Lazy load pages for better performance
 const RestaurantMenu = lazyLoad(() => import('./pages/RestaurantMenu'));
@@ -30,6 +31,17 @@ const SystemAdminDashboard = lazyLoad(() => import('./pages/SystemAdminDashboard
 function App() {
   // Monitor performance in development
   useEffect(() => {
+    // Apply Honor device fixes
+    applyHonorFixes();
+    
+    // Add Honor-specific styles if needed
+    const honorStyles = getHonorDeviceStyles();
+    if (honorStyles) {
+      const styleElement = document.createElement('style');
+      styleElement.textContent = honorStyles;
+      document.head.appendChild(styleElement);
+    }
+    
     if (process.env.NODE_ENV === 'development') {
       // Log metrics after page load
       window.addEventListener('load', () => {

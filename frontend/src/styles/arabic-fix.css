@@ -1,0 +1,48 @@
+/* Honor Device Arabic Text Fix */
+
+/* Force specific fonts for Arabic content to prevent system font substitution */
+[dir="rtl"], 
+[lang="ar"],
+.arabic-text,
+*:lang(ar) {
+  font-family: 'Segoe UI', 'Noto Sans Arabic', 'Arial', sans-serif !important;
+  font-variant-ligatures: none !important;
+  -webkit-font-feature-settings: "liga" 0 !important;
+  font-feature-settings: "liga" 0 !important;
+  text-rendering: optimizeLegibility !important;
+}
+
+/* Disable font substitution for Arabic numerals */
+[dir="rtl"] *,
+[lang="ar"] * {
+  -webkit-locale: "en" !important;
+}
+
+/* Prevent Honor/EMUI text decoration */
+.menu-item-name,
+.menu-item-description,
+.category-name,
+.category-description {
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+  text-decoration: none !important;
+  text-transform: none !important;
+  font-variant: normal !important;
+  font-weight: normal !important;
+}
+
+/* Override any system-injected pseudo-elements */
+*::before,
+*::after {
+  content: "" !important;
+  font-family: inherit !important;
+}
+
+/* Specific fix for Honor browser text injection */
+@supports (-webkit-touch-callout: none) {
+  [dir="rtl"] *,
+  [lang="ar"] * {
+    -webkit-touch-callout: none !important;
+    -webkit-user-select: text !important;
+  }
+}
