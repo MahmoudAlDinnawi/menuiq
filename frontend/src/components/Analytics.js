@@ -61,7 +61,7 @@ ChartJS.register(
 
 const Analytics = () => {
   const [loading, setLoading] = useState(true);
-  const [dateRange, setDateRange] = useState(30); // Days
+  const [dateRange, setDateRange] = useState(365); // Default to 365 days to show more historical data
   const [customDateRange, setCustomDateRange] = useState(false);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -309,6 +309,7 @@ const Analytics = () => {
               <option value={7}>Last 7 days</option>
               <option value={30}>Last 30 days</option>
               <option value={90}>Last 90 days</option>
+              <option value={365}>Last 365 days</option>
               <option value="custom">Custom Range</option>
             </select>
             

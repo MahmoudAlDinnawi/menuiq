@@ -20,8 +20,8 @@ class AnalyticsOptimizer:
         end_date: date
     ) -> Dict:
         """
-        Get optimized dashboard overview using primarily pre-aggregated data
-        Only queries real-time data for today if needed
+        Get dashboard overview using direct queries on raw analytics tables
+        This ensures all historical data is included
         """
         # Check cache first
         cache_key = f"analytics_overview:{tenant_id}:{start_date}:{end_date}"
@@ -29,56 +29,66 @@ class AnalyticsOptimizer:
         if cached_data is not None:
             return cached_data
         
-        # Determine if we need real-time data (only for today)
-        needs_realtime = date.today() >= start_date and date.today() <= end_date
-        
-        # Get all aggregated data in a single query
-        aggregated_stats = db.query(
-            func.sum(AnalyticsDaily.total_sessions).label("total_sessions"),
-            func.sum(AnalyticsDaily.unique_visitors).label("unique_visitors"),
-            func.sum(AnalyticsDaily.total_page_views).label("total_page_views"),
-            func.sum(AnalyticsDaily.total_item_clicks).label("total_item_clicks"),
-            func.avg(AnalyticsDaily.avg_session_duration).label("avg_session_duration"),
-            func.sum(AnalyticsDaily.mobile_sessions).label("mobile_sessions"),
-            func.sum(AnalyticsDaily.desktop_sessions).label("desktop_sessions"),
-            func.sum(AnalyticsDaily.tablet_sessions).label("tablet_sessions")
+        # Query raw analytics tables directly for accurate counts
+        session_stats = db.query(
+            func.count(AnalyticsSession.id).label("total_sessions"),
+            func.count(func.distinct(AnalyticsSession.ip_address_hash)).label("unique_visitors"),
+            func.avg(AnalyticsSession.duration_seconds).label("avg_duration")
         ).filter(
-            AnalyticsDaily.tenant_id == tenant_id,
-            AnalyticsDaily.date >= start_date,
-            AnalyticsDaily.date < date.today() if needs_realtime else AnalyticsDaily.date <= end_date
+            AnalyticsSession.tenant_id == tenant_id,
+            cast(AnalyticsSession.started_at, Date) >= start_date,
+            cast(AnalyticsSession.started_at, Date) <= end_date
         ).first()
         
-        # Initialize result with aggregated data
+        # Get page views count
+        page_views = db.query(func.count(AnalyticsPageView.id)).filter(
+            AnalyticsPageView.tenant_id == tenant_id,
+            cast(AnalyticsPageView.timestamp, Date) >= start_date,
+            cast(AnalyticsPageView.timestamp, Date) <= end_date
+        ).scalar() or 0
+        
+        # Get item clicks count
+        item_clicks = db.query(func.count(AnalyticsItemClick.id)).filter(
+            AnalyticsItemClick.tenant_id == tenant_id,
+            cast(AnalyticsItemClick.timestamp, Date) >= start_date,
+            cast(AnalyticsItemClick.timestamp, Date) <= end_date
+        ).scalar() or 0
+        
+        # Get device breakdown
+        device_stats = db.query(
+            AnalyticsSession.device_type,
+            func.count(AnalyticsSession.id)
+        ).filter(
+            AnalyticsSession.tenant_id == tenant_id,
+            cast(AnalyticsSession.started_at, Date) >= start_date,
+            cast(AnalyticsSession.started_at, Date) <= end_date
+        ).group_by(AnalyticsSession.device_type).all()
+        
+        device_breakdown = {"mobile": 0, "desktop": 0, "tablet": 0}
+        for device_type, count in device_stats:
+            if device_type and device_type.lower() in device_breakdown:
+                device_breakdown[device_type.lower()] = count
+        
+        # Get today's sessions count
+        today_start = datetime.combine(date.today(), datetime.min.time())
+        today_sessions = db.query(func.count(AnalyticsSession.id)).filter(
+            AnalyticsSession.tenant_id == tenant_id,
+            AnalyticsSession.started_at >= today_start
+        ).scalar() or 0
+        
+        # Build result
         result = {
-            "total_sessions": aggregated_stats.total_sessions or 0,
-            "unique_visitors": aggregated_stats.unique_visitors or 0,
-            "total_page_views": aggregated_stats.total_page_views or 0,
-            "total_item_clicks": aggregated_stats.total_item_clicks or 0,
-            "avg_session_duration": int(aggregated_stats.avg_session_duration or 0),
-            "device_breakdown": {
-                "mobile": aggregated_stats.mobile_sessions or 0,
-                "desktop": aggregated_stats.desktop_sessions or 0,
-                "tablet": aggregated_stats.tablet_sessions or 0
-            }
+            "total_sessions": session_stats.total_sessions or 0,
+            "unique_visitors": session_stats.unique_visitors or 0,
+            "total_page_views": page_views,
+            "total_item_clicks": item_clicks,
+            "avg_session_duration": int(session_stats.avg_duration or 0),
+            "device_breakdown": device_breakdown,
+            "today_sessions": today_sessions
         }
         
-        # Add real-time data for today if needed
-        if needs_realtime:
-            today_stats = AnalyticsOptimizer._get_today_realtime_stats(db, tenant_id)
-            result["total_sessions"] += today_stats["sessions"]
-            result["unique_visitors"] += today_stats["visitors"]
-            result["total_page_views"] += today_stats["page_views"]
-            result["total_item_clicks"] += today_stats["item_clicks"]
-            result["today_sessions"] = today_stats["sessions"]
-            
-            # Update device breakdown
-            for device_type, count in today_stats["devices"].items():
-                result["device_breakdown"][device_type] += count
-        else:
-            result["today_sessions"] = 0
-        
-        # Cache the result
-        cache.set(cache_key, result, 300)  # 5 minutes cache
+        # Cache the result for 5 minutes
+        cache.set(cache_key, result, 300)
         
         return result
     
